@@ -10,12 +10,15 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 
 public class Message implements MessageI {
 	
+	
+	private static final long serialVersionUID = 1L;
 	protected Serializable payload;
 	protected Instant timeStamp;
 	protected HashMap<String, PropertyI> properties;
 	
 	public Message() { 
 		this.properties = new HashMap<String,PropertyI>();
+		this.timeStamp = Instant.now();
 	}
 	
 	private Message(HashMap<String,PropertyI> properties) {
@@ -24,6 +27,7 @@ public class Message implements MessageI {
 	
 	
 
+	
 	@Override
 	public boolean propertyExists(String name) {
 		
@@ -40,7 +44,7 @@ public class Message implements MessageI {
 	public void removeProperty(String name) throws UnknownPropertyException {
 		
 		if(!propertyExists(name)) {
-			String msg = "Cannot remove" + name + "property because it does not exists";
+			String msg = "Cannot remove " + name + " property because it does not exists";
 			throw new UnknownPropertyException(msg);
 		}
 		
@@ -54,7 +58,7 @@ public class Message implements MessageI {
 		if(propertyExists(name)) {
 			return this.properties.get(name);
 		}else {
-			String msg = "Cannot get value of " + name + "property because it does not exists"; 
+			String msg = "Cannot get value of " + name + " property because it does not exists"; 
 			throw new UnknownPropertyException(msg);
 		}
 	}
@@ -68,7 +72,7 @@ public class Message implements MessageI {
 
 	@Override
 	public MessageI copy() {
-		Message copiedMessage = new Message(this.properties);
+		MessageI copiedMessage = new Message(this.properties);
 		copiedMessage.setPayload(this.payload);
 		
 		return copiedMessage;
