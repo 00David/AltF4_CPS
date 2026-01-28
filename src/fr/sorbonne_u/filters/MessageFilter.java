@@ -4,6 +4,9 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI.PropertyI;
 
+/**
+ * Classe contenant l'ensemble des filtres à appliquer aux valeurs des propriétés d'un {@link MessageI}, via la méthode {@code match}.
+ */
 public class MessageFilter implements MessageFilterI{
 
 	private static final long serialVersionUID = -6067517238603360377L;
@@ -12,6 +15,13 @@ public class MessageFilter implements MessageFilterI{
 	private PropertiesFilterI[] propertiesFilters;
 	private TimeFilterI timeFilter;
 	
+	/**
+	 * Construit un filtre de message.
+	 * @param propertyFilters L'ensemble des {@link PropertyFilterI} à appliquer aux valeurs des propriétés des messages.
+	 * @param propertiesFilters L'ensemble des {@link PropertiesFilterI} à appliquer aux valeurs des propriétés des messages.
+	 * @param timeFilter Un {@link TimeFilterI} à appliquer au timestamp du message. Peut être {@code null}.
+	 * @throws IllegalArgumentException si {@code propertyFilters} == {@code null} ou {@code propertiesFilters} == {@code null}.
+	 */
 	public MessageFilter(PropertyFilterI[] propertyFilters, PropertiesFilterI[] propertiesFilters, TimeFilterI timeFilter) {
 		if (propertyFilters == null || propertiesFilters == null) {
 			throw new IllegalArgumentException("An array cannot be null");
