@@ -3,6 +3,7 @@ package fr.sorbonne_u.messages.tests;
 
 
 import fr.sorbonne_u.cps.pubsub.exceptions.UnknownPropertyException;
+import fr.sorbonne_u.cps.pubsub.interfaces.MessageI.PropertyI;
 import fr.sorbonne_u.messages.Message;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
@@ -21,7 +22,25 @@ public class MethodsMessageTest{
 		assertThrows(UnknownPropertyException.class, () -> message.removeProperty("lieu"));
 	}
 	
-	//à faire removeProperty existant
+	
+	
+	@Test
+	public void testRemoveProperty() {
+		Message message = new Message();
+		LocationData data = new LocationData("10248773", "6437392729");
+		LocationProperty ex = new LocationProperty(data);
+		message.putProperty("location", ex);
+		
+		try {
+			message.removeProperty("location");
+		} catch (UnknownPropertyException e) {
+			e.printStackTrace();
+		}
+		
+		assertFalse(message.propertyExists("location"));
+		
+		
+	}
 	
 	@Test
 	public void testGetValueNotExistingProperty() {
@@ -29,7 +48,23 @@ public class MethodsMessageTest{
 		assertThrows(UnknownPropertyException.class, ()-> message.getPropertyValue("lieu"));
 	}
 	
-	//à faire getPropertyValue property existant
+	
+	
+	@Test
+	public void testGetPropertyValue() {
+		Message message = new Message();
+		LocationData data = new LocationData("10248773", "6437392729");
+		LocationProperty ex = new LocationProperty(data);
+		message.putProperty("location", ex);
+		PropertyI value = null;
+		try {
+			value = (PropertyI) message.getPropertyValue("location");
+		} catch (UnknownPropertyException e) {
+			e.printStackTrace();
+		}
+		
+		assertTrue(value instanceof PropertyI);
+	}
 	
 	@Test
 	public void testPropertyNotExists() {
@@ -37,12 +72,42 @@ public class MethodsMessageTest{
 		assertFalse(()-> message.propertyExists("lieu"));
 	}
 	
-	//à faire PropertyExists property existant
 	
-	//à faire PutProperty
+	@Test
+	public void testPropertyExists() {
+		Message message = new Message();
+		LocationData data = new LocationData("10248773", "6437392729");
+		LocationProperty ex = new LocationProperty(data);
+		message.putProperty("location", ex);
+		
+		assertTrue(message.propertyExists("location"));
+	}
 	
 	
-	//à faire getProperties
+	@Test
+	public void testPutProperty() {
+		Message message = new Message();
+		LocationData data = new LocationData("10248773", "6437392729");
+		LocationProperty ex = new LocationProperty(data);
+		message.putProperty("location", ex);
+		
+		assertTrue(message.propertyExists("location"));
+	}
+	
+	
+	
+	@Test
+	public void testGetProperties() {
+		Message message = new Message();
+		LocationData data = new LocationData("10248773", "6437392729");
+		LocationProperty ex = new LocationProperty(data);
+		message.putProperty("location", ex);
+		
+		PropertyI[] properties = message.getProperties();
+		
+		assertNotNull(properties);
+		
+	}
 	
 	@Test
 	public void testGetTimeStamp() {
@@ -74,6 +139,7 @@ public class MethodsMessageTest{
 		message.setPayload(exemple);
 		
 		assertNotNull(message.getPayload());
+		assertTrue(message.getPayload() instanceof Serializable);
 	}
 	
 	public void testCopy() {
