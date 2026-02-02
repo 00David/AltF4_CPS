@@ -29,7 +29,7 @@ public class Message implements MessageI {
 
 	@Override
 	public void putProperty(String name, Serializable value) {
-		this.properties.put(name, (PropertyI) value);
+		this.properties.put(name, new Property(name, value));
 
 	}
 
