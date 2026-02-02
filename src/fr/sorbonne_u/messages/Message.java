@@ -21,13 +21,6 @@ public class Message implements MessageI {
 		this.timeStamp = Instant.now();
 	}
 	
-	private Message(HashMap<String,PropertyI> properties) {
-		this.properties = properties;
-	}
-	
-	
-
-	
 	@Override
 	public boolean propertyExists(String name) {
 		
@@ -36,7 +29,7 @@ public class Message implements MessageI {
 
 	@Override
 	public void putProperty(String name, Serializable value) {
-		this.properties.put(name, new Property(name, value));
+		this.properties.put(name, (PropertyI) value);
 
 	}
 
@@ -70,8 +63,12 @@ public class Message implements MessageI {
 
 	@Override
 	public MessageI copy() {
-		MessageI copiedMessage = new Message(this.properties);
+		Message copiedMessage = new Message();
+		for(PropertyI p : this.properties.values()) {
+			copiedMessage.putProperty(p.getName(), p);
+		}
 		copiedMessage.setPayload(this.payload);
+		copiedMessage.timeStamp = this.timeStamp;
 		
 		return copiedMessage;
 	}
