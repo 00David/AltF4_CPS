@@ -44,7 +44,7 @@ public class Client extends AbstractComponent {
 	protected ClientPublishingOutboundPort publishingOutboundPort;
 	protected ClientReceivingInboundPort receivingInboundPort;
 	
-	
+	private String brokerURI;
 	
 	
 	//constructor
@@ -75,11 +75,6 @@ public class Client extends AbstractComponent {
 	}
 	
 	
-	
-	
-	
-	
-	
 	//-------component life cycle---------
 	@Override
 	public synchronized void start() throws ComponentStartException {
@@ -94,7 +89,7 @@ public class Client extends AbstractComponent {
 		this.logMessage("executing client component");
 		
 		if(!this.registrationOutboundPort.registered(receivingInboundPort.getPortURI())) {
-			String brokerURI = this.registrationOutboundPort.register(receivingInboundPort.getPortURI(), RegistrationClass.FREE);
+			brokerURI = this.registrationOutboundPort.register(receivingInboundPort.getPortURI(), RegistrationClass.FREE);
 		}else {
 			String msg = "Client already registred.";
 			throw new AlreadyRegisteredException(msg);
@@ -105,6 +100,9 @@ public class Client extends AbstractComponent {
 	
 	@Override
 	public synchronized void finalise() throws Exception{
+		this.logMessage("stopping client component");
+		this.printExecutionLogOnFile("consumer");
+		
 		this.doPortDisconnection(registrationOutboundPort.getPortURI());
 		this.doPortDisconnection(publishingOutboundPort.getPortURI());
 		this.doPortDisconnection(receivingInboundPort.getPortURI());
