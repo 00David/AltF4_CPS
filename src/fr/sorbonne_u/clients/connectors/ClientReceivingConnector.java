@@ -10,6 +10,11 @@ import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
  * 
  **/
 
+
+/**
+ * La classe <code>ClientReceivingConnector</code> implemente un connecteur pour le port 
+ * <code>ClientReceivingInboundPort</code>
+ */
 public class ClientReceivingConnector extends AbstractConnector implements ReceivingCI {
 
 	@Override

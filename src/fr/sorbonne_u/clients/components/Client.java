@@ -19,8 +19,20 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 
 /**
  * @author Kevin TANG
+ * @author David VADIMON
  * 
  **/
+
+
+
+
+
+/**
+ * 
+ * La classe <code>Client</code> implemente un composant qui est client du systeme publication/souscription
+ * 
+ */
+
 
 @RequiredInterfaces(required= {RegistrationCI.class,PublishingCI.class})
 @OfferedInterfaces(offered= {ReceivingCI.class})
@@ -31,7 +43,11 @@ public class Client extends AbstractComponent {
 	protected ClientRegistrationOutboundPort registrationOutboundPort;
 	protected ClientPublishingOutboundPort publishingOutboundPort;
 	protected ClientReceivingInboundPort receivingInboundPort;
-
+	
+	
+	
+	
+	//constructor
 	protected Client(String uri,
 			String registrationOutboundPortURI,String publishingOutboundPortURI,String receivingInboundPortURI) throws Exception {
 		super(uri,0,1);
@@ -64,9 +80,9 @@ public class Client extends AbstractComponent {
 	
 	
 	
-	//component life cycle
+	//-------component life cycle---------
 	@Override
-	public void start() throws ComponentStartException {
+	public synchronized void start() throws ComponentStartException {
 		this.logMessage("starting client component");
 		super.start() ;
 	}
@@ -88,13 +104,28 @@ public class Client extends AbstractComponent {
 	
 	
 	@Override
-	public void finalise() throws Exception{
+	public synchronized void finalise() throws Exception{
 		this.doPortDisconnection(registrationOutboundPort.getPortURI());
 		this.doPortDisconnection(publishingOutboundPort.getPortURI());
 		this.doPortDisconnection(receivingInboundPort.getPortURI());
 		
 		super.finalise();
 	}
+
+
+	@Override
+	public synchronized void shutdown() throws ComponentShutdownException {
+		try {
+			this.receivingInboundPort.unpublishPort();
+			this.registrationOutboundPort.unpublishPort();
+			this.publishingOutboundPort.unpublishPort();
+		} catch (Exception e) {
+			throw new ComponentShutdownException(e);
+		}
+		super.shutdown();
+	}
+	
+	
 	
 	
 	

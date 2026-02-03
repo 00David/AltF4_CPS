@@ -12,14 +12,23 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
  * 
  **/
 
+
+/**
+ * La classe <code>ClientRegistrationOutboundPort</code> implemente le port sortant 
+ * pour l'enregistrement du <code>Client</code> sur le canal de messages.
+ */
 public class ClientRegistrationOutboundPort extends AbstractOutboundPort implements RegistrationCI {
-	/**
-	 * 
-	 */
+	
 	private static final long serialVersionUID = 1L;
 
 	public ClientRegistrationOutboundPort(String uri,ComponentI owner) throws Exception {
 		super(uri,RegistrationCI.class,owner);
+	}
+	
+	public ClientRegistrationOutboundPort(ComponentI owner) throws Exception{
+		super(RegistrationCI.class,owner);
+		
+		assert owner != null;
 	}
 
 	@Override

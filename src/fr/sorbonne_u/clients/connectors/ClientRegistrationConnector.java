@@ -10,6 +10,10 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
  * 
  **/
 
+/**
+ * La classe <code>ClientRegistrationConnector</code> implemente un connecteur pour le port 
+ * <code>ClientRegistrationOutboundPort</code> pour lier le port <code>Registration/code> du <code>Broker</code>.
+ */
 public class ClientRegistrationConnector extends AbstractConnector implements RegistrationCI {
 
 	@Override

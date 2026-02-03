@@ -13,14 +13,22 @@ import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
  * 
  **/
 
+
+/**
+ * La classe <code>ClientPublishingOutboundPort</code> implement un port sortant pour la publication de messages.
+ */
 public class ClientPublishingOutboundPort extends AbstractOutboundPort implements PublishingCI{
-	/**
-	 * 
-	 */
+
 	private static final long serialVersionUID = 1L;
 
 	public ClientPublishingOutboundPort(String uri, ComponentI owner) throws Exception {
 		super(uri,PublishingCI.class,owner);
+		assert	uri != null && owner != null ;
+	}
+	
+	public ClientPublishingOutboundPort(ComponentI owner) throws Exception{
+		super(PublishingCI.class,owner);
+		assert	owner != null ;
 	}
 
 	@Override
