@@ -5,16 +5,12 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 
 /**
+ * La classe <code>ClientRegistrationServiceConnector</code> implemente un connecteur pour le port 
+ * <code>ClientRegistrationOutboundPort</code> pour lier le port <code>Registration/code> du <code>Broker</code>.
  * @author Kevin TANG
  * @author David VADIMON
- * 
- **/
-
-/**
- * La classe <code>ClientRegistrationConnector</code> implemente un connecteur pour le port 
- * <code>ClientRegistrationOutboundPort</code> pour lier le port <code>Registration/code> du <code>Broker</code>.
  */
-public class ClientRegistrationConnector extends AbstractConnector implements RegistrationCI {
+public class ClientRegistrationServiceConnector extends AbstractConnector implements RegistrationCI {
 
 	@Override
 	public boolean registered(String receptionPortURI) throws Exception {

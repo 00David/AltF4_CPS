@@ -2,19 +2,19 @@ package fr.sorbonne_u.broker.components;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import fr.sorbonne_u.broker.connectors.ReceivingServiceConnector;
-import fr.sorbonne_u.broker.ports.BrokerOutboundPort;
+import fr.sorbonne_u.broker.connectors.BrokerReceivingServiceConnector;
+import fr.sorbonne_u.broker.ports.BrokerReceivingOutboundPort;
 import fr.sorbonne_u.broker.ports.BrokerPublishingInboundPort;
 import fr.sorbonne_u.broker.ports.BrokerRegistrationInboundPort;
 import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.annotations.OfferedInterfaces;
 import fr.sorbonne_u.components.annotations.RequiredInterfaces;
 import fr.sorbonne_u.components.cvm.AbstractCVM;
-import fr.sorbonne_u.components.exceptions.ComponentShutdownException;
 import fr.sorbonne_u.components.exceptions.ComponentStartException;
 import fr.sorbonne_u.components.ports.PortI;
 import fr.sorbonne_u.cps.pubsub.exceptions.AlreadyRegisteredException;
@@ -51,11 +51,13 @@ public class Broker extends AbstractComponent{
 	//--------------------------------------------------------------------------
 	
 	// Port entrant d'enregistrement du broker, obtenu par la méthode static 'registrationPortURI'
-	private static final String registrationPortURI = "registration-port-broker";
+	private static final String registrationPortURI = "registration-inbound--port-broker";
+	private BrokerRegistrationInboundPort registrationPort;
 	public static String registrationPortURI() { return registrationPortURI;}
 	
 	// Port entrant de publication du broker, obtenu par l'enregistrement d'un port entrant de client
-	private static final String publishingPortURI = "publishing-port-broker";
+	private static final String publishingPortURI = "publishing-inbound-port-broker";
+	private BrokerPublishingInboundPort publishingPort;
 	
 	// Utilisé pour un channel : paire port d'un client abonné + filtre sur le channel
 	// La paire n'est identifiée QUE par le port du client
@@ -86,7 +88,7 @@ public class Broker extends AbstractComponent{
 	private Map<String, RegistrationClass> registeredReceptionPorts = new HashMap<>(); 
 	
 	// Association : port entrant d'un client (URI) -> port sortant vers CE client
-	private Map<String, BrokerOutboundPort> registeredDeliveryPorts = new HashMap<>(); 
+	private Map<String, BrokerReceivingOutboundPort> registeredDeliveryPorts = new HashMap<>(); 
 	
 	// Association : nom d'un channel -> un ensemble de ports entrants (URIs) de clients abonnés au channel
 	private Map<String, Set<ClientChannelFilter>> channels = new HashMap<>();
@@ -109,12 +111,18 @@ public class Broker extends AbstractComponent{
 	
 	protected Broker() throws Exception {
 		super(1, 0);
-
-		PortI pRegistration = new BrokerRegistrationInboundPort(registrationPortURI, this);
-		pRegistration.publishPort();
 		
-		PortI pPublishing = new BrokerPublishingInboundPort(publishingPortURI, this);
-		pPublishing.publishPort();
+		// CREATION STATIQUE DE 2 CHANNELS
+		channels.put("Channel1", new HashSet<>());
+		channelsMessages.put("Channel1", new ArrayList<>());
+		channels.put("Channel2", new HashSet<>());
+		channelsMessages.put("Channel2", new ArrayList<>());
+
+		this.registrationPort = new BrokerRegistrationInboundPort(registrationPortURI, this);
+		this.registrationPort.publishPort();
+		
+		this.publishingPort = new BrokerPublishingInboundPort(publishingPortURI, this);
+		this.publishingPort.publishPort();
 
 		Broker.checkInvariant(this) ;
 		AbstractComponent.checkImplementationInvariant(this);
@@ -156,56 +164,34 @@ public class Broker extends AbstractComponent{
 	//--------------------------------------------------------------------------
 
 	@Override
-	public void			start() throws ComponentStartException
-	{
+	public synchronized void start() throws ComponentStartException {
 		this.logMessage("starting Broker component.");
 		super.start();
 	}
 
 	@Override
-	public void			finalise() throws Exception
-	{
+	public synchronized void finalise() throws Exception {
 		this.logMessage("stopping Broker component.");
 		
 		// On déconnecte + unpublish tous les ports sortants liés aux clients enregistrés
-		for (Map.Entry<String, BrokerOutboundPort> entry : registeredDeliveryPorts.entrySet()) {
-			BrokerOutboundPort outboundPort = entry.getValue();
+		for (Map.Entry<String, BrokerReceivingOutboundPort> entry : registeredDeliveryPorts.entrySet()) {
+			BrokerReceivingOutboundPort outboundPort = entry.getValue();
 			this.doPortDisconnection(outboundPort.getPortURI());
 			outboundPort.unpublishPort();
 		}
+		
+		// On unpublish les 2 ports entrants
+		/*PortI[] p;
+		p = this.findPortsFromInterface(RegistrationCI.class);
+		p[0].unpublishPort();
+
+		p = this.findPortsFromInterface(PublishingCI.class);
+		p[0].unpublishPort();*/
+		
+		this.registrationPort.unpublishPort();
+		this.publishingPort.unpublishPort();
+		
 		super.finalise();
-	}
-
-	@Override
-	public void			shutdown() throws ComponentShutdownException
-	{
-		PortI[] p;
-		try {
-			p = this.findPortsFromInterface(RegistrationCI.class);
-			p[0].unpublishPort();
-
-			p = this.findPortsFromInterface(PublishingCI.class);
-			p[0].unpublishPort();
-		} catch (Throwable e) {
-			throw new ComponentShutdownException(e);
-		}
-		super.shutdown();
-	}
-
-	@Override
-	public void			shutdownNow() throws ComponentShutdownException
-	{
-		PortI[] p;
-		try {
-			p = this.findPortsFromInterface(RegistrationCI.class);
-			p[0].unpublishPort();
-
-			p = this.findPortsFromInterface(PublishingCI.class);
-			p[0].unpublishPort();
-		} catch (Throwable e) {
-			throw new ComponentShutdownException(e);
-		}
-		super.shutdownNow();
 	}
 	
 	//--------------------------------------------------------------------------
@@ -273,12 +259,12 @@ public class Broker extends AbstractComponent{
 		registeredReceptionPorts.put(receptionPortURI, rc);
 		
 		// On ajoute l'URI du port entrant dans la map l'associant au nouveau port sortant associé du Broker
-		BrokerOutboundPort outboundPort = new BrokerOutboundPort("BrokerOutboundPort-"+receptionPortURI, this);
+		BrokerReceivingOutboundPort outboundPort = new BrokerReceivingOutboundPort("BrokerOutboundPort-"+receptionPortURI, this);
 		registeredDeliveryPorts.put(receptionPortURI, outboundPort);
 		outboundPort.localPublishPort() ;
 		
 		// On connecte le port sortant créé au port entrant donné
-		this.doPortConnection(outboundPort.getPortURI(), receptionPortURI, ReceivingServiceConnector.class.getCanonicalName());
+		this.doPortConnection(outboundPort.getPortURI(), receptionPortURI, BrokerReceivingServiceConnector.class.getCanonicalName());
 		
 		// Vérification de la postcondition
 		assert(registeredService(receptionPortURI, null));
@@ -347,7 +333,7 @@ public class Broker extends AbstractComponent{
 		registeredReceptionPorts.remove(receptionPortURI);
 		
 		// On supprime de la map l'association avec un port sortant du Broker
-		BrokerOutboundPort outboundPort = registeredDeliveryPorts.remove(receptionPortURI);
+		BrokerReceivingOutboundPort outboundPort = registeredDeliveryPorts.remove(receptionPortURI);
 		
 		// On déconnecte le port sortant du port entrant donné
 		this.doPortDisconnection(outboundPort.getPortURI());
@@ -555,7 +541,7 @@ public class Broker extends AbstractComponent{
 		this.logMessage("Broker received messages from " + receptionPortURI) ;
 		
 		// On met les messages dans le channel
-		channelsMessages.get(receptionPortURI).addAll(messages);
+		channelsMessages.get(channel).addAll(messages);
 		
 		// On envoie les messages aux clients concernés du channel
 		for (ClientChannelFilter ccf : channels.get(channel)) {
@@ -563,13 +549,13 @@ public class Broker extends AbstractComponent{
 			for(MessageI msg : messages) {
 				if (ccf.filter.match(msg)){
 					this.logMessage("Broker sending message to " + ccf.clientPortURI) ;
-					BrokerOutboundPort outboundPort = registeredDeliveryPorts.get(ccf.clientPortURI);
+					BrokerReceivingOutboundPort outboundPort = registeredDeliveryPorts.get(ccf.clientPortURI);
 					this.runTask(
 							new AbstractComponent.AbstractTask() {
 								@Override
 								public void run() {
 									try {
-										outboundPort.receive(channel, msg);
+										outboundPort.receive(channel, msg); // 1 message par envoi pour l'instant
 									} catch (Throwable e) {
 										e.printStackTrace();
 									}

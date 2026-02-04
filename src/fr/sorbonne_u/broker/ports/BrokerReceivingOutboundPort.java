@@ -13,7 +13,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
  * @author Kevin Tang
  * @author David Vadimon
  */
-public class BrokerOutboundPort
+public class BrokerReceivingOutboundPort
 	extends		AbstractOutboundPort
 	implements	ReceivingCI{
 	
@@ -32,7 +32,7 @@ public class BrokerOutboundPort
 	 * @param uri          l'URI du port.
 	 * @param owner        Le composant possesseur du port.
 	 */
-	public BrokerOutboundPort(String uri, ComponentI owner) throws Exception {
+	public BrokerReceivingOutboundPort(String uri, ComponentI owner) throws Exception {
 		super(uri, ReceivingCI.class, owner) ;
 		// Vérification des préconditions
 		assert(uri != null);

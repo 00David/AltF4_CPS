@@ -1,36 +1,30 @@
 package fr.sorbonne_u.clients.components;
 
-import java.nio.channels.AlreadyConnectedException;
-
+import fr.sorbonne_u.broker.components.Broker;
+import fr.sorbonne_u.clients.connectors.ClientPublishingServiceConnector;
+import fr.sorbonne_u.clients.connectors.ClientRegistrationServiceConnector;
 import fr.sorbonne_u.clients.ports.ClientPublishingOutboundPort;
 import fr.sorbonne_u.clients.ports.ClientReceivingInboundPort;
 import fr.sorbonne_u.clients.ports.ClientRegistrationOutboundPort;
 import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.annotations.OfferedInterfaces;
 import fr.sorbonne_u.components.annotations.RequiredInterfaces;
-import fr.sorbonne_u.components.cvm.AbstractCVM;
-import fr.sorbonne_u.components.exceptions.ComponentShutdownException;
 import fr.sorbonne_u.components.exceptions.ComponentStartException;
-import fr.sorbonne_u.cps.pubsub.exceptions.AlreadyRegisteredException;
+import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.PropertiesFilterI;
+import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.PropertyFilterI;
+import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
-
-/**
- * @author Kevin TANG
- * @author David VADIMON
- * 
- **/
-
-
-
-
+import fr.sorbonne_u.filters.MessageFilter;
+import fr.sorbonne_u.messages.Message;
 
 /**
  * 
  * La classe <code>Client</code> implemente un composant qui est client du systeme publication/souscription
- * 
+ * @author Kevin TANG
+ * @author David VADIMON
  */
 
 
@@ -44,29 +38,26 @@ public class Client extends AbstractComponent {
 	protected ClientPublishingOutboundPort publishingOutboundPort;
 	protected ClientReceivingInboundPort receivingInboundPort;
 	
-	private String brokerURI;
+	private String brokerPublishingPortURI = null; // Si != null, ça veut dire que l'on s'est connecté au port de publication
 	
+	//--------------------------------------------------------------------------
+	// Constructor
+	//--------------------------------------------------------------------------
 	
-	//constructor
-	protected Client(String uri,
-			String registrationOutboundPortURI,String publishingOutboundPortURI,String receivingInboundPortURI) throws Exception {
-		super(uri,0,1);
+	protected Client(String registrationOutboundPortURI,String publishingOutboundPortURI,String receivingInboundPortURI) throws Exception {
+		super(1,0);
 		
 		//initializing outbound and inbound ports
 		this.registrationOutboundPort = new ClientRegistrationOutboundPort(registrationOutboundPortURI, this);
 		this.publishingOutboundPort = new ClientPublishingOutboundPort(publishingOutboundPortURI, this);
 		this.receivingInboundPort = new ClientReceivingInboundPort(receivingInboundPortURI, this);
 		
-		//publish outbound ports
+		//publish ports
 		this.registrationOutboundPort.localPublishPort();
-		this.receivingInboundPort.localPublishPort();
+		this.publishingOutboundPort.localPublishPort();
+		this.receivingInboundPort.publishPort();
 		
-		if (AbstractCVM.isDistributed) {
-			this.getLogger().setDirectory(System.getProperty("user.dir")) ;
-		} else {
-			this.getLogger().setDirectory(System.getProperty("user.home")) ;
-		}
-		this.getTracer().setTitle("consumer") ;
+		this.getTracer().setTitle("Client") ;
 		this.getTracer().setRelativePosition(1, 1) ;
 
 		AbstractComponent.checkImplementationInvariant(this);
@@ -74,12 +65,24 @@ public class Client extends AbstractComponent {
 		
 	}
 	
+	//--------------------------------------------------------------------------
+	// Component life-cycle
+	//--------------------------------------------------------------------------
 	
-	//-------component life cycle---------
 	@Override
 	public synchronized void start() throws ComponentStartException {
 		this.logMessage("starting client component");
-		super.start() ;
+		
+		// On connecte le port d'enregistrement
+		try {
+			this.doPortConnection(this.registrationOutboundPort.getPortURI(),
+					  Broker.registrationPortURI(),
+					  ClientRegistrationServiceConnector.class.getCanonicalName());
+		} catch (Throwable e) {
+			throw new ComponentStartException(e) ;
+		}
+		
+		super.start();
 	}
 		
 	
@@ -88,45 +91,81 @@ public class Client extends AbstractComponent {
 		super.execute();
 		this.logMessage("executing client component");
 		
-		if(!this.registrationOutboundPort.registered(receivingInboundPort.getPortURI())) {
-			brokerURI = this.registrationOutboundPort.register(receivingInboundPort.getPortURI(), RegistrationClass.FREE);
-		}else {
-			String msg = "Client already registred.";
-			throw new AlreadyRegisteredException(msg);
-		}
-		
+		this.runTask(
+				new AbstractComponent.AbstractTask() {
+					@Override
+					public void run() {
+						try {
+							((Client)this.getTaskOwner()).exampleSendMessage() ;
+						} catch (Throwable e) {
+							e.printStackTrace();
+						}
+					}
+				}) ;
 	}
 	
 	
 	@Override
 	public synchronized void finalise() throws Exception{
 		this.logMessage("stopping client component");
-		this.printExecutionLogOnFile("consumer");
 		
+		// On déconnecte le port d'enregistrement
 		this.doPortDisconnection(registrationOutboundPort.getPortURI());
-		this.doPortDisconnection(publishingOutboundPort.getPortURI());
-		this.doPortDisconnection(receivingInboundPort.getPortURI());
+		
+		// On déconnecte le port de publication, si l'on s'est connecté
+		if (brokerPublishingPortURI != null) this.doPortDisconnection(publishingOutboundPort.getPortURI());
+		
+		// On unpublish les ports
+		this.registrationOutboundPort.unpublishPort();
+		this.receivingInboundPort.unpublishPort();
+		this.publishingOutboundPort.unpublishPort();
 		
 		super.finalise();
 	}
-
-
-	@Override
-	public synchronized void shutdown() throws ComponentShutdownException {
-		try {
-			this.receivingInboundPort.unpublishPort();
-			this.registrationOutboundPort.unpublishPort();
-			this.publishingOutboundPort.unpublishPort();
-		} catch (Exception e) {
-			throw new ComponentShutdownException(e);
+	
+	//--------------------------------------------------------------------------
+	// Exemple d'execution d'un client
+	//--------------------------------------------------------------------------
+	
+	public void exampleSendMessage() throws Exception {
+		if(!this.registrationOutboundPort.registered(receivingInboundPort.getPortURI())) {
+			// On s'enregistre et on récupère l'URI du port entrant de publication du Broker
+			brokerPublishingPortURI = this.registrationOutboundPort.register(receivingInboundPort.getPortURI(), RegistrationClass.FREE);
+			
+			// On connecte le port de publication
+			this.doPortConnection(this.publishingOutboundPort.getPortURI(),
+					brokerPublishingPortURI,
+					ClientPublishingServiceConnector.class.getCanonicalName());
+			
+			// On s'enregistre sur un channel existant
+			this.registrationOutboundPort.subscribe(
+					receivingInboundPort.getPortURI(), 
+					"Channel1", 
+					new MessageFilter(new PropertyFilterI[0], new PropertiesFilterI[0], null)); // Filtre vide
+			
+			// On envoie un message au channel
+			Message msg = new Message();
+			msg.setPayload("Voici un message");
+			this.publishingOutboundPort.publish(receivingInboundPort.getPortURI(), "Channel1", msg);
 		}
-		super.shutdown();
+	}
+
+	//--------------------------------------------------------------------------
+	// Component internal services
+	//--------------------------------------------------------------------------
+	
+	public Void receiveService(String channel, MessageI message) {
+		this.logMessage("Client received message '" + message + "' from the channel : " + channel);
+		return null;
 	}
 	
-	
-	
-	
-	
-	
-
+	public Void receiveService(String channel, MessageI[] messages) {
+		this.logMessage("Client received multiple messages from the channel : " + channel);
+		int i = 1;
+		for (MessageI msg : messages) {
+			this.logMessage("Message " + i + " : " + msg);
+			i++;
+		}
+		return null;
+	}
 }

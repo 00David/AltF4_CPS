@@ -3,7 +3,6 @@ package fr.sorbonne_u.messages;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.HashMap;
-import java.util.Map;
 
 import fr.sorbonne_u.cps.pubsub.exceptions.UnknownPropertyException;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
@@ -191,6 +190,15 @@ public class Message implements MessageI {
 	@Override
 	public Instant getTimeStamp() {
 		return this.timeStamp;
+	}
+	
+	@Override
+	public String toString() {
+		if (this.payload != null) {
+			return this.payload.toString();
+		} else {
+			return super.toString();
+		}
 	}
 
 }

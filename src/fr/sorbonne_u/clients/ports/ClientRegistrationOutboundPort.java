@@ -7,15 +7,10 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 
 /**
- * @author Kevin TANG
- * @author David VADIMON
- * 
- **/
-
-
-/**
  * La classe <code>ClientRegistrationOutboundPort</code> implemente le port sortant 
  * pour l'enregistrement du <code>Client</code> sur le canal de messages.
+ * @author Kevin TANG
+ * @author David VADIMON
  */
 public class ClientRegistrationOutboundPort extends AbstractOutboundPort implements RegistrationCI {
 	

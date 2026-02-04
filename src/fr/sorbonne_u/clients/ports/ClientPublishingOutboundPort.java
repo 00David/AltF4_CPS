@@ -8,14 +8,9 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 
 /**
+ * La classe <code>ClientPublishingOutboundPort</code> implement un port sortant pour la publication de messages.
  * @author Kevin TANG
  * @author David VADIMON
- * 
- **/
-
-
-/**
- * La classe <code>ClientPublishingOutboundPort</code> implement un port sortant pour la publication de messages.
  */
 public class ClientPublishingOutboundPort extends AbstractOutboundPort implements PublishingCI{
 
