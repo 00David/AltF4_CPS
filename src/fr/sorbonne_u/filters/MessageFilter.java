@@ -6,6 +6,9 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI.PropertyI;
 
 /**
  * Classe contenant l'ensemble des filtres à appliquer aux valeurs des propriétés d'un {@link MessageI}, via la méthode {@code match}.
+ * 
+ * @author Kevin Tang
+ * @author David Vadimon
  */
 public class MessageFilter implements MessageFilterI{
 
