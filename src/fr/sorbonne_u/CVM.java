@@ -71,7 +71,7 @@ public class CVM extends AbstractCVM {
 		try {
 			CVM a = new CVM() ;
 			
-			long duree = 20000L; // en ms, durée d'execution
+			long duree = 15000L; // en ms, durée d'execution
 			a.startStandardLifeCycle(duree) ; // démarrage
 
 			System.exit(0) ;

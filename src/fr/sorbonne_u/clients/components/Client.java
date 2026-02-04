@@ -9,6 +9,7 @@ import fr.sorbonne_u.clients.ports.ClientRegistrationOutboundPort;
 import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.annotations.OfferedInterfaces;
 import fr.sorbonne_u.components.annotations.RequiredInterfaces;
+import fr.sorbonne_u.components.exceptions.ComponentShutdownException;
 import fr.sorbonne_u.components.exceptions.ComponentStartException;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.PropertiesFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.PropertyFilterI;
@@ -115,12 +116,22 @@ public class Client extends AbstractComponent {
 		// On déconnecte le port de publication, si l'on s'est connecté
 		if (brokerPublishingPortURI != null) this.doPortDisconnection(publishingOutboundPort.getPortURI());
 		
-		// On unpublish les ports
-		this.registrationOutboundPort.unpublishPort();
-		this.receivingInboundPort.unpublishPort();
-		this.publishingOutboundPort.unpublishPort();
-		
 		super.finalise();
+	}
+	
+	@Override
+	public synchronized void shutdown() throws ComponentShutdownException {
+		
+		try {
+			// On unpublish les ports
+			this.registrationOutboundPort.unpublishPort();
+			this.receivingInboundPort.unpublishPort();
+			this.publishingOutboundPort.unpublishPort();
+		} catch (Throwable e) {
+			throw new ComponentShutdownException(e);
+		}
+		
+		super.shutdown();
 	}
 	
 	//--------------------------------------------------------------------------

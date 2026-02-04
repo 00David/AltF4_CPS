@@ -15,6 +15,7 @@ import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.annotations.OfferedInterfaces;
 import fr.sorbonne_u.components.annotations.RequiredInterfaces;
 import fr.sorbonne_u.components.cvm.AbstractCVM;
+import fr.sorbonne_u.components.exceptions.ComponentShutdownException;
 import fr.sorbonne_u.components.exceptions.ComponentStartException;
 import fr.sorbonne_u.components.ports.PortI;
 import fr.sorbonne_u.cps.pubsub.exceptions.AlreadyRegisteredException;
@@ -173,25 +174,40 @@ public class Broker extends AbstractComponent{
 	public synchronized void finalise() throws Exception {
 		this.logMessage("stopping Broker component.");
 		
-		// On déconnecte + unpublish tous les ports sortants liés aux clients enregistrés
+		// On déconnecte tous les ports sortants liés aux clients enregistrés
 		for (Map.Entry<String, BrokerReceivingOutboundPort> entry : registeredDeliveryPorts.entrySet()) {
 			BrokerReceivingOutboundPort outboundPort = entry.getValue();
 			this.doPortDisconnection(outboundPort.getPortURI());
-			outboundPort.unpublishPort();
 		}
 		
-		// On unpublish les 2 ports entrants
-		/*PortI[] p;
-		p = this.findPortsFromInterface(RegistrationCI.class);
-		p[0].unpublishPort();
-
-		p = this.findPortsFromInterface(PublishingCI.class);
-		p[0].unpublishPort();*/
-		
-		this.registrationPort.unpublishPort();
-		this.publishingPort.unpublishPort();
-		
 		super.finalise();
+	}
+	
+	@Override
+	public synchronized void shutdown() throws ComponentShutdownException {
+		
+		try {
+			// On unpublish tous les ports sortants liés aux clients enregistrés
+			for (Map.Entry<String, BrokerReceivingOutboundPort> entry : registeredDeliveryPorts.entrySet()) {
+				BrokerReceivingOutboundPort outboundPort = entry.getValue();
+				outboundPort.unpublishPort();
+				
+			}
+		
+			// On unpublish les 2 ports entrants
+			/*PortI[] p;
+			p = this.findPortsFromInterface(RegistrationCI.class);
+			p[0].unpublishPort();
+	
+			p = this.findPortsFromInterface(PublishingCI.class);
+			p[0].unpublishPort();*/
+			this.registrationPort.unpublishPort();
+			this.publishingPort.unpublishPort();
+		} catch (Throwable e) {
+			throw new ComponentShutdownException(e);
+		}
+		
+		super.shutdown();
 	}
 	
 	//--------------------------------------------------------------------------
