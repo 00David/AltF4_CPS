@@ -1,7 +1,6 @@
 package fr.sorbonne_u.clients.components;
 
 import fr.sorbonne_u.broker.components.Broker;
-import fr.sorbonne_u.clients.connectors.ClientPublishingServiceConnector;
 import fr.sorbonne_u.clients.connectors.ClientRegistrationServiceConnector;
 import fr.sorbonne_u.clients.ports.ClientPublishingOutboundPort;
 import fr.sorbonne_u.clients.ports.ClientReceivingInboundPort;
@@ -11,15 +10,10 @@ import fr.sorbonne_u.components.annotations.OfferedInterfaces;
 import fr.sorbonne_u.components.annotations.RequiredInterfaces;
 import fr.sorbonne_u.components.exceptions.ComponentShutdownException;
 import fr.sorbonne_u.components.exceptions.ComponentStartException;
-import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.PropertiesFilterI;
-import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.PropertyFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
-import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
-import fr.sorbonne_u.filters.MessageFilter;
-import fr.sorbonne_u.messages.Message;
 
 /**
  * 
@@ -33,7 +27,7 @@ import fr.sorbonne_u.messages.Message;
 @OfferedInterfaces(offered= {ReceivingCI.class})
 
 
-public class Client extends AbstractComponent {
+public abstract class Client extends AbstractComponent {
 	
 	protected ClientRegistrationOutboundPort registrationOutboundPort;
 	protected ClientPublishingOutboundPort publishingOutboundPort;
@@ -85,26 +79,6 @@ public class Client extends AbstractComponent {
 		
 		super.start();
 	}
-		
-	
-	@Override
-	public void execute() throws Exception{
-		super.execute();
-		this.logMessage("executing client component");
-		
-		this.runTask(
-				new AbstractComponent.AbstractTask() {
-					@Override
-					public void run() {
-						try {
-							((Client)this.getTaskOwner()).exampleSendMessage() ;
-						} catch (Throwable e) {
-							e.printStackTrace();
-						}
-					}
-				}) ;
-	}
-	
 	
 	@Override
 	public synchronized void finalise() throws Exception{
@@ -132,33 +106,6 @@ public class Client extends AbstractComponent {
 		}
 		
 		super.shutdown();
-	}
-	
-	//--------------------------------------------------------------------------
-	// Exemple d'execution d'un client
-	//--------------------------------------------------------------------------
-	
-	public void exampleSendMessage() throws Exception {
-		if(!this.registrationOutboundPort.registered(receivingInboundPort.getPortURI())) {
-			// On s'enregistre et on récupère l'URI du port entrant de publication du Broker
-			brokerPublishingPortURI = this.registrationOutboundPort.register(receivingInboundPort.getPortURI(), RegistrationClass.FREE);
-			
-			// On connecte le port de publication
-			this.doPortConnection(this.publishingOutboundPort.getPortURI(),
-					brokerPublishingPortURI,
-					ClientPublishingServiceConnector.class.getCanonicalName());
-			
-			// On s'enregistre sur un channel existant
-			this.registrationOutboundPort.subscribe(
-					receivingInboundPort.getPortURI(), 
-					"Channel1", 
-					new MessageFilter(new PropertyFilterI[0], new PropertiesFilterI[0], null)); // Filtre vide
-			
-			// On envoie un message au channel
-			Message msg = new Message();
-			msg.setPayload("Voici un message");
-			this.publishingOutboundPort.publish(receivingInboundPort.getPortURI(), "Channel1", msg);
-		}
 	}
 
 	//--------------------------------------------------------------------------
