@@ -53,8 +53,14 @@ public class ClientRegistrationOutboundPort extends AbstractOutboundPort impleme
 	}
 
 	@Override
-	public boolean channelExists(String channel) throws Exception {
-		return ((RegistrationCI)this.getConnector()).channelExists(channel);
+	public boolean channelExist(String channel) throws Exception {
+		return ((RegistrationCI)this.getConnector()).channelExist(channel);
+	}
+	
+	@Override
+	public boolean channelAuthorised(String receptionPortURI, String channel) throws Exception {
+		// TODO Auto-generated method stub
+		return false;
 	}
 
 	@Override

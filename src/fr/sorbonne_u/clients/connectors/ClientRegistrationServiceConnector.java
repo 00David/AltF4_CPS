@@ -39,13 +39,19 @@ public class ClientRegistrationServiceConnector extends AbstractConnector implem
 	}
 
 	@Override
-	public boolean channelExists(String channel) throws Exception {
-		return ((RegistrationCI)this.offering).channelExists(channel);
+	public boolean channelExist(String channel) throws Exception {
+		return ((RegistrationCI)this.offering).channelExist(channel);
+	}
+	
+	@Override
+	public boolean channelAuthorised(String receptionPortURI, String channel) throws Exception {
+		// TODO Auto-generated method stub
+		return false;
 	}
 
 	@Override
 	public boolean subscribed(String receptionPortURI, String channel) throws Exception {
-		return ((RegistrationCI)this.offering).channelExists(channel);
+		return ((RegistrationCI)this.offering).channelExist(channel);
 	}
 
 	@Override

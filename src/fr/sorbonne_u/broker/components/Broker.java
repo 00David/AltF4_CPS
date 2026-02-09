@@ -17,11 +17,10 @@ import fr.sorbonne_u.components.annotations.RequiredInterfaces;
 import fr.sorbonne_u.components.cvm.AbstractCVM;
 import fr.sorbonne_u.components.exceptions.ComponentShutdownException;
 import fr.sorbonne_u.components.exceptions.ComponentStartException;
-import fr.sorbonne_u.components.ports.PortI;
 import fr.sorbonne_u.cps.pubsub.exceptions.AlreadyRegisteredException;
 import fr.sorbonne_u.cps.pubsub.exceptions.NotSubscribedChannelException;
 import fr.sorbonne_u.cps.pubsub.exceptions.UnknownChannelException;
-import fr.sorbonne_u.cps.pubsub.exceptions.UnknownIdentifierException;
+import fr.sorbonne_u.cps.pubsub.exceptions.UnknownClientException;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
@@ -336,12 +335,12 @@ public class Broker extends AbstractComponent{
 	 * @throws Exception                       If there is a problem while disconnecting outbound port and {@code receptionPortURI}.
 	 */
 	public Void unregisterService(String receptionPortURI) 
-			throws UnknownIdentifierException, Exception {
+			throws UnknownClientException, Exception {
 		// Vérification des préconditions
 		assert(receptionPortURI != null);
 		assert(!receptionPortURI.isEmpty());
 		
-		if (!registeredService(receptionPortURI, null)) throw new UnknownIdentifierException("Client not registered.");
+		if (!registeredService(receptionPortURI, null)) throw new UnknownClientException("Client not registered.");
 		
 		this.logMessage("Broker unregistering " + receptionPortURI) ;
 		
@@ -350,7 +349,7 @@ public class Broker extends AbstractComponent{
 		
 		// On supprime de la map l'association avec un port sortant du Broker
 		BrokerReceivingOutboundPort outboundPort = registeredDeliveryPorts.remove(receptionPortURI);
-		
+
 		// On déconnecte le port sortant du port entrant donné
 		this.doPortDisconnection(outboundPort.getPortURI());
 		
@@ -378,7 +377,7 @@ public class Broker extends AbstractComponent{
 	 * @param channel		name of a potential channel.
 	 * @return				true if {@code channel} exists, otherwise false.
 	 */
-	public boolean channelExistsService(String channel) {
+	public boolean channelExistService(String channel) {
 		// Vérification des préconditions
 		assert(channel != null);
 		assert(!channel.isEmpty());
@@ -410,8 +409,8 @@ public class Broker extends AbstractComponent{
 		assert(channel != null);
 		assert(!channel.isEmpty());
 		
-		if (!registeredService(receptionPortURI, null)) throw new UnknownIdentifierException("Client not registered.");
-		if (!channelExistsService(channel)) throw new UnknownChannelException("Channel doesn't exist.");
+		if (!registeredService(receptionPortURI, null)) throw new UnknownClientException("Client not registered.");
+		if (!channelExistService(channel)) throw new UnknownChannelException("Channel doesn't exist.");
 		
 		return channels.get(channel).contains(new ClientChannelFilter(receptionPortURI, null));
 	}
@@ -434,7 +433,7 @@ public class Broker extends AbstractComponent{
 	 * @throws UnknownChannelException     If the {@code channel} doesn't exist.
 	 */
 	public Void subscribeService(String receptionPortURI, String channel, MessageFilterI filter) 
-			throws UnknownIdentifierException, UnknownChannelException {
+			throws UnknownClientException, UnknownChannelException {
 		// Vérification des préconditions
 		assert(receptionPortURI != null);
 		assert(!receptionPortURI.isEmpty());
@@ -442,8 +441,8 @@ public class Broker extends AbstractComponent{
 		assert(!channel.isEmpty());
 		assert(filter != null);
 		
-		if (!registeredService(receptionPortURI, null)) throw new UnknownIdentifierException("Client not registered.");
-		if (!channelExistsService(channel)) throw new UnknownChannelException("Channel doesn't exist.");
+		if (!registeredService(receptionPortURI, null)) throw new UnknownClientException("Client not registered.");
+		if (!channelExistService(channel)) throw new UnknownChannelException("Channel doesn't exist.");
 		
 		this.logMessage("Broker subscribing " + receptionPortURI + " to channel "+ channel) ;
 		
@@ -475,8 +474,8 @@ public class Broker extends AbstractComponent{
 		assert(channel != null);
 		assert(!channel.isEmpty());
 		
-		if (!registeredService(receptionPortURI, null)) throw new UnknownIdentifierException("Client not registered.");
-		if (!channelExistsService(channel)) throw new UnknownChannelException("Channel doesn't exist.");
+		if (!registeredService(receptionPortURI, null)) throw new UnknownClientException("Client not registered.");
+		if (!channelExistService(channel)) throw new UnknownChannelException("Channel doesn't exist.");
 		if (!subscribedService(receptionPortURI, channel)) throw new NotSubscribedChannelException("Not subscribed to '"+channel+"' channel.");
 		
 		this.logMessage("Broker unsubscribing " + receptionPortURI + " from channel "+ channel) ;
@@ -512,8 +511,8 @@ public class Broker extends AbstractComponent{
 		assert(channel != null);
 		assert(!channel.isEmpty());
 		
-		if (!registeredService(receptionPortURI, null)) throw new UnknownIdentifierException("Client not registered.");
-		if (!channelExistsService(channel)) throw new UnknownChannelException("Channel doesn't exist.");
+		if (!registeredService(receptionPortURI, null)) throw new UnknownClientException("Client not registered.");
+		if (!channelExistService(channel)) throw new UnknownChannelException("Channel doesn't exist.");
 		if (!subscribedService(receptionPortURI, channel)) throw new NotSubscribedChannelException("Not subscribed to '"+channel+"' channel.");
 		
 		channels.get(channel).add(new ClientChannelFilter(receptionPortURI, filter));
@@ -542,7 +541,7 @@ public class Broker extends AbstractComponent{
 	 * @throws UnknownChannelException     If the {@code channel} doesn't exist.
 	 */
 	public Void publishService(String receptionPortURI, String channel, ArrayList<MessageI> messages) 
-			throws UnknownIdentifierException, UnknownChannelException {
+			throws UnknownClientException, UnknownChannelException {
 		// Vérification des préconditions
 		assert(receptionPortURI != null);
 		assert(!receptionPortURI.isEmpty());
@@ -551,8 +550,8 @@ public class Broker extends AbstractComponent{
 		assert(messages != null);
 		assert(messages.size() > 0);
 		
-		if (!registeredService(receptionPortURI, null)) throw new UnknownIdentifierException("Client not registered.");
-		if (!channelExistsService(channel)) throw new UnknownChannelException("Channel doesn't exist.");
+		if (!registeredService(receptionPortURI, null)) throw new UnknownClientException("Client not registered.");
+		if (!channelExistService(channel)) throw new UnknownChannelException("Channel doesn't exist.");
 		
 		this.logMessage("Broker received messages from " + receptionPortURI) ;
 		

@@ -76,9 +76,15 @@ implements	RegistrationCI {
 	}
 
 	@Override
-	public boolean channelExists(String channel) throws Exception {
+	public boolean channelExist(String channel) throws Exception {
 		return this.getOwner().handleRequest(
-				owner -> ((Broker)owner).channelExistsService(channel));
+				owner -> ((Broker)owner).channelExistService(channel));
+	}
+	
+	@Override
+	public boolean channelAuthorised(String receptionPortURI, String channel) throws Exception {
+		// TODO Auto-generated method stub
+		return false;
 	}
 
 	@Override
@@ -104,5 +110,6 @@ implements	RegistrationCI {
 		return this.getOwner().handleRequest(
 				owner -> ((Broker)owner).modifyFilterService(receptionPortURI, channel, filter));
 	}
+
 	
 }
