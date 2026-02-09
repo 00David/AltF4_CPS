@@ -34,7 +34,7 @@ implements	RegistrationCI {
 	 * @param owner        Le composant possesseur du port.
 	 */
 	public BrokerRegistrationInboundPort(String uri, ComponentI owner) throws Exception {
-		super(uri, ReceivingCI.class, owner) ;
+		super(uri, RegistrationCI.class, owner) ;
 		// Vérification des préconditions
 		assert(uri != null);
 		assert(owner != null);

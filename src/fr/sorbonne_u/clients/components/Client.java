@@ -33,7 +33,7 @@ public abstract class Client extends AbstractComponent {
 	protected ClientPublishingOutboundPort publishingOutboundPort;
 	protected ClientReceivingInboundPort receivingInboundPort;
 	
-	private String brokerPublishingPortURI = null; // Si != null, ça veut dire que l'on s'est connecté au port de publication
+	protected String brokerPublishingPortURI = null; // Si != null, ça veut dire que l'on s'est connecté au port de publication
 	
 	//--------------------------------------------------------------------------
 	// Constructor
@@ -51,9 +51,6 @@ public abstract class Client extends AbstractComponent {
 		this.registrationOutboundPort.localPublishPort();
 		this.publishingOutboundPort.localPublishPort();
 		this.receivingInboundPort.publishPort();
-		
-		this.getTracer().setTitle("Client") ;
-		this.getTracer().setRelativePosition(1, 1) ;
 
 		AbstractComponent.checkImplementationInvariant(this);
 		AbstractComponent.checkInvariant(this);

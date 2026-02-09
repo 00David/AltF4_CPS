@@ -36,7 +36,7 @@ implements	PublishingCI {
 	 * @param owner        Le composant possesseur du port.
 	 */
 	public BrokerPublishingInboundPort(String uri, ComponentI owner) throws Exception {
-		super(uri, ReceivingCI.class, owner) ;
+		super(uri, PublishingCI.class, owner) ;
 		// Vérification des préconditions
 		assert(uri != null);
 		assert(owner != null);

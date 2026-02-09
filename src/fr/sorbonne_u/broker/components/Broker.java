@@ -17,6 +17,7 @@ import fr.sorbonne_u.components.annotations.RequiredInterfaces;
 import fr.sorbonne_u.components.cvm.AbstractCVM;
 import fr.sorbonne_u.components.exceptions.ComponentShutdownException;
 import fr.sorbonne_u.components.exceptions.ComponentStartException;
+import fr.sorbonne_u.components.ports.PortI;
 import fr.sorbonne_u.cps.pubsub.exceptions.AlreadyRegisteredException;
 import fr.sorbonne_u.cps.pubsub.exceptions.NotSubscribedChannelException;
 import fr.sorbonne_u.cps.pubsub.exceptions.UnknownChannelException;
@@ -109,14 +110,23 @@ public class Broker extends AbstractComponent{
 					+ "offer the interface PublishingCI!");
 	}
 	
-	protected Broker() throws Exception {
+	/**
+	 * Crée un Broker avec 'N' channels.
+	 * @param N Le nombre de channels du Broker (de 'channel0' à 'channel[N-1]').
+	 * @throws Exception
+	 */
+	protected Broker(int N) throws Exception {
 		super(1, 0);
 		
-		// CREATION STATIQUE DE 2 CHANNELS
-		channels.put("Channel1", new HashSet<>());
-		channelsMessages.put("Channel1", new ArrayList<>());
-		channels.put("Channel2", new HashSet<>());
-		channelsMessages.put("Channel2", new ArrayList<>());
+		// CREATION STATIQUE DE N CHANNELS
+		for (int i = 0; i < N; i++) {
+			String chan = "channel"+i;
+			channels.put(chan, new HashSet<>());
+			channelsMessages.put(chan, new ArrayList<>());
+			channels.put(chan, new HashSet<>());
+			channelsMessages.put(chan, new ArrayList<>());
+		}
+		// channel0 -> alertes des stations météo
 
 		this.registrationPort = new BrokerRegistrationInboundPort(registrationPortURI, this);
 		this.registrationPort.publishPort();
@@ -194,12 +204,6 @@ public class Broker extends AbstractComponent{
 			}
 		
 			// On unpublish les 2 ports entrants
-			/*PortI[] p;
-			p = this.findPortsFromInterface(RegistrationCI.class);
-			p[0].unpublishPort();
-	
-			p = this.findPortsFromInterface(PublishingCI.class);
-			p[0].unpublishPort();*/
 			this.registrationPort.unpublishPort();
 			this.publishingPort.unpublishPort();
 		} catch (Throwable e) {
