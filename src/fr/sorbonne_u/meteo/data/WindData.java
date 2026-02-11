@@ -10,12 +10,12 @@ import fr.sorbonne_u.cps.meteo.interfaces.WindDataI;
 public class WindData implements WindDataI {
 
 	private static final long serialVersionUID = 1L;
-	private PositionI position;
+	private PositionData position;
 	
 	private double windX;
 	private double windY;
 	
-	public WindData(PositionI position, double windX, double windY) {
+	public WindData(PositionData position, double windX, double windY) {
 		this.position = position;
 		this.windX = windX;
 		this.windY = windY;
@@ -38,7 +38,6 @@ public class WindData implements WindDataI {
 
 	@Override
 	public double force() {
-		
 		return Math.sqrt((windX-position.getPosX())+(windY-position.getPosY()));
 	}
 

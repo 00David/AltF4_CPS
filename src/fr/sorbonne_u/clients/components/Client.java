@@ -17,7 +17,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 
 /**
  * 
- * La classe <code>Client</code> implemente un composant qui est client du systeme publication/souscription
+ * La classe abstraite <code>Client</code> donne un composant qui est client du systeme publication/souscription.
  * @author Kevin TANG
  * @author David VADIMON
  */

@@ -7,7 +7,6 @@ import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.components.ports.AbstractInboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
-import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 
 /**
  * Port entrant d'un Broker, permettant de gérer les publications des messages d'un client.<br>
