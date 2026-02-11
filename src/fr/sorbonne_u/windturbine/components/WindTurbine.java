@@ -64,6 +64,8 @@ public class WindTurbine extends Client {
 			 y += d.yComponent() * weight;
 		}
 		
+		
+		//coordonnée du vecteur
 		x = x * -1;
 		y = y * -1;
 				

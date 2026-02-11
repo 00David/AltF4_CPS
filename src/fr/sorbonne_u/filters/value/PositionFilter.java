@@ -18,7 +18,14 @@ public class PositionFilter extends ValueFilter {
 	private Serializable filterValue; 
 	
 	
-	
+	/**
+	 * Verifie que la position est bien dans la region
+	 * <p><strong>Contrat</strong></p>
+		<pre>
+		pre
+		post
+		</pre>
+	 */
 	@Override
 	public boolean match(Serializable value) {
 		if(value instanceof RegionData) {

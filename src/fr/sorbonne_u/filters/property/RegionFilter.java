@@ -13,6 +13,10 @@ public class RegionFilter extends PropertyFilter {
 		
 	}
 
+	
+	/**
+	 * Match si la position est dans la région
+	 */
 	@Override
 	public boolean match(PropertyI property) {
 		return valueFilter.match(property.getValue());
