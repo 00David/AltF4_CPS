@@ -13,9 +13,7 @@ import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
  */
 public class MeteoAlert implements MeteoAlertI {
 	
-	
-	private static final long serialVersionUID = 1L;
-	
+	private static final long serialVersionUID = -517623868931917800L;
 	private AlertTypeI alertType;
 	private LevelI alertLevel;
 	private ArrayList<RegionI>regions;
@@ -56,6 +54,22 @@ public class MeteoAlert implements MeteoAlertI {
 	@Override
 	public Duration getDuration() {
 		return this.duration;
+	}
+	
+	@Override
+	public String toString() {
+		String res = "MeteoAlert\n";
+		res += "Type : "+alertType+"\n";
+		res += "Level : "+alertLevel+"\n";
+		res += "Regions : \n";
+		for (RegionI ri : regions) {
+			RegionData r = (RegionData)ri;
+			double[] rLimits = r.getLimits();
+			res += "- X["+rLimits[0]+":"+rLimits[1]+"], Y["+rLimits[2]+":"+rLimits[3]+"]\n";
+		}
+		res += "Start : "+startTime+"\n";
+		res += "Duration (s) : "+duration.getSeconds();
+		return res;
 	}
 
 }

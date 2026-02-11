@@ -5,21 +5,62 @@ import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.cvm.AbstractCVM;
 import fr.sorbonne_u.components.helpers.CVMDebugModes;
+import fr.sorbonne_u.cps.meteo.interfaces.PositionI;
+import fr.sorbonne_u.meteo.data.PositionData;
+import fr.sorbonne_u.meteo_bureau.components.MeteoBureau;
+import fr.sorbonne_u.meteo_station.components.MeteoStation;
 
+/**
+ * Classe principale de lancement du programme.
+ * @author Kevin TANG
+ * @author David VADIMON
+ */
 public class CVM extends AbstractCVM {
 
-	protected final String clientRegistrationOutboundPortURI;
-	protected final String clientPublishingOutboundPortURI;
-	protected final String clientReceivingInboundPortURI;
+	// MeteoBureau
+	protected final String MBRegistrationOutboundPortURI;
+	protected final String MBPublishingOutboundPortURI;
+	protected final String MBReceivingInboundPortURI;
 	
+	// MeteoStation 1
+	protected final String MS1RegistrationOutboundPortURI;
+	protected final String MS1PublishingOutboundPortURI;
+	protected final String MS1ReceivingInboundPortURI;
+	
+	// MeteoStation 2
+	protected final String MS2RegistrationOutboundPortURI;
+	protected final String MS2PublishingOutboundPortURI;
+	protected final String MS2ReceivingInboundPortURI;
+	
+	// WindTurbine
+	protected final String WindTurbineRegistrationOutboundPortURI;
+	protected final String WindTurbinePublishingOutboundPortURI;
+	protected final String WindTurbineReceivingInboundPortURI;
+	
+	// URIs des composants
 	protected String uriBroker;
-	protected String uriClient;
+	protected String uriMB;
+	protected String uriMS1;
+	protected String uriMS2;
+	protected String uriWindTurbine;
 	
 	public CVM() throws Exception{
 		super();
-		clientRegistrationOutboundPortURI = "registration-outbound-port-client";
-		clientPublishingOutboundPortURI = "publishing-outbound-port-client";
-		clientReceivingInboundPortURI = "client-port";
+		MBRegistrationOutboundPortURI = "registration-outbound-port-MB";
+		MBPublishingOutboundPortURI = "publishing-outbound-port-MB";
+		MBReceivingInboundPortURI = "inbound-port-client-MB";
+		
+		MS1RegistrationOutboundPortURI = "registration-outbound-port-MS1";
+		MS1PublishingOutboundPortURI = "publishing-outbound-port-MS1";
+		MS1ReceivingInboundPortURI = "inbound-port-client-MS1";
+		
+		MS2RegistrationOutboundPortURI = "registration-outbound-port-MS2";
+		MS2PublishingOutboundPortURI = "publishing-outbound-port-MS2";
+		MS2ReceivingInboundPortURI = "inbound-port-client-MS2";
+		
+		WindTurbineRegistrationOutboundPortURI = "registration-outbound-port-WindTurbine";
+		WindTurbinePublishingOutboundPortURI = "publishing-outbound-port-WindTurbine";
+		WindTurbineReceivingInboundPortURI = "inbound-port-client-WindTurbine";
 	}
 	
 	@Override
@@ -45,19 +86,45 @@ public class CVM extends AbstractCVM {
 				Broker.class.getCanonicalName(),
 				new Object[] {3});
 		assert this.isDeployedComponent(this.uriBroker);
+		this.toggleTracing(this.uriBroker);
 
 		
-		this.toggleTracing(this.uriBroker);
-		this.toggleLogging(this.uriBroker);
+		// création d'un bureau météo
+		PositionData bureauPosition = new PositionData(2, 1);
+		int sleepMinTimeMB = 20;
+		int sleepMaxTimeMB = 30;
+		this.uriMB = AbstractComponent.createComponent(
+				MeteoBureau.class.getCanonicalName(),
+				new Object[] { MBRegistrationOutboundPortURI, MBPublishingOutboundPortURI, MBReceivingInboundPortURI,
+						bureauPosition, sleepMinTimeMB, sleepMaxTimeMB});
+		assert this.isDeployedComponent(this.uriMB);
+		this.toggleTracing(this.uriMB);
+		
+		// création de 2 stations météo
+		int sleepMinTimeMS = 5;
+		int sleepMaxTimeMS = 20;
+		double windMinXY = -10;
+		double windMaxXY = 10;
 
-		// création d'un Client
-		this.uriClient = AbstractComponent.createComponent(
-				Client.class.getCanonicalName(),
-				new Object[] { clientRegistrationOutboundPortURI, clientPublishingOutboundPortURI, clientReceivingInboundPortURI });
-		assert this.isDeployedComponent(this.uriClient);
-
-		this.toggleTracing(this.uriClient);
-		this.toggleLogging(this.uriClient);
+		PositionData station1Position = new PositionData(1, 2);
+		this.uriMS1 = AbstractComponent.createComponent(
+				MeteoStation.class.getCanonicalName(),
+				new Object[] { MS1RegistrationOutboundPortURI, MS1PublishingOutboundPortURI, MS1ReceivingInboundPortURI,
+						station1Position, sleepMinTimeMS, sleepMaxTimeMS, windMinXY, windMaxXY});
+		assert this.isDeployedComponent(this.uriMS1);
+		this.toggleTracing(this.uriMS1);
+	
+		PositionData station2Position = new PositionData(3, 2);
+		this.uriMS2 = AbstractComponent.createComponent(
+				MeteoStation.class.getCanonicalName(),
+				new Object[] { MS2RegistrationOutboundPortURI, MS2PublishingOutboundPortURI, MS2ReceivingInboundPortURI,
+						station2Position, sleepMinTimeMS, sleepMaxTimeMS, windMinXY, windMaxXY});
+		assert this.isDeployedComponent(this.uriMS2);
+		this.toggleTracing(this.uriMS2);
+		
+		// création d'une éolienne entre les 2 stations météo
+		PositionData windTurbinePosition = new PositionData(2, 2);
+		//...
 
 		// --------------------------------------------------------------------
 		// Deployment done
@@ -71,8 +138,8 @@ public class CVM extends AbstractCVM {
 		try {
 			CVM a = new CVM() ;
 			
-			long duree = 15000L; // en ms, durée d'execution
-			a.startStandardLifeCycle(duree) ; // démarrage
+			int duree = 120; // en secondes
+			a.startStandardLifeCycle(duree * 1000L) ; // démarrage
 
 			System.exit(0) ;
 		} catch (Throwable e) {

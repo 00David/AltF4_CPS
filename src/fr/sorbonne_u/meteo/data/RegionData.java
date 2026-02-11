@@ -9,7 +9,7 @@ import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
  */
 public class RegionData implements RegionI {
 
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 4505980791444655950L;
 	private double xMin;
 	private double xMax;
 	private double yMin;

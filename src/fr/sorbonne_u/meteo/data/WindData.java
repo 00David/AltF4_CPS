@@ -9,7 +9,8 @@ import fr.sorbonne_u.cps.meteo.interfaces.WindDataI;
  */
 public class WindData implements WindDataI {
 
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 8536953812168770777L;
+
 	private PositionData position;
 	
 	private double windX;
@@ -39,6 +40,14 @@ public class WindData implements WindDataI {
 	@Override
 	public double force() {
 		return Math.sqrt((windX-position.getPosX())+(windY-position.getPosY()));
+	}
+	
+	@Override
+	public String toString() {
+		String res = "WindData\n";
+		res += "Position : "+position+"\n";
+		res += "Wind vector : X="+windX+" Y="+windY;
+		return res;
 	}
 
 }

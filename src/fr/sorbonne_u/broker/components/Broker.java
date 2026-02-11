@@ -116,11 +116,19 @@ public class Broker extends AbstractComponent{
 	
 	/**
 	 * Crée un Broker avec 'N' channels.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code N>=0}
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 * 
 	 * @param N Le nombre de channels du Broker (de 'channel0' à 'channel[N-1]').
 	 * @throws Exception
 	 */
 	protected Broker(int N) throws Exception {
 		super(1, 0);
+		assert(N>=0);
 		
 		// CREATION STATIQUE DE N CHANNELS
 		for (int i = 0; i < N; i++) {
@@ -148,7 +156,7 @@ public class Broker extends AbstractComponent{
 			this.getLogger().setDirectory(System.getProperty("user.home"));
 		}
 		this.getTracer().setTitle("Broker");
-		this.getTracer().setRelativePosition(1, 0);
+		this.getTracer().setRelativePosition(2, 2);
 		
 		assert	this.isPortExisting(registrationPortURI) :
 					new PostconditionException("The component must have a "
@@ -291,12 +299,13 @@ public class Broker extends AbstractComponent{
 	 */
 	public String registerService(String receptionPortURI, RegistrationClass rc) 
 			throws AlreadyRegisteredException, Exception {
+		
 		// Vérification des préconditions
 		assert(receptionPortURI != null);
 		assert(!receptionPortURI.isEmpty());
 		assert(rc != null);
 		
-		if (registeredService(receptionPortURI, null)) throw new AlreadyRegisteredException("Client "+receptionPortURI+" already registered.");
+		if (registeredService(receptionPortURI)) throw new AlreadyRegisteredException("Client "+receptionPortURI+" already registered.");
 		
 		this.logMessage("Broker registering " + receptionPortURI) ;
 		
@@ -376,7 +385,7 @@ public class Broker extends AbstractComponent{
 		assert(receptionPortURI != null);
 		assert(!receptionPortURI.isEmpty());
 		
-		if (!registeredService(receptionPortURI, null)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		
 		this.logMessage("Broker unregistering " + receptionPortURI) ;
 		
@@ -493,7 +502,7 @@ public class Broker extends AbstractComponent{
 		assert(channel != null);
 		assert(!channel.isEmpty());
 		
-		if (!registeredService(receptionPortURI, null)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 		
 		return channelsSubscribers.get(channel).contains(new ClientChannelFilter(receptionPortURI, null));
@@ -526,7 +535,7 @@ public class Broker extends AbstractComponent{
 		assert(!channel.isEmpty());
 		assert(filter != null);
 		
-		if (!registeredService(receptionPortURI, null)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 		if (!channelAuthorisedService(receptionPortURI, channel)) throw new UnauthorisedClientException("Client "+receptionPortURI+" is not authorized.");
 		
@@ -564,7 +573,7 @@ public class Broker extends AbstractComponent{
 		assert(channel != null);
 		assert(!channel.isEmpty());
 		
-		if (!registeredService(receptionPortURI, null)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 		if (!subscribedService(receptionPortURI, channel)) throw new NotSubscribedChannelException("Not subscribed to '"+channel+"' channel.");
 		
@@ -607,7 +616,7 @@ public class Broker extends AbstractComponent{
 		assert(!channel.isEmpty());
 		assert(filter != null);
 		
-		if (!registeredService(receptionPortURI, null)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 		if (!subscribedService(receptionPortURI, channel)) throw new NotSubscribedChannelException("Not subscribed to '"+channel+"' channel.");
 		
@@ -650,7 +659,7 @@ public class Broker extends AbstractComponent{
 		assert(messages.size() > 0);
 		assert(Stream.of(messages).allMatch(m -> m != null));
 		
-		if (!registeredService(receptionPortURI, null)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 		if (!channelAuthorisedService(receptionPortURI, channel)) throw new UnauthorisedClientException("Client "+receptionPortURI+" is not authorized.");
 		
