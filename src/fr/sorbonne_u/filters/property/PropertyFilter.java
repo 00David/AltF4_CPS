@@ -19,7 +19,7 @@ public class PropertyFilter implements PropertyFilterI {
 	private static final long serialVersionUID = -7695552208630589978L;
 	
 	private String propertyName;
-	private ValueFilterI valueFilter;
+	protected ValueFilterI valueFilter;
 	
 	/**
 	 * Crée un filtre sur une certaine propriété.
