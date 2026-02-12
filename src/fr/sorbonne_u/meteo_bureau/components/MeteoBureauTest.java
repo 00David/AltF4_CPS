@@ -180,7 +180,8 @@ public class MeteoBureauTest extends Client{
 		Message msg = new Message();
 		
 		ArrayList<RegionI> regions = new ArrayList<>();
-		regions.add(new RegionData(1, 3, 1, 3)); // Zone 3 x 3
+		double x = bureauPosition.getPosX(); double y = bureauPosition.getPosY();
+		regions.add(new RegionData(x-1, x+1, y-1, y+1)); // Zone 3 x 3
 		MeteoAlertI.AlertType alert = MeteoAlertI.AlertType.EARTHQUAKE;
 		MeteoAlertI.Level level = MeteoAlertI.Level.GREEN;
 		Instant instant = Instant.now(); // Début instantanné
