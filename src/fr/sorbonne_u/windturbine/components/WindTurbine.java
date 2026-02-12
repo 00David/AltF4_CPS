@@ -8,6 +8,7 @@ import java.util.ArrayList;
 
 import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.connectors.ClientPublishingServiceConnector;
+import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.annotations.OfferedInterfaces;
 import fr.sorbonne_u.components.annotations.RequiredInterfaces;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
@@ -20,12 +21,14 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.filters.MessageFilter;
 import fr.sorbonne_u.filters.property.PropertiesFilter;
+import fr.sorbonne_u.filters.property.PropertyFilter;
 import fr.sorbonne_u.filters.property.RegionFilter;
 import fr.sorbonne_u.filters.time.GreaterOrEqualTimeFilter;
 import fr.sorbonne_u.filters.value.PositionFilter;
 import fr.sorbonne_u.meteo.data.MeteoAlert;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.WindData;
+import fr.sorbonne_u.meteo_bureau.components.MeteoBureau;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
@@ -83,10 +86,50 @@ public class WindTurbine extends Client {
 		this.safeMode = false;
 		
 		this.getTracer().setTitle("Eolienne") ;
-		this.getTracer().setRelativePosition(1, 0) ;
+		this.getTracer().setRelativePosition(1, 1) ;
 		
 	}
 	
+	
+	
+	// --------------------------------------------------------------------------
+		// Component life-cycle
+		// --------------------------------------------------------------------------
+
+
+
+
+		@Override
+		public void execute() throws Exception {
+			
+			super.execute();
+			this.logMessage("executing WindTurbine component");
+			
+			if(!this.registrationOutboundPort.registered(receivingInboundPort.getPortURI())) {
+				brokerPublishingPortURI = this.registrationOutboundPort.register(receivingInboundPort.getPortURI(), RegistrationClass.FREE);
+				
+			}
+			
+			assert (brokerPublishingPortURI != null);
+			this.logMessage("WindTurbine registered");
+			
+//			this.doPortConnection(this.publishingOutboundPort.getPortURI(), 
+//					brokerPublishingPortURI, 
+//					ClientPublishingServiceConnector.class.getCanonicalName());
+			
+			this.runTask(
+			        new AbstractComponent.AbstractTask() {
+			            @Override
+			            public void run() {
+			                try {
+			                    ((WindTurbine) this.getTaskOwner()).startWindTurbine();
+			                } catch (Throwable e) {
+			                    e.printStackTrace();
+			                }
+			            }
+			        }
+			    );
+		}
 	
 	
 	
@@ -94,13 +137,8 @@ public class WindTurbine extends Client {
 	
 	// comportement eolienne
 	public void startWindTurbine() throws Exception {
-		if(!this.registrationOutboundPort.registered(receivingInboundPort.getPortURI())) {
-			brokerPublishingPortURI  = this.registrationOutboundPort.register(receivingInboundPort.getPortURI(), RegistrationClass.FREE);
-			this.doPortConnection(this.publishingOutboundPort.getPortURI(),
-					brokerPublishingPortURI,
-					ClientPublishingServiceConnector.class.getCanonicalName());
-			
-			
+		
+				
 			//on cree un filtre qui recupere seulement les messages des stations proches de l'eolienne recent
 			PropertyFilterI[] prop = new PropertyFilterI[2];
 			PositionFilter filterPos = new PositionFilter(this.pos);
@@ -113,18 +151,22 @@ public class WindTurbine extends Client {
 			this.registrationOutboundPort.subscribe(
 					receivingInboundPort.getPortURI(), 
 					"channel0", 
-					new MessageFilter(prop, new PropertiesFilter[0], time));
+					new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], null));
+			
+			this.logMessage("WindTurbine subscribed to channel0");
 			
 			//alertes
 			this.registrationOutboundPort.subscribe(receivingInboundPort.getPortURI(),
-					"channel1", new MessageFilter(prop, new PropertiesFilter[0], time));
+					"channel1", new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], null));
+			
+			this.logMessage("WindTurbine subscribed to channel1");
 			
 			
 			
 			
 		
 		}
-	}
+	
 		
 		
 	//////Methodes	
@@ -239,7 +281,7 @@ public class WindTurbine extends Client {
 		MeteoAlertI.Level base = (MeteoAlertI.Level) this.reactionLevel;
 		MeteoAlertI.Level alert = (MeteoAlertI.Level) lv;
 		
-		if(base.ordinal() <= alert.ordinal()) {
+		if(base.ordinal() < alert.ordinal()) {
 			goInSafeMode();		
 		}else {
 			goBacktoNormalMode();
@@ -300,41 +342,7 @@ public class WindTurbine extends Client {
 	}
 
 	
-	// --------------------------------------------------------------------------
-	// Component life-cycle
-	// --------------------------------------------------------------------------
-
-
-
-
-	@Override
-	public void execute() throws Exception {
-		// TODO Auto-generated method stub
-		super.execute();
-		this.logMessage("executing WindTurbine component");
-		
-		if(!this.registrationOutboundPort.registered(receivingInboundPort.getPortURI())) {
-			brokerPublishingPortURI = this.registrationOutboundPort.register(receivingInboundPort.getPortURI(), RegistrationClass.FREE);
-		}
-		
-		assert (brokerPublishingPortURI != null);
-		
-		this.doPortConnection(this.receivingInboundPort.getPortURI(), 
-				brokerPublishingPortURI,ClientPublishingServiceConnector.class.getCanonicalName());
-		
-		this.runTask(new AbstractTask() {
-			
-			@Override
-			public void run() {
-				try {
-				 
-				}catch (Throwable e) {
-					e.printStackTrace();
-				}
-				
-			}
-		});
-	}
+	
 	
 	
 

@@ -12,6 +12,12 @@ public class WindData implements WindDataI {
 	private double windX;
 	private double windY;
 	
+	public WindData(PositionData pos,double xWind,double yWind) {
+		this.position = pos;
+		this.windX = xWind;
+		this.windY = yWind;
+	}
+	
 	
 	
 	
@@ -33,6 +39,14 @@ public class WindData implements WindDataI {
 	@Override
 	public double force() {
 		return Math.sqrt((windX-position.getPosX())+(windY-position.getPosY()));
+	}
+	
+	@Override
+	public String toString() {
+		String res = "WindData\n";
+		res += "Position : "+position+"\n";
+		res += "Wind vector : X="+windX+" Y="+windY;
+		return res;
 	}
 
 }

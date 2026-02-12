@@ -4,7 +4,6 @@ import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.components.ports.AbstractInboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
-import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 
 /**
@@ -34,25 +33,23 @@ implements	RegistrationCI {
 	 * @param owner        Le composant possesseur du port.
 	 */
 	public BrokerRegistrationInboundPort(String uri, ComponentI owner) throws Exception {
-		super(uri, ReceivingCI.class, owner) ;
+		super(uri, RegistrationCI.class, owner) ;
 		// Vérification des préconditions
 		assert(uri != null);
 		assert(owner != null);
 		assert(owner instanceof Broker);
 	}
 	
-	// Quasiment toutes les préconditions et postconditions sont vérifiées par délégation, lors de l'exécution du service du Broker appellé.
-	// Si ce n'est pas le cas, directement vérifiées ici.
+	// Toutes les préconditions et postconditions sont vérifiées par délégation, lors de l'exécution du service du Broker appellé.
 	
 	@Override
 	public boolean registered(String receptionPortURI) throws Exception {
 		return this.getOwner().handleRequest(
-				owner -> ((Broker)owner).registeredService(receptionPortURI, null)) ;
+				owner -> ((Broker)owner).registeredService(receptionPortURI)) ;
 	}
 
 	@Override
 	public boolean registered(String receptionPortURI, RegistrationClass rc) throws Exception {
-		assert(rc != null);
 		return this.getOwner().handleRequest(
 				owner -> ((Broker)owner).registeredService(receptionPortURI, rc)) ;
 	}
@@ -83,8 +80,8 @@ implements	RegistrationCI {
 	
 	@Override
 	public boolean channelAuthorised(String receptionPortURI, String channel) throws Exception {
-		// TODO Auto-generated method stub
-		return false;
+		return this.getOwner().handleRequest(
+				owner -> ((Broker)owner).channelAuthorisedService(receptionPortURI, channel));
 	}
 
 	@Override

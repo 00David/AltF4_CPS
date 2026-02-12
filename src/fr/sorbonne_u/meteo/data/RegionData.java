@@ -5,10 +5,18 @@ import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
 
 public class RegionData implements RegionI {
 
+	private static final long serialVersionUID = 1L;
 	private double xMin;
 	private double xMax;
 	private double yMin;
 	private double yMax;
+	
+	public RegionData(double xMin,double xMax,double yMin, double yMax) {
+		this.xMin = xMin;
+		this.xMax = xMax;
+		this.yMin = yMin;
+		this.yMax = yMax;
+	}
 	
 	@Override
 	public boolean in(PositionI p) {
@@ -23,5 +31,15 @@ public class RegionData implements RegionI {
 		return false;
 	
 	}
+	
+	public double[] getLimits() {
+		return new double[]{xMin, xMax, yMin, yMax};
+	}
+	
+	
+
+	
+	
+	
 
 }

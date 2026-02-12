@@ -20,7 +20,7 @@ public class MeteoAlert implements MeteoAlertI {
 	
 	
 	
-	public MeteoAlert(AlertTypeI alertType,LevelI alertLevel,ArrayList<RegionI> regions,Instant startTime) {
+	public MeteoAlert(AlertTypeI alertType,LevelI alertLevel,ArrayList<RegionI> regions,Instant startTime,Duration duration) {
 		this.alertType = alertType;
 		this.alertLevel = alertLevel;
 		this.regions = regions;
@@ -53,6 +53,22 @@ public class MeteoAlert implements MeteoAlertI {
 	@Override
 	public Duration getDuration() {
 		return this.duration;
+	}
+	
+	@Override
+	public String toString() {
+		String res = "MeteoAlert\n";
+		res += "Type : "+alertType+"\n";
+		res += "Level : "+alertLevel+"\n";
+		res += "Regions : \n";
+		for (RegionI ri : regions) {
+			RegionData r = (RegionData)ri;
+			double[] rLimits = r.getLimits();
+			res += "- X["+rLimits[0]+":"+rLimits[1]+"], Y["+rLimits[2]+":"+rLimits[3]+"]\n";
+		}
+		res += "Start : "+startTime+"\n";
+		res += "Duration (s) : "+duration.getSeconds();
+		return res;
 	}
 
 }

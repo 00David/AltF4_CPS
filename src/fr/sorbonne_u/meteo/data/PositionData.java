@@ -32,6 +32,11 @@ public class PositionData implements PositionI {
 		return this.posY;
 	}
 	
+	@Override
+	public String toString() {
+		return "("+posX+","+posY+")";
+	}
+	
 	
 
 }
