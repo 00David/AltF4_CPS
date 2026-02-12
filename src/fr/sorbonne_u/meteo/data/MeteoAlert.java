@@ -26,7 +26,7 @@ public class MeteoAlert implements MeteoAlertI {
 		this.regions = regions;
 		this.startTime = startTime;
 		
-		this.duration = Duration.between(startTime, Instant.now());
+		this.duration = duration;
 	}
 	
 
@@ -42,7 +42,7 @@ public class MeteoAlert implements MeteoAlertI {
 
 	@Override
 	public RegionI[] getRegions() {
-		return (RegionI[]) this.regions.toArray();
+	    return this.regions.toArray(new RegionI[0]);
 	}
 
 	@Override

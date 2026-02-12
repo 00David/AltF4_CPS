@@ -22,7 +22,7 @@ public class RegionFilter extends PropertyFilter {
 		return valueFilter.match(property.getValue());
 		
 	}
-	
+		
 	
 	
 
