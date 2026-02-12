@@ -191,7 +191,7 @@ public class MeteoStation extends Client {
 		            @Override
 		            public void run() {
 		                try {
-		                    ((MeteoStation) this.getTaskOwner()).sendWindData("channel1");
+		                    ((MeteoStation) this.getTaskOwner()).sendWindData("channel0");
 		                } catch (Throwable e) {
 		                    e.printStackTrace();
 		                }
