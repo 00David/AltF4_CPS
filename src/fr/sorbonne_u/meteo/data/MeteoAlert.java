@@ -7,11 +7,13 @@ import java.util.ArrayList;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
 
+/**
+ * @author Kevin TANG
+ * @author David VADIMON
+ */
 public class MeteoAlert implements MeteoAlertI {
 	
-	
-	private static final long serialVersionUID = 1L;
-	
+	private static final long serialVersionUID = -517623868931917800L;
 	private AlertTypeI alertType;
 	private LevelI alertLevel;
 	private ArrayList<RegionI>regions;
@@ -20,12 +22,11 @@ public class MeteoAlert implements MeteoAlertI {
 	
 	
 	
-	public MeteoAlert(AlertTypeI alertType,LevelI alertLevel,ArrayList<RegionI> regions,Instant startTime,Duration duration) {
+	public MeteoAlert(AlertTypeI alertType,LevelI alertLevel,ArrayList<RegionI> regions,Instant startTime, Duration duration) {
 		this.alertType = alertType;
 		this.alertLevel = alertLevel;
 		this.regions = regions;
 		this.startTime = startTime;
-		
 		this.duration = duration;
 	}
 	
@@ -42,7 +43,7 @@ public class MeteoAlert implements MeteoAlertI {
 
 	@Override
 	public RegionI[] getRegions() {
-	    return this.regions.toArray(new RegionI[0]);
+		return (RegionI[]) this.regions.toArray();
 	}
 
 	@Override

@@ -45,8 +45,7 @@ public class ClientRegistrationServiceConnector extends AbstractConnector implem
 	
 	@Override
 	public boolean channelAuthorised(String receptionPortURI, String channel) throws Exception {
-		// TODO Auto-generated method stub
-		return false;
+		return ((RegistrationCI)this.offering).channelAuthorised(receptionPortURI, channel);
 	}
 
 	@Override

@@ -134,7 +134,6 @@ public class CVM extends AbstractCVM {
 						windTurbinePosition,MeteoAlertI.Level.GREEN});
 		assert this.isDeployedComponent(uriWindTurbine);
 		this.toggleTracing(uriWindTurbine);
-		//...
 
 		// --------------------------------------------------------------------
 		// Deployment done
