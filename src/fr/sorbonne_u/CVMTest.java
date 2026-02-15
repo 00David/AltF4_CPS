@@ -3,12 +3,14 @@ package fr.sorbonne_u;
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.cvm.AbstractCVM;
+import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.WindData;
 import fr.sorbonne_u.meteo_bureau.components.MeteoBureauTest;
 import fr.sorbonne_u.meteo_station.components.MeteoStation;
 import fr.sorbonne_u.meteo_station.components.MeteoStationTest1;
 import fr.sorbonne_u.meteo_station.components.MeteoStationTest2;
+import fr.sorbonne_u.windturbine.components.WindTurbine;
 
 /**
  * Classe de test permettant de tester le scénario suivant depuis le début de la CVM :
@@ -119,7 +121,11 @@ public class CVMTest extends AbstractCVM {
 		
 		// création d'une éolienne entre les 2 stations météo
 		PositionData windTurbinePosition = new PositionData(2, 2);
-		//...
+		this.uriWindTurbine = AbstractComponent.createComponent(WindTurbine.class.getCanonicalName(),
+				new Object[] {WindTurbineRegistrationOutboundPortURI,WindTurbinePublishingOutboundPortURI,WindTurbineReceivingInboundPortURI,
+						windTurbinePosition,MeteoAlertI.Level.GREEN});
+		assert this.isDeployedComponent(uriWindTurbine);
+		this.toggleTracing(uriWindTurbine);
 
 		// --------------------------------------------------------------------
 		// Deployment done
