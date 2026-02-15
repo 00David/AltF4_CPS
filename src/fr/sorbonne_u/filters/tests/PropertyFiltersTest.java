@@ -10,7 +10,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI.PropertyI;
 import fr.sorbonne_u.filters.property.PropertiesFilter;
 import fr.sorbonne_u.filters.property.PropertyFilter;
 import fr.sorbonne_u.filters.tests.utils.IMC;
-import fr.sorbonne_u.filters.value.ValueFilter;
+import fr.sorbonne_u.filters.value.IdenticalValueFilter;
 import fr.sorbonne_u.messages.Property;
 
 /**
@@ -28,7 +28,7 @@ public class PropertyFiltersTest {
     // --------------------------
     @Test
     void testPropertyFilterConstructor() {
-        ValueFilterI vf = new ValueFilter(42);
+        ValueFilterI vf = new IdenticalValueFilter(42);
         PropertyFilter filter = new PropertyFilter("age", vf);
         assertNotNull(filter);
         
@@ -43,7 +43,7 @@ public class PropertyFiltersTest {
     
     @Test
     void testPropertyFilterMatch() {
-        ValueFilterI vf = new ValueFilter(42);
+        ValueFilterI vf = new IdenticalValueFilter(42);
         PropertyFilter filter = new PropertyFilter("age", vf);
 
         Property correct = new Property("age", 42);

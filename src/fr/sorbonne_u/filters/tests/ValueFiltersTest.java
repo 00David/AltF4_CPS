@@ -8,8 +8,8 @@ import java.util.Calendar;
 import org.junit.jupiter.api.Test;
 
 import fr.sorbonne_u.filters.tests.utils.IMC;
+import fr.sorbonne_u.filters.value.IdenticalValueFilter;
 import fr.sorbonne_u.filters.value.JokerValueFilter;
-import fr.sorbonne_u.filters.value.ValueFilter;
 
 /**
  * Classe de tests pour les filtres simples et multi-valeurs, comprenant les classes :
@@ -27,16 +27,16 @@ public class ValueFiltersTest {
     @Test
     void testValueFilterConstructor() {
     	// cas normal
-        ValueFilter filter = new ValueFilter("hello");
+    	IdenticalValueFilter filter = new IdenticalValueFilter("hello");
         assertNotNull(filter);
 
         // valeur nulle en paramètre : renvoit une IllegalArgumentException
-        assertThrows(IllegalArgumentException.class, () -> new ValueFilter(null));
+        assertThrows(IllegalArgumentException.class, () -> new IdenticalValueFilter(null));
     }
 
     @Test
     void testValueFilterMatch1() {
-        ValueFilter stringFilter = new ValueFilter("hello");
+    	IdenticalValueFilter stringFilter = new IdenticalValueFilter("hello");
 
         // on essaye de match avec différents paramètres
         assertTrue(stringFilter.match("hello"), "should pass");
@@ -49,7 +49,7 @@ public class ValueFiltersTest {
     
     @Test
     void testValueFilterMatch2() {
-    	ValueFilter intFilter = new ValueFilter(42);
+    	IdenticalValueFilter intFilter = new IdenticalValueFilter(42);
 
     	// on essaye de match avec différents paramètres
         assertTrue(intFilter.match(42), "should pass");

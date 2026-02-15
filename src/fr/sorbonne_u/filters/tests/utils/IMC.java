@@ -2,12 +2,12 @@ package fr.sorbonne_u.filters.tests.utils;
 
 import java.io.Serializable;
 
-import fr.sorbonne_u.filters.value.MultiValuesFilter;
+import fr.sorbonne_u.filters.value.AbstractMultiValuesFilter;
 
 /**
  * Classe concrète d'exemple pour un filtre multi-valeurs, reprenant l'example de l'IMC.
  */
-public class IMC extends MultiValuesFilter{
+public class IMC extends AbstractMultiValuesFilter{
 
 	private static final long serialVersionUID = -3520212719164037634L;
 

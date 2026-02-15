@@ -1,4 +1,4 @@
-package fr.sorbonne_u.meteo_bureau.components;
+package fr.sorbonne_u.meteo.tests;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -25,10 +25,12 @@ import fr.sorbonne_u.meteo.data.RegionData;
  * 
  * <p>
  * Le scénario testé :
- * <li> - Le bureau météo dort durant les 30 premières secondes du programme.
- * <li> - Il envoie une alerte dangereuse (de niveau RED) au 'channel1', de durée 10 secondes.
- * <li> - Il dort ensuite 10 secondes pendant l'alerte.
+ * <li> - Le bureau météo dort durant les 90 premières secondes du programme.
+ * <li> - Il envoie une alerte dangereuse (de niveau RED) au 'channel1', de durée 30 secondes.
+ * <li> - Il dort ensuite 30 secondes pendant l'alerte.
  * <li> - Il se réveille et renvoit une alerte de fin de danger (de niveau GREEN).
+ * <li> - Il dort ensuite 60 secondes.
+ * <li> - Il se réveille et renvoit une alerte restreinte à la zone du bureau, ne touchant pas l'éolienne.
  * </p>
  * 
  * @author Kevin TANG
@@ -40,8 +42,9 @@ public class MeteoBureauTest extends Client{
 	
 	private PositionData bureauPosition;
 	private String channel = "channel1";
-	private int sleepSinceStart = 30; // en secondes
-	private int durationAlertTime = 10; // en secondes
+	private int sleepSinceStart = 90; // en secondes
+	private int durationAlertTime = 30; // en secondes
+	private int sleepAfterSafeAlert = 60; // en secondes
 
 	//--------------------------------------------------------------------------
 	// Constructor
@@ -197,6 +200,55 @@ public class MeteoBureauTest extends Client{
 			
 		this.logMessage("------------------------------");
 		this.logMessage("MeteoBureau sending a SAFE alert "+ma);
+		this.logMessage("------------------------------");
+		
+		this.publishingOutboundPort.publish(receivingInboundPort.getPortURI(), channel, msg);
+		
+		// tache suivante : préparer l'alerte non attrapée par l'éolienne
+	    this.runTask(
+		        new AbstractComponent.AbstractTask() {
+		            @Override
+		            public void run() {
+		                try {
+		                    ((MeteoBureauTest) this.getTaskOwner()).sendUncaughtAlert();
+		                } catch (Throwable e) {
+		                    e.printStackTrace();
+		                }
+		            }
+		        }
+		    );
+	}
+	
+	/**
+	 * Envoi une alerte non reçue par l'éolienne, après filtrage de la région concernée.
+	 * @throws Exception		Si problème lors de la publication.
+	 */
+	public void sendUncaughtAlert() throws Exception {
+		
+		// Dort pendant un certain nombre de secondes après le lancement de l'alerte de fin de danger
+		this.logMessage("MeteoBureau sleeps "+sleepAfterSafeAlert+" seconds..."); 
+		Thread.sleep(sleepAfterSafeAlert * 1000L);
+		
+		Message msg = new Message();
+		
+		ArrayList<RegionI> regions = new ArrayList<>();
+		double x = bureauPosition.getPosX(); double y = bureauPosition.getPosY();
+		regions.add(new RegionData(x, x, y, y)); // Zone 1 x 1 autour du bureau météorologique
+		MeteoAlertI.AlertType alert = MeteoAlertI.AlertType.EARTHQUAKE;
+		MeteoAlertI.Level level = MeteoAlertI.Level.RED;
+		Instant instant = Instant.now(); // Début instantanné
+		Duration duration = Duration.ofSeconds(durationAlertTime);
+		MeteoAlert ma =new MeteoAlert(alert, level, regions, instant, duration);
+		
+		msg.setPayload(ma);
+		msg.putProperty("alert", alert);
+		msg.putProperty("level", level);
+		msg.putProperty("regions", regions);
+		msg.putProperty("instant", instant);
+		msg.putProperty("duration", duration);
+			
+		this.logMessage("------------------------------");
+		this.logMessage("MeteoBureau sending a DANGER alert "+ma);
 		this.logMessage("------------------------------");
 		
 		this.publishingOutboundPort.publish(receivingInboundPort.getPortURI(), channel, msg);

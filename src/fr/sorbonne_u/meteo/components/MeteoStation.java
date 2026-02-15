@@ -1,4 +1,4 @@
-package fr.sorbonne_u.meteo_station.components;
+package fr.sorbonne_u.meteo.components;
 
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;

@@ -2,14 +2,14 @@ package fr.sorbonne_u.filters.tests.utils;
 
 import java.io.Serializable;
 
-import fr.sorbonne_u.filters.value.MultiValuesFilter;
+import fr.sorbonne_u.filters.value.AbstractMultiValuesFilter;
 
 /**
  * Classe concrète d'exemple pour un filtre multi-valeurs.<br>
  * Considère une personne comme musclée (match renvoit true), pour le poids total et le poids musculaire d'une personne, 
  * si le poids musculaire représente au moins 40% du poids total de la personne.
  */
-public class Muscle extends MultiValuesFilter{
+public class Muscle extends AbstractMultiValuesFilter{
 
 	private static final long serialVersionUID = -5177956127310642977L;
 

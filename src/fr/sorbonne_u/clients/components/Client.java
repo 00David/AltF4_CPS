@@ -18,7 +18,8 @@ import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 
 /**
- * La classe abstraite <code>Client</code> donne un composant qui est client du systeme publication/souscription.
+ * La classe abstraite donnant un composant qui est client du système de publication/souscription.
+ * 
  * @author Kevin TANG
  * @author David VADIMON
  */
@@ -128,6 +129,10 @@ public abstract class Client extends AbstractComponent {
 	/**
 	 * Service permettant de traiter la réception d'un {@code message} depuis un {@code channel} où le composant est abonné.
 	 * 
+	 * <p>
+	 * Doit être {@code Override} pour un traitement personnalisé du composant client concret.
+	 * </p>
+	 * 
 	 * <pre>
 	 * pre	{@code channel != null && !channel.isEmpty()}
 	 * pre	{@code message != null}
@@ -150,6 +155,10 @@ public abstract class Client extends AbstractComponent {
 	
 	/**
 	 * Service permettant de traiter la réception de plusieurs {@code messages} depuis un {@code channel} où le composant est abonné.
+	 * 
+	 * <p>
+	 * Doit être {@code Override} pour un traitement personnalisé du composant client concret.
+	 * </p>
 	 * 
 	 * <pre>
 	 * pre	{@code channel != null && !channel.isEmpty()}

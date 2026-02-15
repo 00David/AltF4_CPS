@@ -1,4 +1,4 @@
-package fr.sorbonne_u.meteo_station.components;
+package fr.sorbonne_u.meteo.tests;
 
 import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.connectors.ClientPublishingServiceConnector;
@@ -17,9 +17,9 @@ import fr.sorbonne_u.meteo.data.WindData;
  * Classe représentant une station météorologique émettant des donnéees de vents, suivant un scénario prédéfini.
  * 
  * <p>
- * <li> - Le composant va d'abord attendre 10 secondes après son lancement;
+ * <li> - Le composant va d'abord attendre 30 secondes après son lancement;
  * <li> - Il envoie une {@link WindData} au 'channel0'.
- * <li> - Il dort ensuite 40 secondes.
+ * <li> - Il dort ensuite 120 secondes.
  * <li> - Il finit par renvoyer une nouvelle {@link WindData} au 'channel0'.
  * </p>
  * 
@@ -32,8 +32,8 @@ public class MeteoStationTest1 extends Client {
 	
 	private PositionData stationPosition;
 	private String channel = "channel0";
-	private int sleepSinceStart = 10; // en secondes
-	private int sleepAfterFirstWind = 40; // en secondes
+	private int sleepSinceStart = 30; // en secondes
+	private int sleepAfterFirstWind = 120; // en secondes
 	
 	// --------------------------------------------------------------------------
 	// Constructor

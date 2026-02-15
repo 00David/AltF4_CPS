@@ -10,10 +10,10 @@ import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.AlertType;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.AlertTypeI;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.LevelI;
 import fr.sorbonne_u.cps.meteo.interfaces.PositionI;
+import fr.sorbonne_u.meteo.components.MeteoBureau;
+import fr.sorbonne_u.meteo.components.MeteoStation;
+import fr.sorbonne_u.meteo.components.WindTurbine;
 import fr.sorbonne_u.meteo.data.PositionData;
-import fr.sorbonne_u.meteo_bureau.components.MeteoBureau;
-import fr.sorbonne_u.meteo_station.components.MeteoStation;
-import fr.sorbonne_u.windturbine.components.WindTurbine;
 
 /**
  * Classe principale de lancement du programme.
@@ -131,7 +131,7 @@ public class CVM extends AbstractCVM {
 		PositionData windTurbinePosition = new PositionData(2, 2);
 		this.uriWindTurbine = AbstractComponent.createComponent(WindTurbine.class.getCanonicalName(),
 				new Object[] {WindTurbineRegistrationOutboundPortURI,WindTurbinePublishingOutboundPortURI,WindTurbineReceivingInboundPortURI,
-						windTurbinePosition,MeteoAlertI.Level.GREEN});
+						windTurbinePosition, MeteoAlertI.Level.ORANGE});
 		assert this.isDeployedComponent(uriWindTurbine);
 		this.toggleTracing(uriWindTurbine);
 

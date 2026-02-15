@@ -1,4 +1,4 @@
-package fr.sorbonne_u.meteo_bureau.components;
+package fr.sorbonne_u.meteo.components;
 
 import java.time.Duration;
 import java.time.Instant;
