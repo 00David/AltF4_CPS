@@ -10,6 +10,7 @@ import java.util.stream.Stream;
 
 import fr.sorbonne_u.broker.connectors.BrokerReceivingServiceConnector;
 import fr.sorbonne_u.broker.ports.BrokerReceivingOutboundPort;
+import fr.sorbonne_u.broker.ports.BrokerPrivilegedInboundPort;
 import fr.sorbonne_u.broker.ports.BrokerPublishingInboundPort;
 import fr.sorbonne_u.broker.ports.BrokerRegistrationInboundPort;
 import fr.sorbonne_u.components.AbstractComponent;
@@ -25,6 +26,7 @@ import fr.sorbonne_u.cps.pubsub.exceptions.UnknownChannelException;
 import fr.sorbonne_u.cps.pubsub.exceptions.UnknownClientException;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
+import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
@@ -39,12 +41,13 @@ import fr.sorbonne_u.exceptions.PostconditionException;
  * <li>Gère les enregistrements de composants clients (via l'URI de leur port entrant implantant {@link ReceivingCI}).
  * <li>Gère les canaux de transmission entre ces composants clients enregistrés.
  * <li>Gère les transmissions de messages en appliquant les filtres fournis par les composants abonnés au canal concerné.
+ * <li>Gère les privilèges de clients non FREE, avec de meilleures performances et une gestion avancée des canaux.
  * </p>
  * 
  * @author Kevin Tang
  * @author David Vadimon
  */
-@OfferedInterfaces(offered = {RegistrationCI.class, PublishingCI.class}) // PrivilegedClientCI pour plus tard
+@OfferedInterfaces(offered = {RegistrationCI.class, PublishingCI.class, PrivilegedClientCI.class})
 @RequiredInterfaces(required = {ReceivingCI.class})
 public class Broker extends AbstractComponent{
 	
@@ -60,6 +63,11 @@ public class Broker extends AbstractComponent{
 	// Port entrant de publication du broker, obtenu par l'enregistrement d'un port entrant de client
 	private static final String publishingPortURI = "publishing-inbound-port-broker";
 	private BrokerPublishingInboundPort publishingPort;
+	
+	// Port entrant de publication privilégiée du broker, obtenu par l'enregistrement d'un port entrant de client
+	private static final String privilegedPortURI = "privileged-inbound-port-broker";
+	private BrokerPrivilegedInboundPort privilegedPort;
+	
 	
 	// Utilisé pour un channel : paire port d'un client abonné + filtre sur le channel
 	// La paire n'est identifiée QUE par le port du client
@@ -86,17 +94,17 @@ public class Broker extends AbstractComponent{
 	    public int hashCode() { return clientPortURI.hashCode(); }
 	}
 
-	// Association : port entrant d'un client (URI) -> sa RegistrationClass 
-	private Map<String, RegistrationClass> clientsRC = new HashMap<>(); 
-	
-	// Association : port entrant d'un client (URI) -> port sortant vers CE client
-	private Map<String, BrokerReceivingOutboundPort> clientsPorts = new HashMap<>(); 
+	// Association : port entrant d'un client (URI) -> ses informations (sa RegistrationClass + le port sortant vers CE client)
+	private Map<String, ClientBrokerInfos> clientsInfos = new HashMap<>(); 
 	
 	// Association : nom d'un channel -> un ensemble de paires : (port d'un client abonné + filtre sur le channel)
 	private Map<String, Set<ClientChannelFilter>> channelsSubscribers = new HashMap<>();
 	
 	// Association : nom d'un channel -> la classe minimale d'enregistrement acceptée pour ce channel
 	private Map<String, RegistrationClass> channelsRC = new HashMap<>();
+	
+	// Association : nom d'un channel -> le port client ayant créé le channel, ou null si c'est le Broker qui l'a créé au démarrage
+	private Map<String, String> channelsCreator = new HashMap<>();
 	
 	// Association : nom d'un channel -> une liste de messages du channel
 	private Map<String, List<MessageI>> channelsMessages = new HashMap<>();
@@ -112,6 +120,9 @@ public class Broker extends AbstractComponent{
 		assert	c.isOfferedInterface(PublishingCI.class) :
 			new InvariantException("The URI component should "
 					+ "offer the interface PublishingCI!");
+		assert	c.isOfferedInterface(PrivilegedClientCI.class) :
+			new InvariantException("The URI component should "
+					+ "offer the interface PrivilegedClientCI!");
 	}
 	
 	/**
@@ -135,6 +146,7 @@ public class Broker extends AbstractComponent{
 			String chan = "channel"+i;
 			channelsSubscribers.put(chan, new HashSet<>());
 			channelsRC.put(chan, RegistrationClass.FREE); // POUR L'INSTANT JUSTE DES CLIENTS FREE MINIMUM
+			channelsCreator.put(chan, null);
 			channelsMessages.put(chan, new ArrayList<>());
 		}
 		// channel0 -> données des vents des stations météo
@@ -145,6 +157,9 @@ public class Broker extends AbstractComponent{
 		
 		this.publishingPort = new BrokerPublishingInboundPort(publishingPortURI, this);
 		this.publishingPort.publishPort();
+		
+		this.privilegedPort = new BrokerPrivilegedInboundPort(privilegedPortURI, this);
+		this.privilegedPort.publishPort();
 
 		Broker.checkInvariant(this) ;
 		AbstractComponent.checkImplementationInvariant(this);
@@ -179,6 +194,17 @@ public class Broker extends AbstractComponent{
 		assert	this.findPortFromURI(publishingPortURI).isPublished() :
 					new PostconditionException("The component must have a "
 							+ "port published with URI " + publishingPortURI);
+		
+		assert	this.isPortExisting(privilegedPortURI) :
+			new PostconditionException("The component must have a "
+					+ "port with URI " + privilegedPortURI);
+		assert	this.findPortFromURI(privilegedPortURI).
+					getImplementedInterface().equals(PrivilegedClientCI.class) :
+					new PostconditionException("The component must have a "
+							+ "port with implemented interface PrivilegedClientCI");
+		assert	this.findPortFromURI(privilegedPortURI).isPublished() :
+					new PostconditionException("The component must have a "
+							+ "port published with URI " + privilegedPortURI);
 	}
 	
 	//--------------------------------------------------------------------------
@@ -196,8 +222,8 @@ public class Broker extends AbstractComponent{
 		this.logMessage("stopping Broker component.");
 		
 		// On déconnecte tous les ports sortants liés aux clients enregistrés
-		for (Map.Entry<String, BrokerReceivingOutboundPort> entry : clientsPorts.entrySet()) {
-			BrokerReceivingOutboundPort outboundPort = entry.getValue();
+		for (Map.Entry<String, ClientBrokerInfos> entry : clientsInfos.entrySet()) {
+			BrokerReceivingOutboundPort outboundPort = entry.getValue().getOutboundPort();
 			this.doPortDisconnection(outboundPort.getPortURI());
 		}
 		
@@ -209,15 +235,15 @@ public class Broker extends AbstractComponent{
 		
 		try {
 			// On unpublish tous les ports sortants liés aux clients enregistrés
-			for (Map.Entry<String, BrokerReceivingOutboundPort> entry : clientsPorts.entrySet()) {
-				BrokerReceivingOutboundPort outboundPort = entry.getValue();
+			for (Map.Entry<String, ClientBrokerInfos> entry : clientsInfos.entrySet()) {
+				BrokerReceivingOutboundPort outboundPort = entry.getValue().getOutboundPort();
 				outboundPort.unpublishPort();
-				
 			}
 		
 			// On unpublish les 2 ports entrants
 			this.registrationPort.unpublishPort();
 			this.publishingPort.unpublishPort();
+			this.privilegedPort.unpublishPort();
 		} catch (Throwable e) {
 			throw new ComponentShutdownException(e);
 		}
@@ -248,7 +274,7 @@ public class Broker extends AbstractComponent{
 		assert(receptionPortURI != null);
 		assert(!receptionPortURI.isEmpty());
 		
-		return clientsRC.containsKey(receptionPortURI);
+		return clientsInfos.containsKey(receptionPortURI);
 	}
 	
 	/**
@@ -275,7 +301,7 @@ public class Broker extends AbstractComponent{
 		
 		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		
-		return clientsRC.containsKey(receptionPortURI) && clientsRC.containsValue(rc);
+		return clientsInfos.containsKey(receptionPortURI) && clientsInfos.get(receptionPortURI).getRegistrationClass().equals(rc);
 	}
 
 	/**
@@ -309,12 +335,11 @@ public class Broker extends AbstractComponent{
 		
 		this.logMessage("Broker registering '" + receptionPortURI + "'") ;
 		
-		// On ajoute l'URI du port entrant enregistré dans la map l'associant à sa RegistrationClass
-		clientsRC.put(receptionPortURI, rc);
-		
-		// On ajoute l'URI du port entrant dans la map l'associant au nouveau port sortant associé du Broker
+		// On ajoute l'URI du port entrant enregistré dans la map l'associant à sa RegistrationClass et son port sortant du Broker
 		BrokerReceivingOutboundPort outboundPort = new BrokerReceivingOutboundPort("BrokerOutboundPort-"+receptionPortURI, this);
-		clientsPorts.put(receptionPortURI, outboundPort);
+		clientsInfos.put(receptionPortURI, new ClientBrokerInfos(receptionPortURI, rc, outboundPort));
+
+		// On publie le nouveau port sortant
 		outboundPort.localPublishPort() ;
 		
 		// On connecte le port sortant créé au port entrant donné
@@ -324,7 +349,11 @@ public class Broker extends AbstractComponent{
 		assert(registeredService(receptionPortURI));
 		assert(registeredService(receptionPortURI, rc));
 		
-		return publishingPortURI;
+		if (rc == RegistrationClass.FREE) {
+			return publishingPortURI;
+		} else {
+			return privilegedPortURI;
+		}
 	}
 
 	/**
@@ -354,15 +383,37 @@ public class Broker extends AbstractComponent{
 		// L'appel peut lever une UnknownClientException si le client n'est pas déjà enregistré
 		if (registeredService(receptionPortURI, rc) == true) throw new AlreadyRegisteredException("Client "+receptionPortURI+" already registered.");
 		
-		clientsRC.put(receptionPortURI, rc);
+		// On modifie la classe du client
+		clientsInfos.get(receptionPortURI).setRegistrationClass(rc);
 		
-		// TODO : gérer quand un client modifie sa classe alors qu'il est déjà subscribed à des channels
-		// -> vérifier que sa registration class est encore compatible, sinon désabonner de channels concernés
+		// Gestion quand un client modifie sa classe alors qu'il est déjà subscribed à des channels
+		// On parcourt toutes les paires : channel -> ensemble de clients abonnés 
+		for (Map.Entry<String, Set<ClientChannelFilter>> entry : channelsSubscribers.entrySet()) {
+			String channel = entry.getKey();
+			Set<ClientChannelFilter> abos = entry.getValue();
+			ClientChannelFilter tmp = new ClientChannelFilter(receptionPortURI, null); // (seul le 1er argument du constructeur identifie un ClientChannelFilter)
+			
+			// Si notre client est abonné, on regarde si le channel l'accepte avec sa nouvelle RegistrationClass
+			if (abos.contains(tmp)) {
+				try {
+					// Si ce n'est pas le cas, on le supprime en tant qu'abonné du channel
+					if (!channelAuthorisedService(receptionPortURI, channel)) {
+						abos.remove(tmp);
+					}
+				} catch (UnknownChannelException e) {
+					System.err.println("Impossible, channel exists");
+				}
+			}
+		}
 
 		// Vérification de la postcondition
 		assert(registeredService(receptionPortURI, rc));
 		
-		return publishingPortURI;
+		if (rc == RegistrationClass.FREE) {
+			return publishingPortURI;
+		} else {
+			return privilegedPortURI;
+		}
 	}
 
 	/**
@@ -389,18 +440,16 @@ public class Broker extends AbstractComponent{
 		
 		this.logMessage("Broker unregistering '" + receptionPortURI +"'") ;
 		
-		// On supprime des ports enregistrés
-		clientsRC.remove(receptionPortURI);
+		BrokerReceivingOutboundPort outboundPort = clientsInfos.get(receptionPortURI).getOutboundPort();
 		
-		// On supprime de la map l'association avec un port sortant du Broker
-		BrokerReceivingOutboundPort outboundPort = clientsPorts.remove(receptionPortURI);
+		// On supprime les infos du port client
+		clientsInfos.remove(receptionPortURI);
 
 		// On déconnecte le port sortant du port entrant donné
 		this.doPortDisconnection(outboundPort.getPortURI());
 		
 		// On unpublish le port sortant
 		outboundPort.unpublishPort();
-
 		
 		// On supprime des channels abonnés le port précédemment enregistré
 		for (Map.Entry<String, Set<ClientChannelFilter>> entry : channelsSubscribers.entrySet()) {
@@ -430,7 +479,7 @@ public class Broker extends AbstractComponent{
 		assert(channel != null);
 		assert(!channel.isEmpty());
 		
-		return channelsSubscribers.containsKey(channel);
+		return channelsSubscribers.containsKey(channel); // On teste la présence du channel seulement dans cette map, présent dans les autres map aussi normallement
 	}
 	
 	/**
@@ -461,7 +510,7 @@ public class Broker extends AbstractComponent{
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 		
 		RegistrationClass minNeeded = channelsRC.get(channel);
-		RegistrationClass rc = clientsRC.get(receptionPortURI);
+		RegistrationClass rc = clientsInfos.get(receptionPortURI).getRegistrationClass();
 
 	    switch (rc) {
         case FREE:
@@ -645,7 +694,7 @@ public class Broker extends AbstractComponent{
 	 * @param channel			           name of the channel on which {@code message} must be published.
 	 * @param messages			           list of messages to be published on {@code channel}. It can contain an only message.
 	 * @throws UnknownClientException      If the {@code receptionPortURI} is not registered.
-	 * @throws UnknownChannelException     If the {@code channel} doesn't exist.*
+	 * @throws UnknownChannelException     If the {@code channel} doesn't exist.
 	 * @throws UnauthorisedClientException If {@code receptionPortURI} is not authorized to interact with the {@code channel}.
 	 */
 	public Void publishService(String receptionPortURI, String channel, ArrayList<MessageI> messages) 
@@ -674,7 +723,7 @@ public class Broker extends AbstractComponent{
 			for(MessageI msg : messages) {
 				if (ccf.filter.match(msg)){
 					this.logMessage("Broker sending message to '" + ccf.clientPortURI + "'") ;
-					BrokerReceivingOutboundPort outboundPort = clientsPorts.get(ccf.clientPortURI);
+					BrokerReceivingOutboundPort outboundPort = clientsInfos.get(ccf.clientPortURI).getOutboundPort();
 					this.runTask(
 							new AbstractComponent.AbstractTask() {
 								@Override
@@ -690,6 +739,68 @@ public class Broker extends AbstractComponent{
 			}
 		}
 		
+		return null;
+	}
+	
+	// PRIVILEGED SERVICES
+	
+	/**
+	 * Return true if the component has created {@code channel}.<br>
+	 * The creator component is not necessarily still registered.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code receptionPortURI != null && !receptionPortURI.isEmpty()}
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 *
+	 * @param receptionPortURI				URI of the inbound port offering the component interface {@code ReceivingCI}.
+	 * @param channel						channel to be tested.
+	 * @return								true if the component has created {@code channel}.
+	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
+	 */
+	public boolean hasCreatedChannelService(String receptionPortURI, String channel) 
+			throws UnknownChannelException{
+		// Vérification des préconditions
+		assert(receptionPortURI != null);
+		assert(!receptionPortURI.isEmpty());
+		assert(channel != null);
+		assert(!channel.isEmpty());
+		
+		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+		
+		return channelsCreator.get(channel).equals(receptionPortURI);
+	}
+
+	
+	public boolean channelQuotaReachedService(String receptionPortURI) throws Exception {
+		return true;
+	}
+
+	
+	public Void createChannelService(String receptionPortURI, String channel, String autorisedUsers) throws Exception {
+		return null;
+	}
+
+	
+	public boolean isAuthorisedUserService(String channel, String uri) throws Exception {
+		return true;
+	}
+
+	public Void modifyAuthorisedUsersService(String receptionPortURI, String channel, String autorisedUsers) throws Exception {
+		return null;
+	}
+
+	public Void removeAuthorisedUsersService(String receptionPortURI, String channel, String regularExpression) throws Exception {
+		return null;
+	}
+
+	public Void destroyChannelService(String receptionPortURI, String channel) throws Exception {
+		return null;
+	}
+
+	public Void destroyChannelNowService(String receptionPortURI, String channel) throws Exception {
 		return null;
 	}
 	
