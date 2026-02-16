@@ -179,7 +179,7 @@ public class WindTurbine extends Client {
 		Serializable payload = message.getPayload();
 
 		// Traitement sur réception d'une donnée de vent
-		if (payload instanceof WindData) {
+		if (payload instanceof WindData && !safeMode) {
 			this.datas.add((WindData) payload);
 			calculateNeededDirection();
 			
@@ -187,6 +187,10 @@ public class WindTurbine extends Client {
 		} else if (payload instanceof MeteoAlert) {
 			MeteoAlertI alert = (MeteoAlertI) payload;
 			react(alert.getLevel());
+			
+		// Traitement (aucun) si réception d'une donnée de vent pendant le safeMode
+		} else {
+			this.logMessage("------------------------------");
 		}
 
 		return null;
@@ -207,7 +211,7 @@ public class WindTurbine extends Client {
 			Serializable payload = mes.getPayload();
 			
 			// Traitement sur réception d'une donnée de vent
-			if (payload instanceof WindData) {
+			if (payload instanceof WindData && !safeMode) {
 				this.datas.add((WindData) payload);
 				calculateNeededDirection();
 			
@@ -215,6 +219,10 @@ public class WindTurbine extends Client {
 			} else if (payload instanceof MeteoAlert) {
 				MeteoAlertI alert = (MeteoAlertI) payload;
 				react(alert.getLevel());
+				
+			// Traitement (aucun) si réception d'une donnée de vent pendant le safeMode
+			} else {
+				this.logMessage("------------------------------");
 			}
 		}
 
@@ -282,11 +290,17 @@ public class WindTurbine extends Client {
 		MeteoAlertI.Level maxLevel = (MeteoAlertI.Level) this.maxWorkingLevel;
 		MeteoAlertI.Level alertLevel = (MeteoAlertI.Level) level;
 
-		if (alertLevel.ordinal() > maxLevel.ordinal()) {
+		if (alertLevel.ordinal() > maxLevel.ordinal() && !safeMode) {
 			goInSafeMode();
 			this.datas.clear(); // On efface les datas de vents précédants
-		} else {
+		} else if (alertLevel.ordinal() <= maxLevel.ordinal() && safeMode) {
 			goBacktoNormalMode();
+		
+		// On ne change rien, si l'on a :
+		// - reçu une alerte au dessus du niveau maximal de fonctionnement, alors que l'on est déjà en safeMode
+		// - reçu une alerte permettant de fonctionner, alors que l'on est déjà en fonctionnement normal (safeMode == false)
+		} else {
+			this.logMessage("------------------------------");
 		}
 	}
 	

@@ -307,7 +307,7 @@ public class Broker extends AbstractComponent{
 		
 		if (registeredService(receptionPortURI)) throw new AlreadyRegisteredException("Client "+receptionPortURI+" already registered.");
 		
-		this.logMessage("Broker registering " + receptionPortURI) ;
+		this.logMessage("Broker registering '" + receptionPortURI + "'") ;
 		
 		// On ajoute l'URI du port entrant enregistré dans la map l'associant à sa RegistrationClass
 		clientsRC.put(receptionPortURI, rc);
@@ -387,7 +387,7 @@ public class Broker extends AbstractComponent{
 		
 		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		
-		this.logMessage("Broker unregistering " + receptionPortURI) ;
+		this.logMessage("Broker unregistering '" + receptionPortURI +"'") ;
 		
 		// On supprime des ports enregistrés
 		clientsRC.remove(receptionPortURI);
@@ -539,7 +539,7 @@ public class Broker extends AbstractComponent{
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 		if (!channelAuthorisedService(receptionPortURI, channel)) throw new UnauthorisedClientException("Client "+receptionPortURI+" is not authorized.");
 		
-		this.logMessage("Broker subscribing " + receptionPortURI + " to channel "+ channel) ;
+		this.logMessage("Broker subscribing '" + receptionPortURI + "' to "+ channel) ;
 		
 		channelsSubscribers.get(channel).add(new ClientChannelFilter(receptionPortURI, filter));
 		
@@ -577,7 +577,7 @@ public class Broker extends AbstractComponent{
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 		if (!subscribedService(receptionPortURI, channel)) throw new NotSubscribedChannelException("Not subscribed to '"+channel+"' channel.");
 		
-		this.logMessage("Broker unsubscribing " + receptionPortURI + " from channel "+ channel) ;
+		this.logMessage("Broker unsubscribing '" + receptionPortURI + "' from "+ channel) ;
 		
 		channelsSubscribers.get(channel).remove(new ClientChannelFilter(receptionPortURI, null));
 		
@@ -663,7 +663,7 @@ public class Broker extends AbstractComponent{
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 		if (!channelAuthorisedService(receptionPortURI, channel)) throw new UnauthorisedClientException("Client "+receptionPortURI+" is not authorized.");
 		
-		this.logMessage("Broker received messages from " + receptionPortURI) ;
+		this.logMessage("Broker received message(s) from '" + receptionPortURI + "' on " + channel) ;
 		
 		// On met les messages dans le channel
 		channelsMessages.get(channel).addAll(messages);
@@ -673,7 +673,7 @@ public class Broker extends AbstractComponent{
 			
 			for(MessageI msg : messages) {
 				if (ccf.filter.match(msg)){
-					this.logMessage("Broker sending message to " + ccf.clientPortURI) ;
+					this.logMessage("Broker sending message to '" + ccf.clientPortURI + "'") ;
 					BrokerReceivingOutboundPort outboundPort = clientsPorts.get(ccf.clientPortURI);
 					this.runTask(
 							new AbstractComponent.AbstractTask() {

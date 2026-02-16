@@ -95,6 +95,7 @@ public class MeteoStation extends Client {
 			brokerPublishingPortURI = this.registrationOutboundPort.register(receivingInboundPort.getPortURI(), RegistrationClass.FREE);
 		}
 		assert (brokerPublishingPortURI != null);
+		this.logMessage("MeteoStation registered");
 		
 		// On connecte le port de publication
 		this.doPortConnection(this.publishingOutboundPort.getPortURI(), 

@@ -94,6 +94,7 @@ public class MeteoBureauTest extends Client{
 			brokerPublishingPortURI = this.registrationOutboundPort.register(receivingInboundPort.getPortURI(), RegistrationClass.FREE);
 		}
 		assert (brokerPublishingPortURI != null);
+		this.logMessage("MeteoBureau registered");
 		
 		// On connecte le port de publication
 		this.doPortConnection(this.publishingOutboundPort.getPortURI(), 
