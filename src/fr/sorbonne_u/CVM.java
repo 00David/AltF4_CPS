@@ -87,9 +87,11 @@ public class CVM extends AbstractCVM {
 		// ---------------------------------------------------------------------
 		
 		// création du Broker
+		int nbMaxChannelsSTD = 2;
+		int nbMaxChannelsPREM = 4;
 		this.uriBroker = AbstractComponent.createComponent(
 				Broker.class.getCanonicalName(),
-				new Object[] {3});
+				new Object[] {2, nbMaxChannelsSTD, nbMaxChannelsPREM});
 		assert this.isDeployedComponent(this.uriBroker);
 		this.toggleTracing(this.uriBroker);
 

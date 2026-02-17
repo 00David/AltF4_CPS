@@ -7,7 +7,6 @@ import java.util.Set;
 
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
-import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 
 /**
  * Classe gardant toutes les infos d'un channel existant sur le {@link Broker}.
@@ -20,7 +19,8 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
  * Les infos maintenues sont :
  * <li> - Le nom du channel.
  * <li> - Un ensemble de paires : (port d'un client abonné + filtre sur le channel)
- * <li> - La {@link RegistrationClass} minimale d'enregistrement acceptée pour ce channel.
+ * <li> - Indication si le channel est accesible seulement aux client privilégiés, ou à tout le monde (channel par défaut).
+ * <li> - L'expression régulière des URIs des ports clients acceptés par le channel.
  * <li> - Le port client ayant créé le channel, ou null si c'est le Broker qui l'a créé au démarrage.
  * <li> - Une liste de {@link MessageI} du channel.
  * </p>
@@ -48,19 +48,17 @@ public class ChannelBrokerInfos {
 	     * 
 		 * <p><strong>Contract</strong></p>
 		 * <pre>
-		 * pre	{@code clientPortURI != null && !clientPortURI.isEmpty()}
-		 * pre	{@code filter != null}
+		 * pre	{@code subscriberPortURI != null && !subscriberPortURI.isEmpty()}
 		 * post	{@code true}	// no postcondition.
 		 * </pre>
 	     * 
-	     * @param clientPortURI 	l'URI du port entrant du client, offrant l'interface de composant {@code ReceivingCI}.
+	     * @param subscriberPortURI 	l'URI du port entrant du client, offrant l'interface de composant {@code ReceivingCI}.
 	     * @param filter			le filtre du client sur le channel.
 	     */
-	    private SubsciberFilter(String clientPortURI, MessageFilterI filter) {
-	    	assert(clientPortURI != null && !clientPortURI.isEmpty());
-	    	assert(filter != null);
+	    private SubsciberFilter(String subscriberPortURI, MessageFilterI filter) {
+	    	assert(subscriberPortURI != null && !subscriberPortURI.isEmpty());
 	    	
-	        this.subscriberPortURI = clientPortURI;
+	        this.subscriberPortURI = subscriberPortURI;
 	        this.filter = filter;
 	    }
 	    
@@ -82,7 +80,8 @@ public class ChannelBrokerInfos {
 	
 	private final String channel;
 	private final Set<SubsciberFilter> subscribers;
-	private RegistrationClass minRC;
+	private final boolean onlyPrivileged;
+	private String authorisedUsers;
 	private final String clientCreator;
 	private final List<MessageI> messages;
 
@@ -92,22 +91,24 @@ public class ChannelBrokerInfos {
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre	{@code channel != null && !channel.isEmpty()}
-	 * pre	{@code minRC != null}
+	 * pre	{@code authorisedUsers != null}
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 * 
 	 * @param channel			le nom du channel.
-	 * @param minRC				la {@link RegistrationClass} minimale acceptée par ce channel.
+	 * @param authorisedUsers	l'expression régulière des URIs des ports clients acceptés par le channel.
 	 * @param clientCreator		l'URI du port du client ayant créé le {@code channel}, ou {@code null} si c'est un canal créé par le {@link Broker}.
+	 * @param onlyPrivileged	true si le channel est accesible seulement aux client privilégiés, false pour tout le monde.
 	 */
-	public ChannelBrokerInfos(String channel, RegistrationClass minRC, String clientCreator) {
+	public ChannelBrokerInfos(String channel, String authorisedUsers, String clientCreator, boolean onlyPrivileged) {
 		// Vérification des préconditions
 		assert(channel != null && !channel.isEmpty());
-		assert(minRC != null);
+		assert(authorisedUsers != null);
 		
 		this.channel = channel;
 		this.subscribers = new HashSet<>();
-		this.minRC = minRC;
+		this.onlyPrivileged = onlyPrivileged;
+		this.authorisedUsers = authorisedUsers;
 		this.clientCreator = clientCreator;
 		this.messages = new ArrayList<>();
 	}
@@ -180,49 +181,122 @@ public class ChannelBrokerInfos {
 		assert(!isSubscribed(clientPortURI));
 	}
 	
-	public Set<SubsciberFilter> getSubscribers() {
-		return subscribers;
+	/**
+	 * Renvoit l'ensemble des URI des ports clients abonnés au channel.
+	 * @return l'ensemble des URI des ports clients abonnés au channel.
+	 */
+	public List<String> getSubscribers() {
+		List<String> subs = new ArrayList<>();
+		for (SubsciberFilter sub : subscribers) {
+			subs.add(sub.subscriberPortURI);
+		}
+		return subs;
 	}
 	
-	// MINIMUM REGISTRATION CLASS MANAGEMENT
+	// AUTHORIZED USERS MANAGEMENT
 	
-	public RegistrationClass getMinRC() {
-		return minRC;
+	/**
+	 * Indique si le channel est accesible seulement aux client privilégiés, ou à tout le monde.
+	 * @return true si le channel est accesible seulement aux client privilégiés, false sinon.
+	 */
+	public boolean onlyPrivileged() {
+		return onlyPrivileged;
 	}
 	
-	public void setMinRC(RegistrationClass minRC) {
-		// Vérification de la précondition
-		assert(minRC != null);
+	/**
+	 * Modifie l'expression régulière des utilisateurs authorisés pour ce channel.
+	 * 
+	 * <p>
+	 * Si certains utilisateurs abonnés ne correspondent pas à la nouvelle expression régulière, ils sont désabonnés.
+	 * </p>
+	 * 
+	 * @param authorizedUsers la nouvelle expression régulière des utilisateurs authorisés pour ce channel (URI).
+	 */
+	public void modifyAuthorizedUsers(String authorizedUsers) {
+		this.authorisedUsers = authorizedUsers;
 		
-		this.minRC = minRC;
+		// Désabonnement des utilisateurs abonnés qui ne matchent plus la nouvelle expression régulière
+		List<String> subscribers = getSubscribers();
+		for (String sub : subscribers) {
+			if (!sub.matches(authorizedUsers)) removeSubscriber(sub);
+		}
 	}
 	
+	/**
+	 * Renvoit l'expression régulière filtrant les URIs des ports clients pouvant s'abonner.
+	 * @return l'expression régulière filtrant les URIs des ports clients pouvant s'abonner.
+	 */
+	public String getAuthorizedUsers() {
+		return authorisedUsers;
+	}
+
 	// CREATOR MANAGEMENT
 	
+	/**
+	 * Renvoit l'URI du port client ayant créé le channel.
+	 * @return l'URI du port client ayant créé le channel.
+	 */
 	public String getCreator() {
 		return clientCreator;
 	}
 	
 	// MESSAGES MANAGEMENT
 	
+	/**
+	 * Ajoute un {@link MessageI} au channel.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code msg != null}
+	 * post	{@code messages.contains(msg)}
+	 * </pre>
+	 * 
+	 * @param msg le nouveau {@link MessageI} à ajouter au channel.
+	 */
 	public void addMessage(MessageI msg) {
 		// Vérification de la précondition
 		assert(msg != null);
 		
 		messages.add(msg);
+		
+		// Vérification de la postcondition
+		assert(messages.contains(msg));
 	}
 	
+	/**
+	 * Ajoute l'ensemble des {@link MessageI} au channel.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code msg != null}
+	 * post	{@code messages.contains(msg)}
+	 * </pre>
+	 * 
+	 * @param msg les nouveaux {@link MessageI} à ajouter au channel.
+	 */
 	public void addMessages(List<MessageI> msgs) {
 		// Vérification des préconditions
 		assert(msgs != null && msgs.size() > 0);
 		
 		messages.addAll(msgs);
+		
+		// Vérification de la postcondition
+		assert(messages.containsAll(msgs));
 	}
 	
+	/**
+	 * Renvoit la liste des {@link MessageI} du channel.
+	 * @return  la liste des {@link MessageI} du channel.
+	 */
 	public List<MessageI> getMessages() {
 		return messages;
 	}
 	
+	/**
+	 * Renvoit la liste des URIs des ports clients, abonnés au channel, acceptant le {@code msg} avce le filtre.
+	 * @param msg 	un message qui va permettre de récupérer tous les clients du channel acceptant ce filtre.
+	 * @return		la liste des clients du channel acceptant ce {@code msg}.
+	 */
 	public List<String> targetSubscribers(MessageI msg){
 		// Vérification des préconditions
 		assert(msg != null);

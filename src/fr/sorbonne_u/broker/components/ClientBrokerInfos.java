@@ -20,10 +20,15 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
  * @author David Vadimon
  */
 public class ClientBrokerInfos {
+	
+	// Setup par le Broker, dans son constructeur
+	public static int nbMaxChannelsStd = -1;
+	public static int nbMaxChannelsPrem = -1;
 
 	private final String clientPortURI;
 	private RegistrationClass rc;
 	private final BrokerReceivingOutboundPort clientOutboundPort;
+	private int nbChannelsRemaining;
 	
 	/**
 	 * Construction des infos d'un {@link Client} enregistré sur le {@link Broker}.
@@ -33,6 +38,8 @@ public class ClientBrokerInfos {
 	 * pre	{@code clientPortURI != null && !clientPortURI.isEmpty()}
 	 * pre	{@code rc != null}
 	 * pre	{@code clientOutboundPort != null}
+	 * pre	{@code nbMaxChannelsStd != -1}
+	 * pre	{@code nbMaxChannelsPrem != -1}
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 * 
@@ -44,10 +51,21 @@ public class ClientBrokerInfos {
 		assert(clientPortURI != null && !clientPortURI.isEmpty());
 		assert(rc != null);
 		assert(clientOutboundPort != null);
+		assert(nbMaxChannelsStd != -1);
+		assert(nbMaxChannelsPrem != -1);
 		
 		this.clientPortURI = clientPortURI;
 		this.rc = rc;
 		this.clientOutboundPort = clientOutboundPort;
+		
+		switch(rc) {
+		case FREE:
+			this.nbChannelsRemaining = 0;
+		case STANDARD:
+			this.nbChannelsRemaining = nbMaxChannelsStd;
+		default:
+			this.nbChannelsRemaining = nbMaxChannelsPrem;
+		}
 	}
 	
 	// REGISTRATION CLASS MANAGEMENT
@@ -78,6 +96,38 @@ public class ClientBrokerInfos {
 		return clientOutboundPort;
 	}
 	
+	// NUMBER OF REMAINING CHANNELS MANAGEMENT
+	
+	/**
+	 * Indique si le client peut créer au moins un channel.
+	 * @return true si au moins 1 canal peut être créé par le client, false sinon.
+	 */
+	public boolean canCreateChannel() {
+		return nbChannelsRemaining > 0;
+	}
+	
+	/**
+	 * Décrémente le nombre de canaux pouvant être créés par le client.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code this.nbChannelsRemaining > 0}
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 */
+	public void decreaseRemainingChannels() {
+		// Vérification de la précondition
+		assert(nbChannelsRemaining > 0);
+		
+		nbChannelsRemaining--;
+	}
+	
+	/**
+	 * Incrémente le nombre de canaux pouvant être créés par le client.
+	 */
+	public void increaseRemainingChannels() {
+		nbChannelsRemaining++;
+	}
 	
 	// Un ClientBrokerInfos n'est identifié que par l'URI du port du client
 	// => redéfinition de equals et hashCode
