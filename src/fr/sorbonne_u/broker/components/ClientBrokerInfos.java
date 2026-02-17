@@ -7,6 +7,10 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
  * Classe gardant toutes les infos d'un {@link Client} enregistré sur le {@link Broker}.
  * 
  * <p>
+ * Chaque instance est identifiée uniquement par son attribut {@code clientPortURI}.
+ * </p>
+ * 
+ * <p>
  * Les infos maintenues sont :
  * <li> - L'URI du port client.
  * <li> - La {@link RegistrationClass} du client.
@@ -21,6 +25,21 @@ public class ClientBrokerInfos {
 	private RegistrationClass rc;
 	private final BrokerReceivingOutboundPort clientOutboundPort;
 	
+	/**
+	 * Construction des infos d'un {@link Client} enregistré sur le {@link Broker}.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code clientPortURI != null && !clientPortURI.isEmpty()}
+	 * pre	{@code rc != null}
+	 * pre	{@code clientOutboundPort != null}
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 * 
+	 * @param clientPortURI			l'URI du port entrant du client, offrant l'interface de composant {@code ReceivingCI}.
+	 * @param rc					la classe d'enregistrement du client.
+	 * @param clientOutboundPort	le port sortant du {@link Broker} requérant l'interface {@code ReceivingCI}, associé au client.
+	 */
 	public ClientBrokerInfos(String clientPortURI, RegistrationClass rc, BrokerReceivingOutboundPort clientOutboundPort) {
 		assert(clientPortURI != null && !clientPortURI.isEmpty());
 		assert(rc != null);
@@ -31,17 +50,37 @@ public class ClientBrokerInfos {
 		this.clientOutboundPort = clientOutboundPort;
 	}
 	
+	// REGISTRATION CLASS MANAGEMENT
+	
+	/**
+	 * Renvoit la {@link RegistrationClass} du client.
+	 * @return la {@link RegistrationClass} du client.
+	 */
 	public RegistrationClass getRegistrationClass() {
 		return rc;
 	}
 	
+	/**
+	 * Remplace la {@link RegistrationClass} du client.
+	 * @param rc la nouvelle {@link RegistrationClass} du client.
+	 */
 	public void setRegistrationClass(RegistrationClass rc) {
 		this.rc = rc;
 	}
 	
+	// OUTBOUND PORT MANAGEMENT
+	
+	/**
+	 * Renvoit le {@link BrokerReceivingOutboundPort} du client.
+	 * @return le {@link BrokerReceivingOutboundPort} du client.
+	 */
 	public BrokerReceivingOutboundPort getOutboundPort() {
 		return clientOutboundPort;
 	}
+	
+	
+	// Un ClientBrokerInfos n'est identifié que par l'URI du port du client
+	// => redéfinition de equals et hashCode
 	
     @Override
     public boolean equals(Object o) {
