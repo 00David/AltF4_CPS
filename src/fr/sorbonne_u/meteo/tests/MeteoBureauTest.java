@@ -6,7 +6,6 @@ import java.util.ArrayList;
 
 import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.connectors.ClientPublishingServiceConnector;
-import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.annotations.OfferedInterfaces;
 import fr.sorbonne_u.components.annotations.RequiredInterfaces;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
@@ -101,19 +100,9 @@ public class MeteoBureauTest extends Client{
 				brokerPublishingPortURI, 
 				ClientPublishingServiceConnector.class.getCanonicalName());
 		
-		// On prépare l'envoi de la 1ère alerte
-	    this.runTask(
-		        new AbstractComponent.AbstractTask() {
-		            @Override
-		            public void run() {
-		                try {
-		                    ((MeteoBureauTest) this.getTaskOwner()).sendAlertDanger();
-		                } catch (Throwable e) {
-		                    e.printStackTrace();
-		                }
-		            }
-		        }
-		    );
+		sendAlertDanger();
+		sendAlertSafe();
+		sendUncaughtAlert();
 	}
 	
 	// --------------------------------------------------------------------------
@@ -154,21 +143,6 @@ public class MeteoBureauTest extends Client{
 		this.logMessage("------------------------------");
 		
 		this.publishingOutboundPort.publish(receivingInboundPort.getPortURI(), channel, msg);
-		
-		// tache suivante : préparer l'alerte de fin de danger
-	    this.runTask(
-		        new AbstractComponent.AbstractTask() {
-		            @Override
-		            public void run() {
-		                try {
-		                    ((MeteoBureauTest) this.getTaskOwner()).sendAlertSafe();
-		                } catch (Throwable e) {
-		                    e.printStackTrace();
-		                }
-		            }
-		        }
-		    );
-		
 	}
 	
 	/**
@@ -204,20 +178,6 @@ public class MeteoBureauTest extends Client{
 		this.logMessage("------------------------------");
 		
 		this.publishingOutboundPort.publish(receivingInboundPort.getPortURI(), channel, msg);
-		
-		// tache suivante : préparer l'alerte non attrapée par l'éolienne
-	    this.runTask(
-		        new AbstractComponent.AbstractTask() {
-		            @Override
-		            public void run() {
-		                try {
-		                    ((MeteoBureauTest) this.getTaskOwner()).sendUncaughtAlert();
-		                } catch (Throwable e) {
-		                    e.printStackTrace();
-		                }
-		            }
-		        }
-		    );
 	}
 	
 	/**

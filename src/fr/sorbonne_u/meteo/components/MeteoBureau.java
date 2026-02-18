@@ -103,18 +103,7 @@ public class MeteoBureau extends Client{
 	    //this.scheduleNextSend(); // Pour l'instant ne marche pas
 	    
 	    // temporaire
-	    this.runTask(
-		        new AbstractComponent.AbstractTask() {
-		            @Override
-		            public void run() {
-		                try {
-		                    ((MeteoBureau) this.getTaskOwner()).sendAlert("channel1");
-		                } catch (Throwable e) {
-		                    e.printStackTrace();
-		                }
-		            }
-		        }
-		    );
+	    sendAlert("channel1");
 	}
 	
 	// --------------------------------------------------------------------------
@@ -190,19 +179,7 @@ public class MeteoBureau extends Client{
 		this.publishingOutboundPort.publish(receivingInboundPort.getPortURI(), channel, msg);
 		
 		// temporaire
-	    this.runTask(
-		        new AbstractComponent.AbstractTask() {
-		            @Override
-		            public void run() {
-		                try {
-		                    ((MeteoBureau) this.getTaskOwner()).sendAlert("channel1");
-		                } catch (Throwable e) {
-		                    e.printStackTrace();
-		                }
-		            }
-		        }
-		    );
-		
+		sendAlert("channel1");
 	}
 	
 	// --------------------------------------------------------------------------

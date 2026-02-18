@@ -2,7 +2,9 @@ package fr.sorbonne_u.broker.components;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 import java.util.Set;
 
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
@@ -22,7 +24,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
  * <li> - Indication si le channel est accesible seulement aux client privilégiés, ou à tout le monde (channel par défaut).
  * <li> - L'expression régulière des URIs des ports clients acceptés par le channel.
  * <li> - Le port client ayant créé le channel, ou null si c'est le Broker qui l'a créé au démarrage.
- * <li> - Une liste de {@link MessageI} du channel.
+ * <li> - Une file FIFO de {@link MessageI} du channel en attente (à envoyer).
  * </p>
  * @author Kevin Tang
  * @author David Vadimon
@@ -83,7 +85,7 @@ public class ChannelBrokerInfos {
 	private final boolean onlyPrivileged;
 	private String authorisedUsers;
 	private final String clientCreator;
-	private final List<MessageI> messages;
+	private final Queue<MessageI> messages;
 
 	/**
 	 * Construction des infos d'un channel enregistré sur le {@link Broker}.
@@ -110,7 +112,7 @@ public class ChannelBrokerInfos {
 		this.onlyPrivileged = onlyPrivileged;
 		this.authorisedUsers = authorisedUsers;
 		this.clientCreator = clientCreator;
-		this.messages = new ArrayList<>();
+		this.messages = new LinkedList<>();
 	}
 	
 	// SUBSCRIBERS (+ THEIR FILTER) MANAGEMENT
@@ -283,24 +285,23 @@ public class ChannelBrokerInfos {
 		// Vérification de la postcondition
 		assert(messages.containsAll(msgs));
 	}
-	
+
 	/**
-	 * Renvoit la liste des {@link MessageI} du channel.
-	 * @return  la liste des {@link MessageI} du channel.
+	 * Retire le prochain {@link MessageI} du channel à traiter et le renvoit.
+	 * @return  le prochain {@link MessageI} du channel à traiter, ou {@code null} si aucun message en attente.
 	 */
-	public List<MessageI> getMessages() {
-		return messages;
+	public MessageI getMessage() {
+		return messages.poll();
 	}
 	
 	/**
-	 * Renvoit la liste des URIs des ports clients, abonnés au channel, acceptant le {@code msg} avce le filtre.
-	 * @param msg 	un message qui va permettre de récupérer tous les clients du channel acceptant ce filtre.
+	 * Renvoit la liste des URIs des ports clients, abonnés au channel, acceptant le {@code msg} avec leur filtre.
+	 * @param msg 	un {@link MessageI} qui va permettre de récupérer tous les clients du channel acceptant ce {@code msg}.
 	 * @return		la liste des clients du channel acceptant ce {@code msg}.
 	 */
 	public List<String> targetSubscribers(MessageI msg){
-		// Vérification des préconditions
+		// Vérification de la précondition
 		assert(msg != null);
-		assert(messages.contains(msg));
 		
 		List<String> targetSubs = new ArrayList<>();
 		

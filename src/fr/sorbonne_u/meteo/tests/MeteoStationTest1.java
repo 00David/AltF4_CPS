@@ -2,7 +2,6 @@ package fr.sorbonne_u.meteo.tests;
 
 import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.connectors.ClientPublishingServiceConnector;
-import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.annotations.OfferedInterfaces;
 import fr.sorbonne_u.components.annotations.RequiredInterfaces;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
@@ -90,19 +89,8 @@ public class MeteoStationTest1 extends Client {
 				brokerPublishingPortURI, 
 				ClientPublishingServiceConnector.class.getCanonicalName());
 		
-		// On prépare l'envoi de la WindData
-	    this.runTask(
-		        new AbstractComponent.AbstractTask() {
-		            @Override
-		            public void run() {
-		                try {
-		                    ((MeteoStationTest1) this.getTaskOwner()).sendWindData1();
-		                } catch (Throwable e) {
-		                    e.printStackTrace();
-		                }
-		            }
-		        }
-		    );
+		sendWindData1();
+		sendWindData2();
 	}
 	
 	// --------------------------------------------------------------------------
@@ -134,20 +122,6 @@ public class MeteoStationTest1 extends Client {
 		this.logMessage("------------------------------");
 		
 		this.publishingOutboundPort.publish(receivingInboundPort.getPortURI(), channel, msg);
-		
-		// tache suivante : préparer le 2ème envoi
-	    this.runTask(
-		        new AbstractComponent.AbstractTask() {
-		            @Override
-		            public void run() {
-		                try {
-		                    ((MeteoStationTest1) this.getTaskOwner()).sendWindData2();
-		                } catch (Throwable e) {
-		                    e.printStackTrace();
-		                }
-		            }
-		        }
-		    );
 	}
 	
 	/**

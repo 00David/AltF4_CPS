@@ -91,7 +91,7 @@ implements	PrivilegedClientCI {
 	@Override
 	public void removeAuthorisedUsers(String receptionPortURI, String channel, String regularExpression) throws Exception  {
 		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).removeAuthorisedUsersService(receptionPortURI, channel, regularExpression));
+				owner -> ((Broker)owner).modifyAuthorisedUsersService(receptionPortURI, channel, regularExpression)); // ?
 		
 	}
 

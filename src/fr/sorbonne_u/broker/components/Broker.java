@@ -19,6 +19,7 @@ import fr.sorbonne_u.components.exceptions.ComponentShutdownException;
 import fr.sorbonne_u.components.exceptions.ComponentStartException;
 import fr.sorbonne_u.cps.pubsub.exceptions.AlreadyExistingChannelException;
 import fr.sorbonne_u.cps.pubsub.exceptions.AlreadyRegisteredException;
+import fr.sorbonne_u.cps.pubsub.exceptions.ChannelQuotaExceededException;
 import fr.sorbonne_u.cps.pubsub.exceptions.NotSubscribedChannelException;
 import fr.sorbonne_u.cps.pubsub.exceptions.UnauthorisedClientException;
 import fr.sorbonne_u.cps.pubsub.exceptions.UnknownChannelException;
@@ -672,10 +673,13 @@ public class Broker extends AbstractComponent{
 		chanInfos.addMessages(messages);
 		
 		// On envoie les messages aux clients concernés du channel
-		for(MessageI msg : messages) {
+		MessageI msg = chanInfos.getMessage();
+		while (msg != null) {
 			
-			// On récupère les clients concernés du channel, pour le message actuel
-			List<String> targetClientsPortURI = chanInfos.targetSubscribers(msg);
+			final MessageI currentMsg = msg;
+			
+			// On récupère les clients du channel visés par ce message
+			List<String> targetClientsPortURI = chanInfos.targetSubscribers(currentMsg);
 			
 			// On leur envoie le message
 			for (String targetPortURI : targetClientsPortURI) {
@@ -685,18 +689,27 @@ public class Broker extends AbstractComponent{
 				
 				this.logMessage("Broker sending message to '" + targetPortURI + "'") ;
 				BrokerReceivingOutboundPort outboundPort = clientsInfos.get(targetPortURI).getOutboundPort();
-				this.runTask(
+				/*this.runTask(
 						new AbstractComponent.AbstractTask() {
 							@Override
 							public void run() {
 								try {
-									outboundPort.receive(channel, msg); // 1 message par envoi pour l'instant
+									outboundPort.receive(channel, currentMsg); // 1 message par envoi pour l'instant
 								} catch (Throwable e) {
 									e.printStackTrace();
 								}
 							}
-						}) ;
+						}) ;*/
+				try {
+					outboundPort.receive(channel, currentMsg); // 1 message par envoi pour l'instant
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 			}
+			
+			// Si le channel a été détruit, lancement d'une UnknownChannelException
+			if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist anymore (destroyed).");
+			msg = chanInfos.getMessage();
 		}
 		
 		return null;
@@ -770,12 +783,15 @@ public class Broker extends AbstractComponent{
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 *
-	 * @param receptionPortURI			identifier of the requesting component <i>i.e.</i>, URI of its inbound port offering the component interface {@code ReceivingCI}.
-	 * @param channel					name of the channel to be created.
-	 * @param autorisedUsers			regular expression that matches the URIs of components that must be authorised to use the new channel.
-	 * @throws UnknownClientException   If the {@code receptionPortURI} is not registered.
+	 * @param receptionPortURI						identifier of the requesting component <i>i.e.</i>, URI of its inbound port offering the component interface {@code ReceivingCI}.
+	 * @param channel								name of the channel to be created.
+	 * @param autorisedUsers						regular expression that matches the URIs of components that must be authorised to use the new channel.
+	 * @throws UnknownClientException   			If the {@code receptionPortURI} is not registered.
+	 * @throws AlreadyExistingChannelException   	If the {@code channel} already exists.
+	 * @throws ChannelQuotaExceededException   		If the {@code receptionPortURI} cannot currently manage more channels.
 	 */
-	public Void createChannelService(String receptionPortURI, String channel, String autorisedUsers) throws Exception {
+	public Void createChannelService(String receptionPortURI, String channel, String autorisedUsers) 
+			throws UnknownClientException,  AlreadyExistingChannelException, ChannelQuotaExceededException{
 		// Vérification des préconditions
 		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
 		assert(channel != null && !channel.isEmpty());
@@ -783,6 +799,7 @@ public class Broker extends AbstractComponent{
 		
 		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		if (channelsInfos.containsKey(channel)) throw new AlreadyExistingChannelException("Channel " + channel + " already exists.");
+		if (!channelQuotaReachedService(receptionPortURI)) throw new ChannelQuotaExceededException("No remaining channels to manage for "+receptionPortURI);
 		
 		channelsInfos.put(channel, new ChannelBrokerInfos(channel, autorisedUsers, receptionPortURI, true));
 		clientsInfos.get(receptionPortURI).decreaseRemainingChannels();
@@ -862,31 +879,106 @@ public class Broker extends AbstractComponent{
 	}
 
 	/**
-	 * remove {@code uri} from the users authorised to use {@code channel}.
+	 * Destroy the given channel when no more messages are currently waiting to be transmitted.
+	 * 
+	 * <p>
+	 * If other threads are currently publishing messages of that {@code channel}, 
+	 * they are stopped with a {@link UnknownChannelException}.<br>
+	 * Then the current thread sends the remaining messages of the {@code channel}.
+	 * </p>
 	 * 
 	 * <p><strong>Contract</strong></p>
-	 * 
 	 * <pre>
 	 * pre	{@code receptionPortURI != null && !receptionPortURI.isEmpty()}
 	 * pre	{@code channel != null && !channel.isEmpty()}
-	 * pre	{@code regularExpression != null && !regularExpression.isEmpty()}
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 *
-	 * @param receptionPortURI	identifier of the requesting component <i>i.e.</i>, URI of its inbound port offering the component interface {@code ReceivingCI}.
-	 * @param channel			name of the channel.
-	 * @param regularExpression	regular expression that matches the URIs of components that must be authorised to use the new channel.
-	 * @throws Exception		<i>to do</i>.
+	 * @param receptionPortURI				URI of the inbound port offering the component interface {@code ReceivingCI}.
+	 * @param channel						name of the channel to be destroyed.
+	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
+	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
+	 * @throws UnauthorisedClientException  If the {@code receptionPortURI} is not allowed to interact with the {@code channel}.
 	 */
-	public Void removeAuthorisedUsersService(String receptionPortURI, String channel, String regularExpression) throws Exception {
-		return null; // ?????????????
-	}
-
-	public Void destroyChannelService(String receptionPortURI, String channel) throws Exception {
+	public Void destroyChannelService(String receptionPortURI, String channel) 
+			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException{
+		// Vérification des préconditions
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
+		assert(channel != null && !channel.isEmpty());
+		
+		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+		if (!isAuthorisedUserService(channel, receptionPortURI)) throw new UnauthorisedClientException("Client "+receptionPortURI+" not authorized");
+		
+		// Suppression de la référence au channel
+		ChannelBrokerInfos chanInfos = channelsInfos.remove(channel);
+		assert(chanInfos != null);
+		
+		// Envoie les messages restants
+		MessageI msg = chanInfos.getMessage();
+		while (msg != null) {
+			
+			final MessageI currentMsg = msg;
+			
+			// On récupère les clients du channel visés par ce message
+			List<String> targetClientsPortURI = chanInfos.targetSubscribers(currentMsg);
+			
+			// On leur envoie le message
+			for (String targetPortURI : targetClientsPortURI) {
+				
+				// Normalement impossible que la target ne soit pas enregistrée, simple vérification
+				assert(registeredService(targetPortURI));
+				
+				this.logMessage("Broker sending message to '" + targetPortURI + "' after channel destruction") ;
+				BrokerReceivingOutboundPort outboundPort = clientsInfos.get(targetPortURI).getOutboundPort();
+				try {
+					outboundPort.receive(channel, currentMsg); // 1 message par envoi pour l'instant
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+			
+			msg = chanInfos.getMessage();
+		}
+		
 		return null;
 	}
 
-	public Void destroyChannelNowService(String receptionPortURI, String channel) throws Exception {
+	/**
+	 * Destroy the given channel immediately, even if the channel has still messages to be transmitted.
+	 * 
+	 * <p>
+	 * If other threads are currently publishing messages of that {@code channel}, 
+	 * they are stopped with a {@link UnknownChannelException}.
+	 * </p>
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code receptionPortURI != null && !receptionPortURI.isEmpty()}
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 *
+	 * @param receptionPortURI				URI of the inbound port offering the component interface {@code ReceivingCI}.
+	 * @param channel						name of the channel to be destroyed.
+	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
+	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
+	 * @throws UnauthorisedClientException  If the {@code receptionPortURI} is not allowed to interact with the {@code channel}.
+	 */
+	public Void destroyChannelNowService(String receptionPortURI, String channel) 
+			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException{
+		// Vérification des préconditions
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
+		assert(channel != null && !channel.isEmpty());
+		
+		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+		if (!isAuthorisedUserService(channel, receptionPortURI)) throw new UnauthorisedClientException("Client "+receptionPortURI+" not authorized");
+		
+		// Suppression de la référence au channel
+		ChannelBrokerInfos chanInfos = channelsInfos.remove(channel);
+		assert(chanInfos != null);
+		
 		return null;
 	}
 	

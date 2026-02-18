@@ -2,7 +2,6 @@ package fr.sorbonne_u.meteo.tests;
 
 import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.connectors.ClientPublishingServiceConnector;
-import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.annotations.OfferedInterfaces;
 import fr.sorbonne_u.components.annotations.RequiredInterfaces;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
@@ -86,19 +85,7 @@ public class MeteoStationTest2 extends Client {
 				brokerPublishingPortURI, 
 				ClientPublishingServiceConnector.class.getCanonicalName());
 		
-		// On prépare l'envoi de la WindData
-	    this.runTask(
-		        new AbstractComponent.AbstractTask() {
-		            @Override
-		            public void run() {
-		                try {
-		                    ((MeteoStationTest2) this.getTaskOwner()).sendWindData();
-		                } catch (Throwable e) {
-		                    e.printStackTrace();
-		                }
-		            }
-		        }
-		    );
+	    sendWindData();
 	}
 	
 	// --------------------------------------------------------------------------

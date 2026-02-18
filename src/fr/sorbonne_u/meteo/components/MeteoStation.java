@@ -107,18 +107,7 @@ public class MeteoStation extends Client {
 		//this.scheduleNextSend(); // Pour l'instant ne marche pas
 		
 	    // temporaire
-	    this.runTask(
-		        new AbstractComponent.AbstractTask() {
-		            @Override
-		            public void run() {
-		                try {
-		                    ((MeteoStation) this.getTaskOwner()).sendWindData("channel0");
-		                } catch (Throwable e) {
-		                    e.printStackTrace();
-		                }
-		            }
-		        }
-		    );
+		sendWindData("channel0");
 	}
 	
 	// --------------------------------------------------------------------------
@@ -187,17 +176,6 @@ public class MeteoStation extends Client {
 		this.publishingOutboundPort.publish(receivingInboundPort.getPortURI(), channel, msg);
 		
 		// temporaire
-	    this.runTask(
-		        new AbstractComponent.AbstractTask() {
-		            @Override
-		            public void run() {
-		                try {
-		                    ((MeteoStation) this.getTaskOwner()).sendWindData("channel0");
-		                } catch (Throwable e) {
-		                    e.printStackTrace();
-		                }
-		            }
-		        }
-		    );
+		sendWindData("channel0");
 	}
 }
