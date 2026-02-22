@@ -49,13 +49,13 @@ implements	PublishingCI {
 		ArrayList<MessageI> messages =  new ArrayList<MessageI>();
 		messages.add(message);
 		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).publishService(receptionPortURI, channel, messages)) ;
+				owner -> ((Broker)owner).publishService(receptionPortURI, channel, messages));
 	}
 
 	@Override
 	public void publish(String receptionPortURI, String channel, ArrayList<MessageI> messages) throws Exception {
 		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).publishService(receptionPortURI, channel, messages)) ;
+				owner -> ((Broker)owner).publishService(receptionPortURI, channel, messages));
 	}
 	
 }

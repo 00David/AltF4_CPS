@@ -1,15 +1,9 @@
 package fr.sorbonne_u;
 
 import fr.sorbonne_u.broker.components.Broker;
-import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.cvm.AbstractCVM;
-import fr.sorbonne_u.components.helpers.CVMDebugModes;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
-import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.AlertType;
-import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.AlertTypeI;
-import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.LevelI;
-import fr.sorbonne_u.cps.meteo.interfaces.PositionI;
 import fr.sorbonne_u.meteo.components.MeteoBureau;
 import fr.sorbonne_u.meteo.components.MeteoStation;
 import fr.sorbonne_u.meteo.components.WindTurbine;
@@ -87,9 +81,11 @@ public class CVM extends AbstractCVM {
 		// ---------------------------------------------------------------------
 		
 		// création du Broker
+		int nbMaxChannelsSTD = 2;
+		int nbMaxChannelsPREM = 4;
 		this.uriBroker = AbstractComponent.createComponent(
 				Broker.class.getCanonicalName(),
-				new Object[] {3});
+				new Object[] {2, nbMaxChannelsSTD, nbMaxChannelsPREM});
 		assert this.isDeployedComponent(this.uriBroker);
 		this.toggleTracing(this.uriBroker);
 

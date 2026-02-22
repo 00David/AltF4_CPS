@@ -4,10 +4,8 @@ import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.cvm.AbstractCVM;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
-import fr.sorbonne_u.meteo.components.MeteoStation;
 import fr.sorbonne_u.meteo.components.WindTurbine;
 import fr.sorbonne_u.meteo.data.PositionData;
-import fr.sorbonne_u.meteo.data.WindData;
 
 /**
  * Classe de test permettant de tester le scénario suivant depuis le début de la CVM :
@@ -84,9 +82,11 @@ public class CVMTest extends AbstractCVM {
 		// ---------------------------------------------------------------------
 		
 		// création du Broker
+		int nbMaxChannelsSTD = 2;
+		int nbMaxChannelsPREM = 4;
 		this.uriBroker = AbstractComponent.createComponent(
 				Broker.class.getCanonicalName(),
-				new Object[] {3});
+				new Object[] {2, nbMaxChannelsSTD, nbMaxChannelsPREM});
 		assert this.isDeployedComponent(this.uriBroker);
 		this.toggleTracing(this.uriBroker);
 
@@ -137,7 +137,7 @@ public class CVMTest extends AbstractCVM {
 		try {
 			CVMTest a = new CVMTest() ;
 			
-			int duree = 400; // en secondes
+			int duree = 200; // en secondes
 			a.startStandardLifeCycle(duree * 1000L) ; // démarrage
 
 			System.exit(0) ;

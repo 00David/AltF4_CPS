@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.stream.Stream;
 
 import fr.sorbonne_u.clients.components.Client;
-import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.annotations.OfferedInterfaces;
 import fr.sorbonne_u.components.annotations.RequiredInterfaces;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
@@ -119,16 +118,7 @@ public class WindTurbine extends Client {
 		assert (brokerPublishingPortURI != null);
 		this.logMessage("WindTurbine registered");
 
-		this.runTask(new AbstractComponent.AbstractTask() {
-			@Override
-			public void run() {
-				try {
-					((WindTurbine) this.getTaskOwner()).startWindTurbine();
-				} catch (Throwable e) {
-					e.printStackTrace();
-				}
-			}
-		});
+		startWindTurbine();
 	}
 
 	/**
