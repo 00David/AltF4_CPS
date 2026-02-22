@@ -242,15 +242,19 @@ public class WindTurbine extends Client {
 
 		for (WindData d : datas) {
 			double distance = distance(d.getPosition());
-
-			// plus la station est proche plus elle influence l'eolienne
-			// 0.0001 pour eviter la division par zero
-			double weight = 1.0 / (distance + 0.0001);
+			double weight = 0;
+			
+			if(distance == 0) {
+				weight = 1.0;
+			}else {
+				weight = 1.0 / distance;
+			}
+			
 			x += d.xComponent() * weight;
 			y += d.yComponent() * weight;
 		}
 
-		// coordonnée du vecteur
+		// coordonnées du vecteur
 		x = x * -1;
 		y = y * -1;
 
@@ -258,6 +262,8 @@ public class WindTurbine extends Client {
 		this.logMessage("WindTurbine has changed orientation : now = " + this.orientation);
 		this.logMessage("------------------------------");
 	}
+	
+	
 
 	/**
 	 * Calcule la distance entre l'eolienne et une station metéo.
