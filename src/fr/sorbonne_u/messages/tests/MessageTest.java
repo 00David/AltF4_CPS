@@ -12,12 +12,18 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.io.Serializable;
 import java.time.Instant;
 
-public class MethodsMessageTest{
+/**
+ * Unit tests for {@link Message}.
+ * 
+ * @author Kevin Tang
+ * @author David Vadimon
+ */
+public class MessageTest{
 
 	@Test
 	public void testRemoveNotExistingProperty() {
 		Message message = new Message();
-		assertThrows(UnknownPropertyException.class, () -> message.removeProperty("lieu"));
+		assertThrows(UnknownPropertyException.class, () -> message.removeProperty("place"));
 	}
 	
 	@Test
@@ -40,7 +46,7 @@ public class MethodsMessageTest{
 	@Test
 	public void testGetValueNotExistingProperty() {
 		Message message = new Message();
-		assertThrows(UnknownPropertyException.class, ()-> message.getPropertyValue("lieu"));
+		assertThrows(UnknownPropertyException.class, ()-> message.getPropertyValue("place"));
 	}
 	
 	
@@ -63,7 +69,7 @@ public class MethodsMessageTest{
 	@Test
 	public void testPropertyNotExists() {
 		Message message = new Message();
-		assertFalse(()-> message.propertyExists("lieu"));
+		assertFalse(()-> message.propertyExists("place"));
 	}
 	
 	
@@ -133,6 +139,7 @@ public class MethodsMessageTest{
 		assertTrue(message.getPayload() instanceof Serializable);
 	}
 	
+	@Test
 	public void testCopy() {
 		Message message = new Message();
 		WindData exemple = new WindData(new PositionData(0, 0), 0, 0);
@@ -142,5 +149,4 @@ public class MethodsMessageTest{
 		
 		assertEquals(copy.getPayload(), message.getPayload());
 	}
-
 }

@@ -18,7 +18,14 @@ import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 
 /**
- * La classe abstraite donnant un composant qui est client du système de publication/souscription.
+ * The abstract class providing a component that acts as a client of the publish/subscribe system.
+ * 
+ * <p><strong>Invariants</strong></p>
+ * <pre>
+ * invariant	{@code registrationOutboundPort != null}
+ * invariant	{@code publishingOutboundPort != null}
+ * invariant	{@code publishingOutboundPort != null}
+ * </pre>
  * 
  * @author Kevin TANG
  * @author David VADIMON
@@ -31,14 +38,14 @@ public abstract class Client extends AbstractComponent {
 	protected ClientPublishingOutboundPort publishingOutboundPort;
 	protected ClientReceivingInboundPort receivingInboundPort;
 	
-	protected String brokerPublishingPortURI = null; // Si != null, ça veut dire que l'on s'est connecté au port de publication
+	protected String brokerPublishingPortURI = null; // If != null, it means the client has connected to the Broker publishing port
 	
-	//--------------------------------------------------------------------------
+	//--------------------------------------------------------------------------  
 	// Constructor
-	//--------------------------------------------------------------------------
+	//--------------------------------------------------------------------------  
 	
 	/**
-	 * Crée un composant client du système de publication/souscription.
+	 * Creates a client component of the publish/subscribe system.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
@@ -48,10 +55,10 @@ public abstract class Client extends AbstractComponent {
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 * 
-	 * @param registrationOutboundPortURI L'URI du port sortant réquérant {@link RegistrationCI}.
-	 * @param publishingOutboundPortURI   L'URI du port sortant réquérant {@link PublishingCI}.
-	 * @param receivingInboundPortURI     L'URI du port entrant offrant {@link ReceivingCI}.
-	 * @throws Exception                  Si problème lors de l'initialisation ou de la publication des ports.
+	 * @param registrationOutboundPortURI The URI of the outbound port requiring {@link RegistrationCI}.
+	 * @param publishingOutboundPortURI   The URI of the outbound port requiring {@link PublishingCI}.
+	 * @param receivingInboundPortURI     The URI of the inbound port offering {@link ReceivingCI}.
+	 * @throws Exception                  If an error occurs during initialization or port publication.
 	 */
 	protected Client(String registrationOutboundPortURI,String publishingOutboundPortURI,String receivingInboundPortURI) throws Exception {
 		super(1,0);
@@ -74,15 +81,15 @@ public abstract class Client extends AbstractComponent {
 		
 	}
 	
-	//--------------------------------------------------------------------------
+	//--------------------------------------------------------------------------  
 	// Component life-cycle
-	//--------------------------------------------------------------------------
+	//--------------------------------------------------------------------------  
 	
 	@Override
 	public synchronized void start() throws ComponentStartException {
 		this.logMessage("starting client component");
 		
-		// On connecte le port d'enregistrement
+		// Connect the registration port
 		try {
 			this.doPortConnection(this.registrationOutboundPort.getPortURI(),
 					  Broker.registrationPortURI(),
@@ -98,10 +105,10 @@ public abstract class Client extends AbstractComponent {
 	public synchronized void finalise() throws Exception{
 		this.logMessage("stopping client component");
 		
-		// On déconnecte le port d'enregistrement
+		// Disconnect the registration port
 		this.doPortDisconnection(registrationOutboundPort.getPortURI());
 		
-		// On déconnecte le port de publication, si l'on s'est connecté
+		// Disconnect the publishing port if connected
 		if (brokerPublishingPortURI != null) this.doPortDisconnection(publishingOutboundPort.getPortURI());
 		
 		super.finalise();
@@ -111,7 +118,7 @@ public abstract class Client extends AbstractComponent {
 	public synchronized void shutdown() throws ComponentShutdownException {
 		
 		try {
-			// On unpublish les ports
+			// Unpublish ports
 			this.registrationOutboundPort.unpublishPort();
 			this.receivingInboundPort.unpublishPort();
 			this.publishingOutboundPort.unpublishPort();
@@ -122,29 +129,29 @@ public abstract class Client extends AbstractComponent {
 		super.shutdown();
 	}
 
-	//--------------------------------------------------------------------------
+	//--------------------------------------------------------------------------  
 	// Component internal services
-	//--------------------------------------------------------------------------
+	//--------------------------------------------------------------------------  
 	
 	/**
-	 * Service permettant de traiter la réception d'un {@code message} depuis un {@code channel} où le composant est abonné.
+	 * Receives a {@code message} from {@code channel}.
 	 * 
 	 * <p>
-	 * Doit être {@code Override} pour un traitement personnalisé du composant client concret.
+	 * Should be {@code Override} for custom processing in the concrete client component.
 	 * </p>
 	 * 
+	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre	{@code channel != null && !channel.isEmpty()}
 	 * pre	{@code message != null}
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
-	 * 
-	 * @param channel   Le canal depuis lequel le {@code message} a été reçu.
-	 * @param message   Le message reçu depuis le {@code channel}.
-	 * @return          null
+	 *
+	 * @param channel		name of the channel from which {@code messsage} is received.
+	 * @param message		message received by the component.
 	 */
 	public Void receiveService(String channel, MessageI message) {
-		// Vérification des préconditions
+		// Precondition checks
 		assert(channel != null);
 		assert(!channel.isEmpty());
 		assert(message != null);
@@ -152,27 +159,27 @@ public abstract class Client extends AbstractComponent {
 		this.logMessage("Client received message '" + message + "' from the channel : " + channel);
 		return null;
 	}
-	
+
 	/**
-	 * Service permettant de traiter la réception de plusieurs {@code messages} depuis un {@code channel} où le composant est abonné.
+	 * Receives {@code messages} from {@code channel}.
 	 * 
 	 * <p>
-	 * Doit être {@code Override} pour un traitement personnalisé du composant client concret.
+	 * Should be {@code Override} for custom processing in the concrete client component.
 	 * </p>
 	 * 
+	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre	{@code channel != null && !channel.isEmpty()}
-	 * pre	{@code messages != null && messages.length > 0}
+	 * pre	{@code messages != null && messages.size() > 0}
 	 * pre	{@code Stream.of(messages).allMatch(m -> m != null)}
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
-	 * 
-	 * @param channel   Le canal depuis lequel les {@code messages} ont été reçu.
-	 * @param messages  Les messages reçus depuis le {@code channel}.
-	 * @return          null
+	 *
+	 * @param channel		name of the channel from which {@code messsage} is received.
+	 * @param messages		array of messages received by the component.
 	 */
 	public Void receiveService(String channel, MessageI[] messages) {
-		// Vérification des préconditions
+		// Precondition checks
 		assert(channel != null);
 		assert(!channel.isEmpty());
 		assert(messages != null);

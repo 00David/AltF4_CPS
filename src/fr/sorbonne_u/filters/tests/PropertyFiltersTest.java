@@ -14,9 +14,9 @@ import fr.sorbonne_u.filters.value.IdenticalValueFilter;
 import fr.sorbonne_u.messages.Property;
 
 /**
- * Classe de tests pour les filtres sur une ou plusieurs propriétés, comprenant :
+ * Test class for filters on one or multiple properties, including:
  * <li> {@link PropertyFilter} </li>
- * <li> {@link PropertiesFilter} avec un {@link MultiValuesFilterI}, par ex. {@link IMC} </li>
+ * <li> {@link PropertiesFilter} with a {@link MultiValuesFilterI}, e.g. {@link IMC} </li>
  * 
  * @author Kevin Tang
  * @author David Vadimon
@@ -24,7 +24,7 @@ import fr.sorbonne_u.messages.Property;
 public class PropertyFiltersTest {
 
     // --------------------------
-    // Tests PropertyFilter
+    // PropertyFilter tests
     // --------------------------
     @Test
     void testPropertyFilterConstructor() {
@@ -32,11 +32,11 @@ public class PropertyFiltersTest {
         PropertyFilter filter = new PropertyFilter("age", vf);
         assertNotNull(filter);
         
-        // méthodes getName() et getValueFilter()
+        // getName() and getValueFilter() methods
         assertEquals("age", filter.getName());
         assertEquals(vf, filter.getValueFilter());
 
-        // constructeur avec arguments null : renvoit une IllegalArgumentException
+        // constructor with null arguments: throws IllegalArgumentException
         assertThrows(IllegalArgumentException.class, () -> new PropertyFilter(null, vf));
         assertThrows(IllegalArgumentException.class, () -> new PropertyFilter("age", null));
     }
@@ -47,44 +47,44 @@ public class PropertyFiltersTest {
         PropertyFilter filter = new PropertyFilter("age", vf);
 
         Property correct = new Property("age", 42);
-        Property wrongName = new Property("poids", 42);
+        Property wrongName = new Property("weight", 42);
         Property wrongValue = new Property("age", 43);
 
-        // on essaye différentes PropertyI pour le match
+        // test different PropertyI for match
         assertTrue(filter.match(correct));
         assertFalse(filter.match(wrongName));
         assertFalse(filter.match(wrongValue));
     }
 
     // --------------------------
-    // Tests PropertiesFilter avec IMC
+    // PropertiesFilter tests with IMC
     // --------------------------
     @Test
     void testPropertiesFilterConstructor() {
-    	// cas normal
+        // normal case
         MultiValuesFilterI imcFilter = new IMC();
         PropertiesFilter pf = new PropertiesFilter(imcFilter);
         assertNotNull(pf);
-    	
-    	// constructeur avec argument null : renvoit une IllegalArgumentException
+        
+        // constructor with null argument: throws IllegalArgumentException
         assertThrows(IllegalArgumentException.class, () -> new PropertiesFilter(null));
     }
     
     @Test
     void testPropertiesFilterMatch1() {
-        // IMC Filter : poids / (taille*taille) >= 30
+        // IMC Filter: weight / (height*height) >= 30
         MultiValuesFilterI imcFilter = new IMC();
         PropertiesFilter pf = new PropertiesFilter(imcFilter);
 
-        Property poids = new Property("poids", 90.0);
-        Property taille = new Property("taille", 1.7);
-        Property tailleTropGrande = new Property("taille", 2.0);
+        Property weight = new Property("weight", 90.0);
+        Property height = new Property("height", 1.7);
+        Property heightTooHigh = new Property("height", 2.0);
 
-        // Match vrai : IMC =~ 31,14 >= 30.0
-        assertTrue(pf.match(poids, taille));
+        // true match: IMC =~ 31.14 >= 30.0
+        assertTrue(pf.match(weight, height));
 
-        // Match faux : IMC = 22,5 < 30.0
-        assertFalse(pf.match(poids, tailleTropGrande));
+        // false match: IMC = 22.5 < 30.0
+        assertFalse(pf.match(weight, heightTooHigh));
     }
     
     @Test
@@ -92,22 +92,22 @@ public class PropertyFiltersTest {
         MultiValuesFilterI imcFilter = new IMC();
         PropertiesFilter pf = new PropertiesFilter(imcFilter);
 
-        Property poids = new Property("poids", 90.0);
-        Property taille = new Property("taille", 1.7);
+        Property weight = new Property("weight", 90.0);
+        Property height = new Property("height", 1.7);
 
-        // Propriétés null : renvoit une IllegalArgumentException
+        // null properties: throws IllegalArgumentException
         assertThrows(IllegalArgumentException.class, () -> pf.match((PropertyI[])null));
         
-        // Nombre de propriétés < 2 : renvoit une IllegalArgumentException
-        assertThrows(IllegalArgumentException.class, () -> pf.match(poids));
+        // fewer than 2 properties: throws IllegalArgumentException
+        assertThrows(IllegalArgumentException.class, () -> pf.match(weight));
         
-        // Propriété manquante (taille) : renvoit une IllegalArgumentException
-        Property nbDoigts = new Property("nbDoigts", 10);
-        Property couleurYeux = new Property("couleurYeux", "vert");
-        assertThrows(IllegalArgumentException.class, () -> pf.match(poids, nbDoigts, couleurYeux));
+        // missing property (height): throws IllegalArgumentException
+        Property fingerCount = new Property("fingerCount", 10);
+        Property eyeColor = new Property("eyeColor", "green");
+        assertThrows(IllegalArgumentException.class, () -> pf.match(weight, fingerCount, eyeColor));
 
-        // IMC Filter avec type incorrect : renvoit une IllegalArgumentException
-        Property poidsString = new Property("poids", "90");
-        assertThrows(IllegalArgumentException.class, () -> pf.match(poidsString, taille));
+        // IMC Filter with wrong type: returns false
+        Property weightString = new Property("weight", "90"); // weight ("90") as String, should be double
+        assertFalse(pf.match(weightString, height));
     }
 }

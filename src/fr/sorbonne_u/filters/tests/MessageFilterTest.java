@@ -17,13 +17,14 @@ import fr.sorbonne_u.filters.property.PropertyFilter;
 import fr.sorbonne_u.filters.tests.utils.IMC;
 import fr.sorbonne_u.filters.tests.utils.Muscle;
 import fr.sorbonne_u.filters.time.GreaterOrEqualTimeFilter;
+import fr.sorbonne_u.filters.time.JokerTimeFilter;
 import fr.sorbonne_u.filters.value.comparable.EqualToValueFilter;
 import fr.sorbonne_u.filters.value.comparable.GreaterThanValueFilter;
 import fr.sorbonne_u.filters.value.comparable.LessThanValueFilter;
 import fr.sorbonne_u.messages.Message;
 
 /**
- * Tests unitaires de {@link MessageFilter}.
+ * Unit tests for {@link MessageFilter}.
  * 
  * @author Kevin Tang
  * @author David Vadimon
@@ -31,21 +32,34 @@ import fr.sorbonne_u.messages.Message;
 public class MessageFilterTest {
 
     // --------------------------
-    // Test du constructeur
+    // Constructor tests
     // --------------------------
 	
 	@Test
 	public void testConstructor() {
-		MessageFilter filter = new MessageFilter(new PropertyFilterI[] {}, new PropertiesFilterI[] {}, null);
+		MessageFilter filter = new MessageFilter(new PropertyFilterI[] {}, new PropertiesFilterI[] {}, new JokerTimeFilter());
 		assertNotNull(filter);
 		
-		// constructeur avec 1 des 2 tableaux nuls : renvoit une IllegalArgumentException
-		assertThrows(IllegalArgumentException.class, () -> new  MessageFilter((PropertyFilterI[])null, new PropertiesFilterI[] {}, null));
-		assertThrows(IllegalArgumentException.class, () -> new  MessageFilter(new PropertyFilterI[] {}, (PropertiesFilterI[])null, null));
+		// constructor with one null argument: throws IllegalArgumentException
+		assertThrows(IllegalArgumentException.class, () -> new MessageFilter(
+				(PropertyFilterI[])null, 
+				new PropertiesFilterI[] {}, 
+				new GreaterOrEqualTimeFilter(Instant.now())
+				));
+		assertThrows(IllegalArgumentException.class, () -> new MessageFilter(
+				new PropertyFilterI[] {}, 
+				(PropertiesFilterI[])null, 
+				new GreaterOrEqualTimeFilter(Instant.now())
+				));
+		assertThrows(IllegalArgumentException.class, () -> new MessageFilter(
+				new PropertyFilterI[] {}, 
+				new PropertiesFilterI[] {}, 
+				null
+				));
 	}
 	
     // --------------------------
-    // Test avec aucun filtre
+    // Tests with no filters
     // --------------------------
 	
 	@Test
@@ -53,19 +67,19 @@ public class MessageFilterTest {
 		MessageI message = new Message();
 		message.putProperty("type", "sport");
 
-		// aucun filtre
+		// no filters
 		MessageFilter filter = new MessageFilter(
 				new PropertyFilterI[] {},
 				new PropertiesFilterI[] {},
-				null
+				new JokerTimeFilter()
 		);
 
-		// renvoit true
+		// returns true
 		assertTrue(filter.match(message));
 	}
 	
     // --------------------------
-    // Tests avec 1 filtre temporel
+    // Tests with one time filter
     // --------------------------
 	
 	@Test
@@ -73,7 +87,7 @@ public class MessageFilterTest {
 		MessageI message = new Message();
 		message.putProperty("type", "sport");
 
-		// 1 seul filtre temporel, initialisé avec un timestamp précédant la création du message, accepte les timestamps postérieurs
+		// single time filter, initialized with a timestamp before message creation, accepts later timestamps
 		TimeFilterI timeFilter = new GreaterOrEqualTimeFilter(Instant.now().minusSeconds(10));
 
 		MessageFilter filter = new MessageFilter(
@@ -82,7 +96,7 @@ public class MessageFilterTest {
 				timeFilter
 		);
 
-		// renvoit true pour le seul filtre
+		// returns true for the single filter
 		assertTrue(filter.match(message));
 	}
 
@@ -91,7 +105,7 @@ public class MessageFilterTest {
 		MessageI message = new Message();
 		message.putProperty("type", "sport");
 
-		// 1 seul filtre temporel, initialisé avec un timestamp suivant la création du message, accepte les timestamps postérieurs
+		// single time filter, initialized with a timestamp after message creation, accepts later timestamps
 		TimeFilterI timeFilter = new GreaterOrEqualTimeFilter(Instant.now().plusSeconds(10));
 
 		MessageFilter filter = new MessageFilter(
@@ -100,97 +114,97 @@ public class MessageFilterTest {
 				timeFilter
 		);
 
-		// renvoit false pour le seul filtre
+		// returns false for the single filter
 		assertFalse(filter.match(message));
 	}
 	
     // --------------------------
-    // Tests avec plusieurs PropertyFilter
+    // Tests with multiple PropertyFilters
     // --------------------------
 	
 	@Test
 	public void testMultiplePropertyFilterPasses() {
 		MessageI message = new Message();
-		message.putProperty("nom", "Pierrot");
+		message.putProperty("name", "Pierrot");
 		message.putProperty("age", 47);
-		message.putProperty("taille", 1.75);
+		message.putProperty("height", 1.75);
 
-		// nom == Pierrot -> true
+		// name == Pierrot -> true
 		ValueFilterI valueFilterNom = new EqualToValueFilter<>("Pierrot");
-		PropertyFilterI propertyFilterNom = new PropertyFilter("nom", valueFilterNom);
+		PropertyFilterI propertyFilterNom = new PropertyFilter("name", valueFilterNom);
 		
 		// age > 25 -> true
 		ValueFilterI valueFilterAge = new GreaterThanValueFilter<>(25);
 		PropertyFilterI propertyFilterAge = new PropertyFilter("age", valueFilterAge);
 		
-		// taille < 1.78 -> true
+		// height < 1.78 -> true
 		ValueFilterI valueFilterTaille = new LessThanValueFilter<>(1.78);
-		PropertyFilterI propertyFilterTaille = new PropertyFilter("taille", valueFilterTaille);
+		PropertyFilterI propertyFilterTaille = new PropertyFilter("height", valueFilterTaille);
 
 		MessageFilter filter = new MessageFilter(
 				new PropertyFilterI[] { propertyFilterNom, propertyFilterAge, propertyFilterTaille },
 				new PropertiesFilterI[] {},
-				null
+				new JokerTimeFilter()
 		);
 
-		// renvoit true pour le match positif de tous les filtres
+		// returns true for all filters matching positively
 		assertTrue(filter.match(message));
 	}
 
 	@Test
 	public void testMultiplePropertyFilterFails() {
 		MessageI message = new Message();
-		message.putProperty("nom", "Pierrot");
+		message.putProperty("name", "Pierrot");
 		message.putProperty("age", 47);
-		message.putProperty("taille", 1.85); // changé
+		message.putProperty("height", 1.85); // changed
 
-		// nom == Pierrot -> true
+		// name == Pierrot -> true
 		ValueFilterI valueFilterNom = new EqualToValueFilter<>("Pierrot");
-		PropertyFilterI propertyFilterNom = new PropertyFilter("nom", valueFilterNom);
+		PropertyFilterI propertyFilterNom = new PropertyFilter("name", valueFilterNom);
 		
 		// age > 25 -> true
 		ValueFilterI valueFilterAge = new GreaterThanValueFilter<>(25);
 		PropertyFilterI propertyFilterAge = new PropertyFilter("age", valueFilterAge);
 		
-		// taille < 1.78 -> false
+		// height < 1.78 -> false
 		ValueFilterI valueFilterTaille = new LessThanValueFilter<>(1.78);
-		PropertyFilterI propertyFilterTaille = new PropertyFilter("taille", valueFilterTaille);
+		PropertyFilterI propertyFilterTaille = new PropertyFilter("height", valueFilterTaille);
 
 		MessageFilter filter = new MessageFilter(
 				new PropertyFilterI[] { propertyFilterNom, propertyFilterAge, propertyFilterTaille },
 				new PropertiesFilterI[] {},
-				null
+				new JokerTimeFilter()
 		);
 
-		// renvoit false pour le match négatif du filtre sur la taille
+		// returns false because of height filter failing
 		assertFalse(filter.match(message));
 	}
 	
     // --------------------------
-    // Tests avec plusieurs PropertiesFilter
+    // Tests with multiple PropertiesFilters
     // --------------------------
 
 	@Test
 	public void testMultiplePropertiesFilterPasses() {
 
 		MessageI message = new Message();
-		message.putProperty("poids", 90.0);
-		message.putProperty("poids_musculaire", 50.0);
-		message.putProperty("taille", 1.70);
+		message.putProperty("weight", 90.0);
+		message.putProperty("muscle_weight", 50.0);
+		message.putProperty("height", 1.70);
 
-		// IMC =~ 31,14 >= 30.0 -> true
+		// IMC (BMI) =~ 31.14 >= 30.0 -> true
 		PropertiesFilterI propertiesFilterIMC = new PropertiesFilter(new IMC());
 		
-		// Pourcentage de masse musculaire =~ 55.5 >= 40.0 -> true
+		// Muscle mass percentage =~ 55.5 >= 40.0 -> true
 		PropertiesFilterI propertiesFilterMuscle = new PropertiesFilter(new Muscle());
 		
 		MessageFilter filter = new MessageFilter(
 				new PropertyFilterI[] {},
 				new PropertiesFilterI[] { propertiesFilterIMC, propertiesFilterMuscle },
-				null
+				new JokerTimeFilter()
 		);
 
-		// renvoit true pour le match positif de tous les filtres
+		// returns true for all positive filters
 		assertTrue(filter.match(message));
 	}
 	
@@ -198,58 +212,52 @@ public class MessageFilterTest {
 	public void testMultiplePropertiesFilterFails() {
 
 		MessageI message = new Message();
-		message.putProperty("poids", 90.0);
-		message.putProperty("poids_musculaire", 30.0); // changé
-		message.putProperty("taille", 1.70);
+		message.putProperty("weight", 90.0);
+		message.putProperty("muscle_weight", 30.0); // changed
+		message.putProperty("height", 1.70);
 
-		// IMC =~ 31,14 >= 30.0 -> true
+		// BMI =~ 31.14 >= 30.0 -> true
 		PropertiesFilterI propertiesFilterIMC = new PropertiesFilter(new IMC());
 		
-		// Pourcentage de masse musculaire =~ 33.3 >= 40.0 -> false
+		// Muscle mass percentage =~ 33.3 >= 40.0 -> false
 		PropertiesFilterI propertiesFilterMuscle = new PropertiesFilter(new Muscle());
 		
 		MessageFilter filter = new MessageFilter(
 				new PropertyFilterI[] {},
 				new PropertiesFilterI[] { propertiesFilterIMC, propertiesFilterMuscle },
-				null
+				new JokerTimeFilter()
 		);
 
-		// renvoit false pour le match négatif du filtre sur le pourcentage de masse musculaire
+		// returns false due to muscle mass filter failing
 		assertFalse(filter.match(message));
 	}
 	
     // --------------------------
-    // Tests avec tout
+    // Tests with everything
     // --------------------------
 	
 	@Test
 	public void testMatchAllFiltersPasses() {
 		MessageI message = new Message();
-		message.putProperty("poids", 90.0);
-		message.putProperty("poids_musculaire", 50.0);
-		message.putProperty("taille", 1.70);
+		message.putProperty("weight", 90.0);
+		message.putProperty("muscle_weight", 50.0);
+		message.putProperty("height", 1.70);
 		
 		/* TimeFilterI */
 		
-		// 1 filtre temporel, initialisé avec un timestamp précédant la création du message, accepte les timestamps postérieurs
 		TimeFilterI timeFilter = new GreaterOrEqualTimeFilter(Instant.now().minusSeconds(10));
 
-		/* PropertyFilter */
+		/* PropertyFilters */
 		
-		// poids_musculaire == 50.0 -> true
 		ValueFilterI valueFilterPoidsM = new EqualToValueFilter<>(50.0);
-		PropertyFilterI propertyFilterPoidsM = new PropertyFilter("poids_musculaire", valueFilterPoidsM);
+		PropertyFilterI propertyFilterPoidsM = new PropertyFilter("muscle_weight", valueFilterPoidsM);
 		
-		// taille > 1.6 -> true
 		ValueFilterI valueFilterTaille = new GreaterThanValueFilter<>(1.6);
-		PropertyFilterI propertyFilterTaille = new PropertyFilter("taille", valueFilterTaille);
+		PropertyFilterI propertyFilterTaille = new PropertyFilter("height", valueFilterTaille);
 
-		/* PropertiesFilter */
+		/* PropertiesFilters */
 		
-		// IMC =~ 31,14 >= 30.0 -> true
 		PropertiesFilterI propertiesFilterIMC = new PropertiesFilter(new IMC());
-		
-		// Pourcentage de masse musculaire =~ 55.5 >= 40.0 -> true
 		PropertiesFilterI propertiesFilterMuscle = new PropertiesFilter(new Muscle());
 		
 		MessageFilter filter = new MessageFilter(
@@ -258,38 +266,32 @@ public class MessageFilterTest {
 				timeFilter
 		);
 
-		// renvoit true pour le match positif de tous les filtres
+		// returns true for all positive filters
 		assertTrue(filter.match(message));
 	}
 	
 	@Test
 	public void testMatchAllFiltersFails() {
 		MessageI message = new Message();
-		message.putProperty("poids", 90.0);
-		message.putProperty("poids_musculaire", 45.0); // changé
-		message.putProperty("taille", 1.70);
+		message.putProperty("weight", 90.0);
+		message.putProperty("muscle_weight", 45.0); // changed
+		message.putProperty("height", 1.70);
 		
 		/* TimeFilterI */
 		
-		// 1 filtre temporel, initialisé avec un timestamp précédant la création du message, accepte les timestamps postérieurs
 		TimeFilterI timeFilter = new GreaterOrEqualTimeFilter(Instant.now().minusSeconds(10));
 
-		/* PropertyFilter */
+		/* PropertyFilters */
 		
-		// poids_musculaire == 50.0 -> false
 		ValueFilterI valueFilterPoidsM = new EqualToValueFilter<>(50.0);
-		PropertyFilterI propertyFilterPoidsM = new PropertyFilter("poids_musculaire", valueFilterPoidsM);
+		PropertyFilterI propertyFilterPoidsM = new PropertyFilter("muscle_weight", valueFilterPoidsM);
 		
-		// taille > 1.6 -> true
 		ValueFilterI valueFilterTaille = new GreaterThanValueFilter<>(1.6);
-		PropertyFilterI propertyFilterTaille = new PropertyFilter("taille", valueFilterTaille);
+		PropertyFilterI propertyFilterTaille = new PropertyFilter("height", valueFilterTaille);
 
-		/* PropertiesFilter */
+		/* PropertiesFilters */
 		
-		// IMC =~ 31,14 >= 30.0 -> true
 		PropertiesFilterI propertiesFilterIMC = new PropertiesFilter(new IMC());
-		
-		// Pourcentage de masse musculaire =~ 50 >= 40.0 -> true
 		PropertiesFilterI propertiesFilterMuscle = new PropertiesFilter(new Muscle());
 		
 		MessageFilter filter = new MessageFilter(
@@ -298,7 +300,7 @@ public class MessageFilterTest {
 				timeFilter
 		);
 
-		// renvoit false pour le match négatif du filtre sur le poids musculaire
+		// returns false because muscle weight filter fails
 		assertFalse(filter.match(message));
 	}
 }

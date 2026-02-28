@@ -5,7 +5,12 @@ import java.io.Serializable;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI.PropertyI;
 
 /**
- * Classe représentant un couple : nom de propriété / valeur de la propriété.
+ * Class implementing a couple : property name / property value.
+ * 
+ * <p><strong>Invariants</strong></p>
+ * <pre>
+ * invariant	{@code name != null && !name.isEmpty()}
+ * </pre>
  * 
  * @author Kevin Tang
  * @author David Vadimon
@@ -17,27 +22,33 @@ public class Property implements PropertyI{
 	private Serializable value;
 
 	/**
-	 * Construit un couple : nom de propriété / valeur de la propriété.
-	 * @param name Nom de la propriété.
-	 * @param value Valeur de la propriété.
-	 * @throws IllegalArgumentException Si un des arumgents est {@code null}.
+	 * Creates a couple : property name / property value.
+	 * 
+	 * <pre>
+	 * pre	{@code name != null && !name.isEmpty()}
+	 * post	class invariants satisfied
+	 * </pre>
+	 * 
+	 * @param name 							name of the property.
+	 * @param value 						value of the property.
+	 * @throws IllegalArgumentException		if a precondition is not satisfied.
 	 */
 	public Property(String name, Serializable value) {
-		if (name == null) throw new IllegalArgumentException("A property name cannot be null");
-		if (value == null) throw new IllegalArgumentException("A property value cannot be null");
+		// Precondition checks
+		if (name == null || name.isEmpty()) throw new IllegalArgumentException("A property name cannot be null or empty");
+		
 		this.name = name;
 		this.value = value;
 	}
 
 	@Override
 	public String getName() {
-		// Postconditions vérifiées par le constructeur
 		return name;
+		// Postcondition satisfied by class invariant
 	}
-
+	
 	@Override
 	public Serializable getValue() {
 		return value;
 	}
-
 }

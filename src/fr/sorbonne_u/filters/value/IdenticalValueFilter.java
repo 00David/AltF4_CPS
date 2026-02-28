@@ -5,11 +5,16 @@ import java.io.Serializable;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.ValueFilterI;
 
 /**
- * Filtre ne gardant que les valeurs identiques à {@code filterValue} donné dans le constructeur.
+ * Filter keeping only the values identical to the {@code filterValue} given in the constructor.
  * 
  * <p>
- * Utilise la méthode {@code match} pour vérifier cela.
+ * Uses the {@code match} method to verify this, which itself uses the {@code equals} method to verify the identical value.
  * </p>
+ * 
+ * <p><strong>Invariants</strong></p>
+ * <pre>
+ * invariant	{@code filterValue != null}
+ * </pre>
  * 
  * @author Kevin Tang
  * @author David Vadimon
@@ -20,11 +25,19 @@ public class IdenticalValueFilter implements ValueFilterI {
 	private Serializable filterValue; 
 	
 	/**
-	 * Construit le filtre ne gardant que les valeurs identiques à {@code filterValue}.
-	 * @param filterValue La seule valeur acceptée du filtre.
-	 * @throws IllegalArgumentException si {@code filterValue} == {@code null}.
+	 * Constructs the filter keeping only the values identical to {@code filterValue}.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code filterValue != null}
+	 * post	class invariants satisfied
+	 * </pre>
+	 * 
+	 * @param filterValue The only accepted value of the filter.
+	 * @throws IllegalArgumentException if {@code filterValue} == {@code null}.
 	 */
 	public IdenticalValueFilter(Serializable filterValue) {
+		// Precondition check
 		if (filterValue == null) throw new IllegalArgumentException("A filter value cannot be null");
 		this.filterValue = filterValue;
 	}

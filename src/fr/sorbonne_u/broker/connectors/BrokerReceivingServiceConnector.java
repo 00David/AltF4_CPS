@@ -1,12 +1,18 @@
 package fr.sorbonne_u.broker.connectors;
 
+import fr.sorbonne_u.clients.ports.ClientReceivingInboundPort;
 import fr.sorbonne_u.components.connectors.AbstractConnector;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 
 /**
- * Connecteur entre un port sortant du composant {@link Broker} et un port entrant d'un composant client.<br>
- * Délègue la réception du message au port du composant client. 
+ * Connector between an outbound port of the {@link Broker} component and an inbound port of a client component.<br>
+ * Delegates message reception to the {@link ClientReceivingInboundPort}
+ * 
+ * <p><strong>Invariants</strong></p>
+ * <pre>
+ * invariant	{@code true}	// no more invariant
+ * </pre>
  * 
  * @author Kevin Tang
  * @author David Vadimon
@@ -15,6 +21,8 @@ public class BrokerReceivingServiceConnector
 extends		AbstractConnector
 implements	ReceivingCI {
 
+	// Precondition and postconditions verifications are delegated to the the ClientReceivingInboundPort
+	
 	@Override
 	public void receive(String channel, MessageI message) throws Exception {
 		((ReceivingCI)this.offering).receive(channel, message);

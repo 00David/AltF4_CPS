@@ -4,24 +4,35 @@ import fr.sorbonne_u.broker.ports.BrokerReceivingOutboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 
 /**
- * Classe gardant toutes les infos d'un {@link Client} enregistré sur le {@link Broker}.
+ * Class storing all information about a {@link Client} registered on the {@link Broker}.
  * 
  * <p>
- * Chaque instance est identifiée uniquement par son attribut {@code clientPortURI}.
+ * Each instance is uniquely identified by its {@code clientPortURI} attribute.
  * </p>
  * 
  * <p>
- * Les infos maintenues sont :
- * <li> - L'URI du port client.
- * <li> - La {@link RegistrationClass} du client.
- * <li> - Le {@link BrokerReceivingOutboundPort}, port sortant vers ce lient.
+ * Maintained information:
+ * <ul>
+ *   <li>The URI of the client port.</li>
+ *   <li>The {@link RegistrationClass} of the client.</li>
+ *   <li>The {@link BrokerReceivingOutboundPort}, outbound port towards this client.</li>
+ * </ul>
  * </p>
+ * 
+ * <p><strong>Invariants</strong></p>
+ * <pre>
+ * invariant	{@code clientPortURI != null && !clientPortURI.isEmpty()}
+ * invariant	{@code rc != null}
+ * invariant	{@code clientOutboundPort != null}
+ * invariant	{@code nbChannelsRemaining >= 0}
+ * </pre>
+ * 
  * @author Kevin Tang
  * @author David Vadimon
  */
 public class ClientBrokerInfos {
 	
-	// Setup par le Broker, dans son constructeur
+	// Set by the Broker in its constructor
 	public static int nbMaxChannelsStd = -1;
 	public static int nbMaxChannelsPrem = -1;
 
@@ -31,28 +42,28 @@ public class ClientBrokerInfos {
 	private int nbChannelsRemaining;
 	
 	/**
-	 * Construction des infos d'un {@link Client} enregistré sur le {@link Broker}.
+	 * Creates the information structure for a {@link Client} registered on the {@link Broker}.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
-	 * pre	{@code clientPortURI != null && !clientPortURI.isEmpty()}
-	 * pre	{@code rc != null}
-	 * pre	{@code clientOutboundPort != null}
-	 * pre	{@code nbMaxChannelsStd != -1}
-	 * pre	{@code nbMaxChannelsPrem != -1}
-	 * post	{@code true}	// no postcondition.
+	 * pre  {@code clientPortURI != null && !clientPortURI.isEmpty()}
+	 * pre  {@code rc != null}
+	 * pre  {@code clientOutboundPort != null}
+	 * pre  {@code nbMaxChannelsStd >= 0}
+	 * pre  {@code nbMaxChannelsPrem >= 0}
+	 * post class invariants satisfied
 	 * </pre>
 	 * 
-	 * @param clientPortURI			l'URI du port entrant du client, offrant l'interface de composant {@code ReceivingCI}.
-	 * @param rc					la classe d'enregistrement du client.
-	 * @param clientOutboundPort	le port sortant du {@link Broker} requérant l'interface {@code ReceivingCI}, associé au client.
+	 * @param clientPortURI         	the URI of the client's inbound port offering the {@code ReceivingCI} component interface.
+	 * @param rc                    	the registration class of the client.
+	 * @param clientOutboundPort    	the outbound port of the {@link Broker} requiring the {@code ReceivingCI} interface, associated with the client.
+	 * @throws IllegalArgumentException if a precondition is not satisfied.
 	 */
 	public ClientBrokerInfos(String clientPortURI, RegistrationClass rc, BrokerReceivingOutboundPort clientOutboundPort) {
-		assert(clientPortURI != null && !clientPortURI.isEmpty());
-		assert(rc != null);
-		assert(clientOutboundPort != null);
-		assert(nbMaxChannelsStd != -1);
-		assert(nbMaxChannelsPrem != -1);
+		if (clientPortURI == null || clientPortURI.isEmpty()) throw new IllegalArgumentException("A client port URI cannot be null or empty");
+		if (rc == null) throw new IllegalArgumentException("A registration class cannot be null");
+		if (clientOutboundPort == null) throw new IllegalArgumentException("A client outbound port cannot be null");
+		if (nbMaxChannelsStd < 0 || nbMaxChannelsPrem < 0) throw new IllegalArgumentException("Max channels must be positive");
 		
 		this.clientPortURI = clientPortURI;
 		this.rc = rc;
@@ -61,76 +72,129 @@ public class ClientBrokerInfos {
 		switch(rc) {
 		case FREE:
 			this.nbChannelsRemaining = 0;
+			break;
 		case STANDARD:
 			this.nbChannelsRemaining = nbMaxChannelsStd;
+			break;
 		default:
 			this.nbChannelsRemaining = nbMaxChannelsPrem;
+			break;
 		}
 	}
 	
+	// Getters postconditions verified by class invariants
+	
+	// -------------------------------------------------------------------------
 	// REGISTRATION CLASS MANAGEMENT
+	// -------------------------------------------------------------------------
 	
 	/**
-	 * Renvoit la {@link RegistrationClass} du client.
-	 * @return la {@link RegistrationClass} du client.
+	 * Returns the {@link RegistrationClass} of the client.
+	 * 
+     * <p><strong>Contract</strong></p>
+     * <pre>
+     * pre  {@code true} // no precondition
+     * post {@code return != null}
+     * </pre>
+	 * 
+	 * @return the client's {@link RegistrationClass}.
 	 */
 	public RegistrationClass getRegistrationClass() {
 		return rc;
 	}
 	
 	/**
-	 * Remplace la {@link RegistrationClass} du client.
-	 * @param rc la nouvelle {@link RegistrationClass} du client.
+	 * Replaces the {@link RegistrationClass} of the client.
+	 * 
+     * <p><strong>Contract</strong></p>
+     * <pre>
+     * pre  {@code rc != null}
+     * post {@code this.rc = rc}
+     * </pre>
+	 * 
+	 * @param rc 						the new {@link RegistrationClass} of the client.
+	 * @throws IllegalArgumentException if {@code rc} is null.
 	 */
 	public void setRegistrationClass(RegistrationClass rc) {
+		// Precondition check
+		if (rc == null) throw new IllegalArgumentException("A registration class cannot be null");
+		
 		this.rc = rc;
+		// Postcondition verified by construction
 	}
 	
+	// -------------------------------------------------------------------------
 	// OUTBOUND PORT MANAGEMENT
+	// -------------------------------------------------------------------------
 	
 	/**
-	 * Renvoit le {@link BrokerReceivingOutboundPort} du client.
-	 * @return le {@link BrokerReceivingOutboundPort} du client.
+	 * Returns the {@link BrokerReceivingOutboundPort} associated with the client.
+	 * 
+     * <p><strong>Contract</strong></p>
+     * <pre>
+     * pre  {@code true} // no precondition
+     * post {@code return != null}
+     * </pre>
+	 * 
+	 * @return the client's {@link BrokerReceivingOutboundPort}.
 	 */
 	public BrokerReceivingOutboundPort getOutboundPort() {
 		return clientOutboundPort;
 	}
 	
-	// NUMBER OF REMAINING CHANNELS MANAGEMENT
+	// -------------------------------------------------------------------------
+	// REMAINING CHANNELS MANAGEMENT
+	// -------------------------------------------------------------------------
 	
 	/**
-	 * Indique si le client peut créer au moins un channel.
-	 * @return true si au moins 1 canal peut être créé par le client, false sinon.
+	 * Indicates whether the client can create at least one channel.
+	 * 
+     * <p><strong>Contract</strong></p>
+     * <pre>
+     * pre  {@code true} // no precondition
+     * post {@code true} // no postcondition
+     * </pre>
+	 * 
+	 * @return true if at least one channel can be created by the client, false otherwise.
 	 */
 	public boolean canCreateChannel() {
 		return nbChannelsRemaining > 0;
 	}
 	
 	/**
-	 * Décrémente le nombre de canaux pouvant être créés par le client.
+	 * Decreases the number of channels the client can still create.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
-	 * pre	{@code this.nbChannelsRemaining > 0}
-	 * post	{@code true}	// no postcondition.
+	 * pre  {@code this.nbChannelsRemaining > 0}
+	 * post {@code this.nbChannelsRemaining >= 0}
 	 * </pre>
 	 */
 	public void decreaseRemainingChannels() {
-		// Vérification de la précondition
+		// Precondition check
 		assert(nbChannelsRemaining > 0);
 		
 		nbChannelsRemaining--;
+		
+		// Postcondition check
+		assert(nbChannelsRemaining >= 0);
 	}
 	
 	/**
-	 * Incrémente le nombre de canaux pouvant être créés par le client.
+	 * Increases the number of channels the client can still create.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+     * pre  {@code true} // no precondition
+     * post {@code true} // no postcondition
+	 * </pre>
 	 */
 	public void increaseRemainingChannels() {
 		nbChannelsRemaining++;
 	}
 	
-	// Un ClientBrokerInfos n'est identifié que par l'URI du port du client
-	// => redéfinition de equals et hashCode
+	// A ClientBrokerInfos is uniquely identified by the client's port URI
+	// => override equals and hashCode accordingly
 	
     @Override
     public boolean equals(Object o) {
@@ -142,5 +206,7 @@ public class ClientBrokerInfos {
     }
 
     @Override
-    public int hashCode() { return clientPortURI.hashCode(); }
+    public int hashCode() { 
+    	return clientPortURI.hashCode(); 
+    }
 }

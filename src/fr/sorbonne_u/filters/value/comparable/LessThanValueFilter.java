@@ -5,12 +5,19 @@ import java.io.Serializable;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.ValueFilterI;
 
 /**
- * Filtre ne gardant que les valeurs inférieures à {@code filterValue} donné dans le constructeur.
+ * Filter keeping only the values less than the {@code filterValue} given in the constructor.
+ * 
  * <p>
- * Les types implantant {@link Comparable}, le code de {@code match} utilise la méthode {@link Comparable#compareTo(Object)}.
+ * For types implementing {@link Comparable}, the {@code match} code uses the {@link Comparable#compareTo(Object)} method.
  * </p>
- * @param <T> Le type des valeurs comparées du filtre, que ce soit la valeur de référence du filtre ou celle donnée en argument 
- * à {@code match}, implantant {@link Comparable}.
+ * 
+ * <p><strong>Invariants</strong></p>
+ * <pre>
+ * invariant	{@code filterValue != null}
+ * </pre>
+ * 
+ * @param <T> The type of values compared by the filter, either the filter's reference value or the one given as argument 
+ * to {@code match}, both being the same type and implementing {@link Comparable}.
  * 
  * @author Kevin Tang
  * @author David Vadimon
@@ -21,9 +28,16 @@ public class LessThanValueFilter<T extends Comparable<T>> implements ValueFilter
 	private T filterValue; 
 	
 	/**
-	 * Construit le filtre gardant les valeurs inférieures à {@code filterValue}, de type implantant {@link Comparable}.
-	 * @param filterValue La valeur du filtre.
-	 * @throws IllegalArgumentException si {@code filterValue} == {@code null}.
+	 * Constructs the filter keeping values less than {@code filterValue}, of a type implementing {@link Comparable}.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code filterValue != null}
+	 * post	class invariant satisfied
+	 * </pre>
+	 * 
+	 * @param filterValue 					The filter value.
+	 * @throws IllegalArgumentException		if {@code filterValue} == {@code null}.
 	 */
 	public LessThanValueFilter(T filterValue) {
 		if (filterValue == null) throw new IllegalArgumentException("A filter value cannot be null");
@@ -32,9 +46,9 @@ public class LessThanValueFilter<T extends Comparable<T>> implements ValueFilter
 	
 	@Override
 	public boolean match(Serializable value) {
-		@SuppressWarnings("unchecked")
-		T v = (T)value; // ClassCastException possible ici
-		return v.compareTo(filterValue) < 0; // NullPointerException possible ici si v == null
+		if (value == null) return false;
+		T v = (T)value; // ClassCastException possible here, same type as filterValue's type needed
+		return v.compareTo(filterValue) < 0;
 	}
 
 }

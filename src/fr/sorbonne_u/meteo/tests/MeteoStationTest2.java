@@ -13,10 +13,11 @@ import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.WindData;
 
 /**
- * Classe représentant une station météorologique émettant des donnéees de vents, suivant un scénario prédéfini.
+ * Class representing a {@link MeteoStation} emitting wind data following a predefined scenario.
  * 
  * <p>
- * <li> - Le composant va simplement attendre 60 secondes après son lancement, et va envoyer une {@link WindData} au 'channel0'.
+ * The scenario:
+ * <li> - The component simply waits 60 seconds after its launch and sends a {@link WindData} to 'channel0'.
  * </p>
  * 
  * @author Kevin TANG
@@ -28,14 +29,14 @@ public class MeteoStationTest2 extends Client {
 	
 	private PositionData stationPosition;
 	private String channel = "channel0";
-	private int sleepSinceStart = 60; // en secondes
+	private int sleepSinceStart = 60; // in seconds
 	
 	// --------------------------------------------------------------------------
 	// Constructor
 	// --------------------------------------------------------------------------
 
 	/**
-	 * Crée un composant station météorologique du système de publication/souscription, étant un {@link Client}.
+	 * Creates a meteorological station component of the publish/subscribe system, extending {@link Client}.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
@@ -46,11 +47,11 @@ public class MeteoStationTest2 extends Client {
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 * 
-	 * @param registrationOutboundPortURI   L'URI du port sortant réquérant {@link RegistrationCI}.
-	 * @param publishingOutboundPortURI     L'URI du port sortant réquérant {@link PublishingCI}.
-	 * @param receivingInboundPortURI       L'URI du port entrant offrant {@link ReceivingCI}.
-	 * @param stationPosition               La position de la station.
-	 * @throws Exception                    Si problème lors de l'initialisation ou de la publication des ports.
+	 * @param registrationOutboundPortURI   URI of the outbound port requiring {@link RegistrationCI}.
+	 * @param publishingOutboundPortURI     URI of the outbound port requiring {@link PublishingCI}.
+	 * @param receivingInboundPortURI       URI of the inbound port offering {@link ReceivingCI}.
+	 * @param stationPosition               The position of the station.
+	 * @throws Exception                    If an error occurs during initialization or port publication.
 	 */
 	protected MeteoStationTest2(String registrationOutboundPortURI, String publishingOutboundPortURI, String receivingInboundPortURI, 
 			PositionData stationPosition) throws Exception {
@@ -59,7 +60,7 @@ public class MeteoStationTest2 extends Client {
 
 		this.stationPosition = stationPosition;
 		
-		this.getTracer().setTitle("Station Meteo2");
+		this.getTracer().setTitle("MeteoStation 2");
 		this.getTracer().setRelativePosition(3, 0);
 	}
 	
@@ -72,15 +73,15 @@ public class MeteoStationTest2 extends Client {
 		super.execute();
 		this.logMessage("executing MeteoStation component");
 		
-		// Si l'on est pas enregistré sur le Broker
+		// If not registered on the Broker
 		if (!this.registrationOutboundPort.registered(receivingInboundPort.getPortURI())) {
-			// On s'enregistre et on récupère l'URI du port entrant de publication du Broker
+			// Register and get the Broker's publishing inbound port URI
 			brokerPublishingPortURI = this.registrationOutboundPort.register(receivingInboundPort.getPortURI(), RegistrationClass.FREE);
 		}
 		assert (brokerPublishingPortURI != null);
 		this.logMessage("MeteoStation registered");
 		
-		// On connecte le port de publication
+		// Connect the publishing port
 		this.doPortConnection(this.publishingOutboundPort.getPortURI(), 
 				brokerPublishingPortURI, 
 				ClientPublishingServiceConnector.class.getCanonicalName());
@@ -89,12 +90,12 @@ public class MeteoStationTest2 extends Client {
 	}
 	
 	// --------------------------------------------------------------------------
-	// Envoi d'une WindData
+	// Sending a WindData
 	// --------------------------------------------------------------------------
 
 	/**
-	 * Envoi un {@link WindData} prédéfini au bout de {@code sleepSinceStart} secondes.
-	 * @throws Exception		Si problème lors de la publication.
+	 * Sends a predefined {@link WindData} after {@code sleepSinceStart} seconds.
+	 * @throws Exception		If an error occurs during publishing.
 	 */
 	private void sendWindData() throws Exception {
 		
@@ -102,7 +103,7 @@ public class MeteoStationTest2 extends Client {
 		Thread.sleep(sleepSinceStart * 1000L);
 		
 		Message msg = new Message();
-		// X et Y du vecteur du vent
+		// X and Y components of the wind vector
 		double xWind = 1.0;
 		double yWind = 1.0;
 		WindData wd = new WindData(stationPosition, xWind, yWind);

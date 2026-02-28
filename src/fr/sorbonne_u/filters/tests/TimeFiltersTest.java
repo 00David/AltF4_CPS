@@ -13,7 +13,7 @@ import fr.sorbonne_u.filters.time.JokerTimeFilter;
 import fr.sorbonne_u.filters.time.LessOrEqualTimeFilter;
 
 /**
- * Tests unitaires pour les filtres sur valeurs temporelles :<br>
+ * Unit tests for temporal value filters:
  * <li> {@link GreaterOrEqualTimeFilter} </li>
  * <li> {@link LessOrEqualTimeFilter} </li>
  * <li> {@link IntervalTimeFilter} </li>
@@ -37,15 +37,14 @@ public class TimeFiltersTest {
     }
 
     // --------------------------------------------------
-    // Tests GreaterOrEqualTimeFilter
+    // GreaterOrEqualTimeFilter tests
     // --------------------------------------------------
     @Test
     void testGreaterOrEqualTimeFilterConstructor() {
-    	// cas normal
         GreaterOrEqualTimeFilter filter = new GreaterOrEqualTimeFilter(t1);
         assertNotNull(filter);
         
-        // timestamp nul en paramètre : renvoit une IllegalArgumentException
+        // null timestamp parameter: throws IllegalArgumentException
         assertThrows(IllegalArgumentException.class, () -> new GreaterOrEqualTimeFilter(null));
     }
     
@@ -53,25 +52,22 @@ public class TimeFiltersTest {
     void testGreaterOrEqualTimeFilterMatch() {
         GreaterOrEqualTimeFilter filter = new GreaterOrEqualTimeFilter(t1); 
 
-        // accepte les match avec timestamp en paramètre >= t1 
+        // accepts timestamps >= t1
         assertTrue(filter.match(t1), "timestamp == filter should pass");
         assertTrue(filter.match(t2), "timestamp > filter should pass");
         assertFalse(filter.match(t0), "timestamp < filter should fail");
-
-        // timestamp nul en paramètre : renvoit une IllegalArgumentException
-        assertThrows(IllegalArgumentException.class, () -> filter.match(null));
+        assertThrows(IllegalArgumentException.class, () -> filter.match(null), "null timestamp should throw exception");
     }
 
     // --------------------------------------------------
-    // Tests LessOrEqualTimeFilter
+    // LessOrEqualTimeFilter tests
     // --------------------------------------------------
     @Test
     void testLessOrEqualTimeFilterConstructor() {
-    	// cas normal
         LessOrEqualTimeFilter filter = new LessOrEqualTimeFilter(t1);
         assertNotNull(filter);
         
-        // timestamp nul en paramètre : renvoit une IllegalArgumentException
+        // null timestamp parameter: throws IllegalArgumentException
         assertThrows(IllegalArgumentException.class, () -> new LessOrEqualTimeFilter(null));
     }
     
@@ -79,29 +75,26 @@ public class TimeFiltersTest {
     void testLessOrEqualTimeFilterMatch() {
         LessOrEqualTimeFilter filter = new LessOrEqualTimeFilter(t1); 
         
-        // accepte les match avec timestamp en paramètre <= t1 
+        // accepts timestamps <= t1
         assertTrue(filter.match(t1), "timestamp == filter should pass");
         assertTrue(filter.match(t0), "timestamp < filter should pass");
         assertFalse(filter.match(t2), "timestamp > filter should fail");
-        
-        // timestamp nul en paramètre : renvoit une IllegalArgumentException
-        assertThrows(IllegalArgumentException.class, () -> filter.match(null));
+        assertThrows(IllegalArgumentException.class, () -> filter.match(null), "null timestamp should throw exception");
     }
 
     // --------------------------------------------------
-    // Tests IntervalTimeFilter
+    // IntervalTimeFilter tests
     // --------------------------------------------------
     @Test
     void testIntervalTimeFilterConstructor() {
-    	// cas normal
         IntervalTimeFilter filter = new IntervalTimeFilter(t0, t2);
         assertNotNull(filter);
         
-        // timestamp nuls en paramètres : renvoient une IllegalArgumentException
+        // null bounds: throws IllegalArgumentException
         assertThrows(IllegalArgumentException.class, () -> new IntervalTimeFilter(null, t2));
         assertThrows(IllegalArgumentException.class, () -> new IntervalTimeFilter(t0, null));
         
-        // max < min : : renvoit une IllegalArgumentException
+        // maxBound < minBound: throws IllegalArgumentException
         assertThrows(IllegalArgumentException.class, () -> new IntervalTimeFilter(t2, t0));
     }
     
@@ -109,51 +102,42 @@ public class TimeFiltersTest {
     void testIntervalTimeFilterMatch1() {
         IntervalTimeFilter filter = new IntervalTimeFilter(t0, t2);
 
-        // accepte les match avec t0 <= timestamp en paramètre <= t2
+        // accepts timestamps within [minBound, maxBound]
         assertTrue(filter.match(t0), "timestamp == minBound should pass");
         assertTrue(filter.match(t1), "timestamp inside interval should pass");
         assertTrue(filter.match(t2), "timestamp == maxBound should pass");
-        
-        // timestamp nul en paramètre : renvoit une IllegalArgumentException
-        assertThrows(IllegalArgumentException.class, () -> filter.match(null));
+        assertThrows(IllegalArgumentException.class, () -> filter.match(null), "null timestamp should throw exception");
     }
     
     @Test
     void testIntervalTimeFilterMatch2() {
         IntervalTimeFilter filter = new IntervalTimeFilter(t0, t2);
         
-        Instant before = t0.minusSeconds(1); // juste avant l'intervalle
-        Instant after = t2.plusSeconds(1); // juste après l'intervalle
+        Instant before = t0.minusSeconds(1); // just before the interval
+        Instant after = t2.plusSeconds(1);   // just after the interval
 
-        // before et after en dehors de l'intervalle, pas accepté par match
+        // before and after outside interval: should fail
         assertFalse(filter.match(before), "timestamp < minBound should fail");
         assertFalse(filter.match(after), "timestamp > maxBound should fail");
     }
 
     // --------------------------------------------------
-    // Tests JokerTimeFilter
+    // JokerTimeFilter tests
     // --------------------------------------------------
     @Test
     void testJokerTimeFilterConstructor() {
-    	// cas normal
         JokerTimeFilter filter = new JokerTimeFilter();
         assertNotNull(filter);
-        
-        // timestamp nul en paramètre : renvoit une IllegalArgumentException
-        assertThrows(IllegalArgumentException.class, () -> filter.match(null));
     }
     
     @Test
     void testJokerTimeFilterMatch() {
         JokerTimeFilter filter = new JokerTimeFilter();
 
-        // match accepte n'importe quel timestamp
+        // accepts any timestamp, including null
         assertTrue(filter.match(t0));
         assertTrue(filter.match(t1));
         assertTrue(filter.match(t2));
-        
-        // timestamp nul en paramètre : renvoit une IllegalArgumentException
-        assertThrows(IllegalArgumentException.class, () -> filter.match(null));
+        assertTrue(filter.match(null));
     }
 }
-
