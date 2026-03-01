@@ -1,30 +1,52 @@
 package fr.sorbonne_u.clients.ports;
 
-
+import fr.sorbonne_u.broker.components.Broker;
+import fr.sorbonne_u.clients.components.Client;
+import fr.sorbonne_u.clients.connectors.ClientRegistrationServiceConnector;
 import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.components.ports.AbstractOutboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 
 /**
- * La classe <code>ClientRegistrationOutboundPort</code> implemente le port sortant 
- * pour l'enregistrement du <code>Client</code> sur le canal de messages.
- * @author Kevin TANG
- * @author David VADIMON
+ * Outbound port of a {@link Client}, allowing the registration to a {@link Broker}.
+ * Delegates the registration to its {@link ClientRegistrationServiceConnector}.
+ * 
+ * <p><strong>Invariants</strong></p>
+ * <pre>
+ * invariant	{@code true}	// no more invariant
+ * </pre>
+ * 
+ * @author Kevin Tang
+ * @author David Vadimon
  */
 public class ClientRegistrationOutboundPort extends AbstractOutboundPort implements RegistrationCI {
-	
-	private static final long serialVersionUID = 1L;
 
+	private static final long serialVersionUID = 674403752614646152L;
+
+	/**
+	 * Creates the outbound port with the provided {@code uri}, whose owner component {@code owner} is a {@link Client}.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre {@code uri != null && !uri.isEmpty()}
+	 * pre {@code owner != null}
+	 * pre {@code owner instanceof Client}
+	 * post {@code  true}	// no postcondition.
+	 * </pre>
+	 * 
+	 * @param uri    the URI of the port.
+	 * @param owner  the component owning this port.
+	 */
 	public ClientRegistrationOutboundPort(String uri,ComponentI owner) throws Exception {
 		super(uri,RegistrationCI.class,owner);
+		// Precondition checks
+		assert(uri != null && !uri.isEmpty());
+		assert(owner != null);
+		assert(owner instanceof Client);
 	}
 	
-	public ClientRegistrationOutboundPort(ComponentI owner) throws Exception{
-		super(RegistrationCI.class,owner);
-		
-		assert owner != null;
-	}
+	// Precondition and postcondition verifications are delegated to the ClientRegistrationServiceConnector
 
 	@Override
 	public boolean registered(String receptionPortURI) throws Exception {
@@ -59,8 +81,7 @@ public class ClientRegistrationOutboundPort extends AbstractOutboundPort impleme
 	
 	@Override
 	public boolean channelAuthorised(String receptionPortURI, String channel) throws Exception {
-		// TODO Auto-generated method stub
-		return false;
+		return ((RegistrationCI)this.getConnector()).channelAuthorised(receptionPortURI, channel);
 	}
 
 	@Override
@@ -84,6 +105,4 @@ public class ClientRegistrationOutboundPort extends AbstractOutboundPort impleme
 	public boolean modifyFilter(String receptionPortURI, String channel, MessageFilterI filter) throws Exception {
 		return ((RegistrationCI)this.getConnector()).modifyFilter(receptionPortURI, channel, filter);
 	}
-
-	
 }

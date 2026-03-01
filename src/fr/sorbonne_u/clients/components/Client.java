@@ -1,190 +1,88 @@
 package fr.sorbonne_u.clients.components;
 
-import java.util.stream.Stream;
-
-import fr.sorbonne_u.broker.components.Broker;
-import fr.sorbonne_u.clients.connectors.ClientRegistrationServiceConnector;
-import fr.sorbonne_u.clients.ports.ClientPublishingOutboundPort;
-import fr.sorbonne_u.clients.ports.ClientReceivingInboundPort;
-import fr.sorbonne_u.clients.ports.ClientRegistrationOutboundPort;
+import fr.sorbonne_u.clients.plugins.ClientRegistrationPlugin;
 import fr.sorbonne_u.components.AbstractComponent;
-import fr.sorbonne_u.components.annotations.OfferedInterfaces;
-import fr.sorbonne_u.components.annotations.RequiredInterfaces;
-import fr.sorbonne_u.components.exceptions.ComponentShutdownException;
-import fr.sorbonne_u.components.exceptions.ComponentStartException;
-import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
-import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
+import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 
 /**
- * La classe abstraite donnant un composant qui est client du système de publication/souscription.
+ * The abstract class providing a component that acts as a client of the publish/subscribe system.
+ * 
+ * <p>The client is created only with a registration plugin. Concrete sub-classes can add/use more plugins.</p>
+ * 
+ * <p><strong>Invariants</strong></p>
+ * <pre>
+ * invariant	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty}
+ * invariant	{@code registrationPlugin != null && registrationPlugin instanceof ClientRegistrationPlugin}
+ * invariant	{@code registrationClass != null}
+ * </pre>
  * 
  * @author Kevin TANG
  * @author David VADIMON
  */
-@RequiredInterfaces(required= {RegistrationCI.class,PublishingCI.class})
-@OfferedInterfaces(offered= {ReceivingCI.class})
 public abstract class Client extends AbstractComponent {
 	
-	protected ClientRegistrationOutboundPort registrationOutboundPort;
-	protected ClientPublishingOutboundPort publishingOutboundPort;
-	protected ClientReceivingInboundPort receivingInboundPort;
+	// Reception (but used as the component identifier within the Broker)
+	protected final String receivingInboundPortURI;
 	
-	protected String brokerPublishingPortURI = null; // Si != null, ça veut dire que l'on s'est connecté au port de publication
-	
-	//--------------------------------------------------------------------------
-	// Constructor
-	//--------------------------------------------------------------------------
+	// Registration
+	protected final ClientRegistrationPlugin registrationPlugin;
+	protected RegistrationClass registrationClass;
 	
 	/**
-	 * Crée un composant client du système de publication/souscription.
+	 * Creates a client component of the publish/subscribe system, by setting the registration plugin name as "registration".
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
-	 * pre	{@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
+	 * pre	{@code receivingPortURI != null && !receivingPortURI.isEmpty()}
 	 * pre	{@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
 	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
-	 * post	{@code true}	// no postcondition.
+	 * post	class invariants satisfied
 	 * </pre>
 	 * 
-	 * @param registrationOutboundPortURI L'URI du port sortant réquérant {@link RegistrationCI}.
-	 * @param publishingOutboundPortURI   L'URI du port sortant réquérant {@link PublishingCI}.
-	 * @param receivingInboundPortURI     L'URI du port entrant offrant {@link ReceivingCI}.
-	 * @throws Exception                  Si problème lors de l'initialisation ou de la publication des ports.
+	 * @param receivingInboundPortURI     	The URI of the inbound port offering {@link ReceivingCI}.
+	 * @param registrationOutboundPortURI 	The URI of the outbound port requiring {@link RegistrationCI}.
+	 * @param registrationClass				The registration class of the component.
+	 * @throws Exception                  	If an error occurs during registration plugin installation.
 	 */
-	protected Client(String registrationOutboundPortURI,String publishingOutboundPortURI,String receivingInboundPortURI) throws Exception {
+	protected Client(String receivingInboundPortURI, String registrationOutboundPortURI, RegistrationClass registrationClass) throws Exception {
+		this(receivingInboundPortURI, "registration", registrationOutboundPortURI, registrationClass);
+	}
+	
+	/**
+	 * Creates a client component of the publish/subscribe system.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code receivingPortURI != null && !receivingPortURI.isEmpty()}
+	 * pre	{@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
+	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
+	 * post	class invariants satisfied
+	 * </pre>
+	 * 
+	 * @param receivingInboundPortURI     	The URI of the inbound port offering {@link ReceivingCI}.
+	 * @param registrationPluginURI			The URI of the registration plugin.
+	 * @param registrationOutboundPortURI 	The URI of the outbound port requiring {@link RegistrationCI}.
+	 * @param registrationClass				The registration class of the component.
+	 * @throws Exception                  	If an error occurs during registration plugin installation.
+	 */
+	protected Client(String receivingInboundPortURI, String registrationPluginURI, String registrationOutboundPortURI, RegistrationClass registrationClass) throws Exception {
 		super(1,0);
-		assert(registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty());
-		assert(publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty());
+		// Precondition checks
 		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty());
+		assert(registrationPluginURI != null && !registrationPluginURI.isEmpty());
+		assert(registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty());
 		
-		//initializing outbound and inbound ports
-		this.registrationOutboundPort = new ClientRegistrationOutboundPort(registrationOutboundPortURI, this);
-		this.publishingOutboundPort = new ClientPublishingOutboundPort(publishingOutboundPortURI, this);
-		this.receivingInboundPort = new ClientReceivingInboundPort(receivingInboundPortURI, this);
+		this.receivingInboundPortURI = receivingInboundPortURI;
+		this.registrationClass = registrationClass;
 		
-		//publish ports
-		this.registrationOutboundPort.localPublishPort();
-		this.publishingOutboundPort.localPublishPort();
-		this.receivingInboundPort.publishPort();
-
+		// Install the registration plug-in.
+		this.registrationPlugin = new ClientRegistrationPlugin(receivingInboundPortURI, registrationOutboundPortURI);
+		this.registrationPlugin.setPluginURI(registrationPluginURI);
+		this.installPlugin(this.registrationPlugin);
+		
 		AbstractComponent.checkImplementationInvariant(this);
 		AbstractComponent.checkInvariant(this);
-		
-	}
-	
-	//--------------------------------------------------------------------------
-	// Component life-cycle
-	//--------------------------------------------------------------------------
-	
-	@Override
-	public synchronized void start() throws ComponentStartException {
-		this.logMessage("starting client component");
-		
-		// On connecte le port d'enregistrement
-		try {
-			this.doPortConnection(this.registrationOutboundPort.getPortURI(),
-					  Broker.registrationPortURI(),
-					  ClientRegistrationServiceConnector.class.getCanonicalName());
-		} catch (Throwable e) {
-			throw new ComponentStartException(e) ;
-		}
-		
-		super.start();
-	}
-	
-	@Override
-	public synchronized void finalise() throws Exception{
-		this.logMessage("stopping client component");
-		
-		// On déconnecte le port d'enregistrement
-		this.doPortDisconnection(registrationOutboundPort.getPortURI());
-		
-		// On déconnecte le port de publication, si l'on s'est connecté
-		if (brokerPublishingPortURI != null) this.doPortDisconnection(publishingOutboundPort.getPortURI());
-		
-		super.finalise();
-	}
-	
-	@Override
-	public synchronized void shutdown() throws ComponentShutdownException {
-		
-		try {
-			// On unpublish les ports
-			this.registrationOutboundPort.unpublishPort();
-			this.receivingInboundPort.unpublishPort();
-			this.publishingOutboundPort.unpublishPort();
-		} catch (Throwable e) {
-			throw new ComponentShutdownException(e);
-		}
-		
-		super.shutdown();
-	}
-
-	//--------------------------------------------------------------------------
-	// Component internal services
-	//--------------------------------------------------------------------------
-	
-	/**
-	 * Service permettant de traiter la réception d'un {@code message} depuis un {@code channel} où le composant est abonné.
-	 * 
-	 * <p>
-	 * Doit être {@code Override} pour un traitement personnalisé du composant client concret.
-	 * </p>
-	 * 
-	 * <pre>
-	 * pre	{@code channel != null && !channel.isEmpty()}
-	 * pre	{@code message != null}
-	 * post	{@code true}	// no postcondition.
-	 * </pre>
-	 * 
-	 * @param channel   Le canal depuis lequel le {@code message} a été reçu.
-	 * @param message   Le message reçu depuis le {@code channel}.
-	 * @return          null
-	 */
-	public Void receiveService(String channel, MessageI message) {
-		// Vérification des préconditions
-		assert(channel != null);
-		assert(!channel.isEmpty());
-		assert(message != null);
-		
-		this.logMessage("Client received message '" + message + "' from the channel : " + channel);
-		return null;
-	}
-	
-	/**
-	 * Service permettant de traiter la réception de plusieurs {@code messages} depuis un {@code channel} où le composant est abonné.
-	 * 
-	 * <p>
-	 * Doit être {@code Override} pour un traitement personnalisé du composant client concret.
-	 * </p>
-	 * 
-	 * <pre>
-	 * pre	{@code channel != null && !channel.isEmpty()}
-	 * pre	{@code messages != null && messages.length > 0}
-	 * pre	{@code Stream.of(messages).allMatch(m -> m != null)}
-	 * post	{@code true}	// no postcondition.
-	 * </pre>
-	 * 
-	 * @param channel   Le canal depuis lequel les {@code messages} ont été reçu.
-	 * @param messages  Les messages reçus depuis le {@code channel}.
-	 * @return          null
-	 */
-	public Void receiveService(String channel, MessageI[] messages) {
-		// Vérification des préconditions
-		assert(channel != null);
-		assert(!channel.isEmpty());
-		assert(messages != null);
-		assert(messages.length > 0);
-		assert(Stream.of(messages).allMatch(m -> m != null));
-		
-		this.logMessage("Client received multiple messages from the channel : " + channel);
-		int i = 1;
-		for (MessageI msg : messages) {
-			this.logMessage("Message " + i + " : " + msg);
-			i++;
-		}
-		return null;
 	}
 }

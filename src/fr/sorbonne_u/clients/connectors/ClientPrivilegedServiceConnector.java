@@ -1,9 +1,37 @@
 package fr.sorbonne_u.clients.connectors;
 
+import java.util.ArrayList;
+
+import fr.sorbonne_u.broker.components.Broker;
+import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 
-public class PClientPublishingServiceConnector extends ClientPublishingServiceConnector implements PrivilegedClientCI {
+/**
+ * Connector between an outbound port of the {@link Client} component and an inbound port of a {@link Broker}.<br>
+ * Delegates privileged management to the {@link BrokerPrivilegedInboundPort}
+ * 
+ * <p><strong>Invariants</strong></p>
+ * <pre>
+ * invariant	{@code true}	// no more invariant
+ * </pre>
+ * 
+ * @author Kevin Tang
+ * @author David Vadimon
+ */
+public class ClientPrivilegedServiceConnector extends ClientPublishingServiceConnector implements PrivilegedClientCI {
 
+	// Precondition and postcondition verifications are delegated to the the BrokerPrivilegedInboundPort
+	
+	@Override
+	public void publish(String receptionPortURI, String channel, MessageI message) throws Exception {
+		((PrivilegedClientCI)this.offering).publish(receptionPortURI, channel, message);
+	}
+
+	@Override
+	public void publish(String receptionPortURI, String channel, ArrayList<MessageI> messages) throws Exception {
+		((PrivilegedClientCI)this.offering).publish(receptionPortURI, channel, messages);
+	}
+	
 	@Override
 	public boolean hasCreatedChannel(String receptionPortURI, String channel) throws Exception {
 		return ((PrivilegedClientCI)this.offering).hasCreatedChannel(receptionPortURI, channel);
@@ -46,5 +74,4 @@ public class PClientPublishingServiceConnector extends ClientPublishingServiceCo
 		((PrivilegedClientCI)this.offering).destroyChannelNow(receptionPortURI, channel);
 		
 	}
-
 }

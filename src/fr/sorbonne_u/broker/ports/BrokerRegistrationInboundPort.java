@@ -7,8 +7,13 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 
 /**
- * Port entrant d'un Broker, permettant de gérer l'enregistrement d'un client.<br>
- * Délègue la gestion à son possesseur, un composant {@link Broker}.
+ * Inbound port of a {@link Broker}, allowing the handling of client registration.<br>
+ * Delegates the management to its owner component, a {@link Broker}.
+ * 
+ * <p><strong>Invariants</strong></p>
+ * <pre>
+ * invariant	{@code true}	// no more invariant
+ * </pre>
  * 
  * @author Kevin Tang
  * @author David Vadimon
@@ -20,28 +25,29 @@ implements	RegistrationCI {
 	private static final long serialVersionUID = 763740080899636307L;
 
 	/**
-	 * Crée le port entrant avec l'{@code uri} fournie, dont le composant posseseur {@code owner} est un {@link Broker}.
+	 * Creates the inbound port with the provided {@code uri}, whose owner component {@code owner} is a {@link Broker}.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
-	 * pre	uri != null and owner != null
-	 * pre	owner instanceof {@link Broker}
-	 * post	true			// pas de postcondition.
+	 * pre {@code uri != null && !uri.isEmpty()}
+	 * pre {@code owner != null}
+	 * pre {@code owner instanceof Broker}
+	 * post {@code  true}	// no postcondition.
 	 * </pre>
 	 * 
-	 * @param uri          l'URI du port.
-	 * @param owner        Le composant possesseur du port.
+	 * @param uri    the URI of the port.
+	 * @param owner  the component owning this port.
 	 */
 	public BrokerRegistrationInboundPort(String uri, ComponentI owner) throws Exception {
 		super(uri, RegistrationCI.class, owner) ;
-		// Vérification des préconditions
-		assert(uri != null);
+		// Precondition checks
+		assert(uri != null && !uri.isEmpty());
 		assert(owner != null);
 		assert(owner instanceof Broker);
 	}
 	
-	// Toutes les préconditions et postconditions sont vérifiées par délégation, lors de l'exécution du service du Broker appellé.
-	
+	// Precondition and postcondition verifications are delegated to the Broker
+
 	@Override
 	public boolean registered(String receptionPortURI) throws Exception {
 		return this.getOwner().handleRequest(

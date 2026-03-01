@@ -5,9 +5,8 @@ import java.time.Instant;
 import java.util.ArrayList;
 
 import fr.sorbonne_u.clients.components.Client;
-import fr.sorbonne_u.clients.connectors.ClientPublishingServiceConnector;
-import fr.sorbonne_u.components.annotations.OfferedInterfaces;
-import fr.sorbonne_u.components.annotations.RequiredInterfaces;
+import fr.sorbonne_u.clients.plugins.ClientPublicationPlugin;
+import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
@@ -20,37 +19,42 @@ import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.RegionData;
 
 /**
- * Classe de test représentant un bureau météorologique suivant un scénario prédéfini.
+ * Test class representing a {@link MeteoBureau} following a predefined scenario.
  * 
  * <p>
- * Le scénario testé :
- * <li> - Le bureau météo dort durant les 90 premières secondes du programme.
- * <li> - Il envoie une alerte dangereuse (de niveau RED) au 'channel1', de durée 30 secondes.
- * <li> - Il dort ensuite 30 secondes pendant l'alerte.
- * <li> - Il se réveille et renvoit une alerte de fin de danger (de niveau GREEN).
- * <li> - Il dort ensuite 60 secondes.
- * <li> - Il se réveille et renvoit une alerte restreinte à la zone du bureau, ne touchant pas l'éolienne.
+ * The scenario tested:
+ * <li> - The weather office sleeps during the first 90 seconds of the program.
+ * <li> - It sends a dangerous alert (RED level) to 'channel1' lasting 30 seconds.
+ * <li> - It then sleeps for 30 seconds during the alert.
+ * <li> - It wakes up and sends a safe alert (GREEN level) indicating the end of danger.
+ * <li> - It then sleeps for 60 seconds.
+ * <li> - It wakes up and sends a restricted alert limited to the office's area, not affecting the wind turbine.
  * </p>
  * 
  * @author Kevin TANG
  * @author David VADIMON
  */
-@RequiredInterfaces(required= {RegistrationCI.class,PublishingCI.class})
-@OfferedInterfaces(offered= {ReceivingCI.class})
 public class MeteoBureauTest extends Client{
 	
 	private PositionData bureauPosition;
 	private String channel = "channel1";
-	private int sleepSinceStart = 90; // en secondes
-	private int durationAlertTime = 30; // en secondes
-	private int sleepAfterSafeAlert = 60; // en secondes
+	private int sleepSinceStart = 90; // in seconds
+	private int durationAlertTime = 30; // in seconds
+	private int sleepAfterSafeAlert = 60; // in seconds
+	
+	// Publication
+	protected final String publishingOutboundPortURI; 
+	protected ClientPublicationPlugin publicationPlugin;
+	
+	// Subscription + reception
+	protected final ClientSubscriptionPlugin subscriptionPlugin;
 
-	//--------------------------------------------------------------------------
+	//---------------------------------------------------------------------------
 	// Constructor
-	//--------------------------------------------------------------------------
+	//---------------------------------------------------------------------------
 	
 	/**
-	 * Crée un composant bureau météorologique du système de publication/souscription, étant un {@link Client}.
+	 * Creates a meteorological office component for the publish/subscribe system, extending {@link Client}.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
@@ -61,20 +65,26 @@ public class MeteoBureauTest extends Client{
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 * 
-	 * @param registrationOutboundPortURI   L'URI du port sortant réquérant {@link RegistrationCI}.
-	 * @param publishingOutboundPortURI     L'URI du port sortant réquérant {@link PublishingCI}.
-	 * @param receivingInboundPortURI       L'URI du port entrant offrant {@link ReceivingCI}.
-	 * @param bureauPosition                La position du bureau.
-	 * @throws Exception                    Si problème lors de l'initialisation ou de la publication des ports.
+	 * @param registrationOutboundPortURI   URI of the outbound port requiring {@link RegistrationCI}.
+	 * @param publishingOutboundPortURI     URI of the outbound port requiring {@link PublishingCI}.
+	 * @param receivingInboundPortURI       URI of the inbound port offering {@link ReceivingCI}.
+	 * @param bureauPosition                The position of the office.
+	 * @throws Exception                    If an error occurs during initialization or port publication.
 	 */
 	protected MeteoBureauTest(String registrationOutboundPortURI, String publishingOutboundPortURI, String receivingInboundPortURI, 
 			PositionData bureauPosition) throws Exception {
-		super(registrationOutboundPortURI, publishingOutboundPortURI, receivingInboundPortURI);
+		super(receivingInboundPortURI, registrationOutboundPortURI, RegistrationClass.FREE);
 		assert(bureauPosition != null);
 		
 		this.bureauPosition = bureauPosition;
+		this.publishingOutboundPortURI = publishingOutboundPortURI;
 		
-		this.getTracer().setTitle("Bureau Meteo") ;
+		// Install the subscription + reception plugin
+		this.subscriptionPlugin = new ClientSubscriptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
+		this.subscriptionPlugin.setPluginURI("subscription");
+		this.installPlugin(this.subscriptionPlugin);
+		
+		this.getTracer().setTitle("MeteoBureau") ;
 		this.getTracer().setRelativePosition(1, 0) ;
 	}
 
@@ -87,18 +97,16 @@ public class MeteoBureauTest extends Client{
 		super.execute();
 		this.logMessage("executing MeteoBureau component");
 		
-		// Si l'on est pas enregistré sur le Broker
-		if (!this.registrationOutboundPort.registered(receivingInboundPort.getPortURI())) {
-			// On s'enregistre et on récupère l'URI du port entrant de publication du Broker
-			brokerPublishingPortURI = this.registrationOutboundPort.register(receivingInboundPort.getPortURI(), RegistrationClass.FREE);
-		}
-		assert (brokerPublishingPortURI != null);
+		// Register on the Broker
+		registrationPlugin.register(registrationClass);
+		assert (registrationPlugin.getBrokerPublishingPortURI() != null);
 		this.logMessage("MeteoBureau registered");
 		
-		// On connecte le port de publication
-		this.doPortConnection(this.publishingOutboundPort.getPortURI(), 
-				brokerPublishingPortURI, 
-				ClientPublishingServiceConnector.class.getCanonicalName());
+		// Install the publication plug-in.
+		this.publicationPlugin = new ClientPublicationPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort(),
+				publishingOutboundPortURI, registrationPlugin.getBrokerPublishingPortURI());
+		this.publicationPlugin.setPluginURI("publication");
+		this.installPlugin(this.publicationPlugin);
 		
 		sendAlertDanger();
 		sendAlertSafe();
@@ -106,17 +114,17 @@ public class MeteoBureauTest extends Client{
 	}
 	
 	// --------------------------------------------------------------------------
-	// Envoi des alertes
+	// Sending alerts
 	// --------------------------------------------------------------------------
 
 	/**
-	 * Envoi une alerte désignant le début d'une alerte dangereuse.
-	 * @throws Exception		Si problème lors de la publication.
+	 * Sends an alert indicating the start of a dangerous alert.
+	 * @throws Exception		If an error occurs during publishing.
 	 */
 	public void sendAlertDanger() throws Exception {
 
-		// Dort pendant un certain nombre de secondes depuis le début
-		// Seulement après lance une alerte dangereuse
+		// Sleep for a certain number of seconds since start
+		// Then send a dangerous alert
 		this.logMessage("MeteoBureau sleeps "+sleepSinceStart+" seconds..."); 
 		Thread.sleep(sleepSinceStart * 1000L);
 		
@@ -124,12 +132,12 @@ public class MeteoBureauTest extends Client{
 		
 		ArrayList<RegionI> regions = new ArrayList<>();
 		double x = bureauPosition.getPosX(); double y = bureauPosition.getPosY();
-		regions.add(new RegionData(x-1, x+1, y-1, y+1)); // Zone 3 x 3 autour du bureau météorologique
+		regions.add(new RegionData(x-1, x+1, y-1, y+1)); // 3x3 zone around the office
 		MeteoAlertI.AlertType alert = MeteoAlertI.AlertType.EARTHQUAKE;
 		MeteoAlertI.Level level = MeteoAlertI.Level.RED;
-		Instant instant = Instant.now(); // Début instantanné
+		Instant instant = Instant.now(); // start instant
 		Duration duration = Duration.ofSeconds(durationAlertTime);
-		MeteoAlert ma =new MeteoAlert(alert, level, regions, instant, duration);
+		MeteoAlert ma = new MeteoAlert(alert, level, regions, instant, duration);
 		
 		msg.setPayload(ma);
 		msg.putProperty("alert", alert);
@@ -142,16 +150,16 @@ public class MeteoBureauTest extends Client{
 		this.logMessage("MeteoBureau sending a DANGER alert "+ma);
 		this.logMessage("------------------------------");
 		
-		this.publishingOutboundPort.publish(receivingInboundPort.getPortURI(), channel, msg);
+		publicationPlugin.publish(channel, msg);
 	}
 	
 	/**
-	 * Envoi une alerte désignant la fin de l'alerte précédante.
-	 * @throws Exception		Si problème lors de la publication.
+	 * Sends an alert indicating the end of the previous danger alert.
+	 * @throws Exception		If an error occurs during publishing.
 	 */
 	public void sendAlertSafe() throws Exception {
 		
-		// Dort le temps de l'alerte dangereuse
+		// Sleep for the duration of the dangerous alert
 		this.logMessage("MeteoBureau sleeps "+durationAlertTime+" seconds..."); 
 		Thread.sleep(durationAlertTime * 1000L);
 		
@@ -159,12 +167,12 @@ public class MeteoBureauTest extends Client{
 		
 		ArrayList<RegionI> regions = new ArrayList<>();
 		double x = bureauPosition.getPosX(); double y = bureauPosition.getPosY();
-		regions.add(new RegionData(x-1, x+1, y-1, y+1)); // Zone 3 x 3
+		regions.add(new RegionData(x-1, x+1, y-1, y+1)); // 3x3 zone
 		MeteoAlertI.AlertType alert = MeteoAlertI.AlertType.EARTHQUAKE;
 		MeteoAlertI.Level level = MeteoAlertI.Level.GREEN;
-		Instant instant = Instant.now(); // Début instantanné
+		Instant instant = Instant.now();
 		Duration duration = Duration.ofSeconds(durationAlertTime);
-		MeteoAlert ma =new MeteoAlert(alert, level, regions, instant, duration);
+		MeteoAlert ma = new MeteoAlert(alert, level, regions, instant, duration);
 		
 		msg.setPayload(ma);
 		msg.putProperty("alert", alert);
@@ -177,16 +185,16 @@ public class MeteoBureauTest extends Client{
 		this.logMessage("MeteoBureau sending a SAFE alert "+ma);
 		this.logMessage("------------------------------");
 		
-		this.publishingOutboundPort.publish(receivingInboundPort.getPortURI(), channel, msg);
+		publicationPlugin.publish(channel, msg);
 	}
 	
 	/**
-	 * Envoi une alerte non reçue par l'éolienne, après filtrage de la région concernée.
-	 * @throws Exception		Si problème lors de la publication.
+	 * Sends an alert not received by the wind turbine, after filtering the concerned region.
+	 * @throws Exception		If an error occurs during publishing.
 	 */
 	public void sendUncaughtAlert() throws Exception {
 		
-		// Dort pendant un certain nombre de secondes après le lancement de l'alerte de fin de danger
+		// Sleep for a certain number of seconds after the safe alert
 		this.logMessage("MeteoBureau sleeps "+sleepAfterSafeAlert+" seconds..."); 
 		Thread.sleep(sleepAfterSafeAlert * 1000L);
 		
@@ -194,12 +202,12 @@ public class MeteoBureauTest extends Client{
 		
 		ArrayList<RegionI> regions = new ArrayList<>();
 		double x = bureauPosition.getPosX(); double y = bureauPosition.getPosY();
-		regions.add(new RegionData(x, x, y, y)); // Zone 1 x 1 autour du bureau météorologique
+		regions.add(new RegionData(x, x, y, y)); // zone exactly on the MeteoBureau
 		MeteoAlertI.AlertType alert = MeteoAlertI.AlertType.EARTHQUAKE;
 		MeteoAlertI.Level level = MeteoAlertI.Level.RED;
-		Instant instant = Instant.now(); // Début instantanné
+		Instant instant = Instant.now();
 		Duration duration = Duration.ofSeconds(durationAlertTime);
-		MeteoAlert ma =new MeteoAlert(alert, level, regions, instant, duration);
+		MeteoAlert ma = new MeteoAlert(alert, level, regions, instant, duration);
 		
 		msg.setPayload(ma);
 		msg.putProperty("alert", alert);
@@ -212,6 +220,6 @@ public class MeteoBureauTest extends Client{
 		this.logMessage("MeteoBureau sending a DANGER alert "+ma);
 		this.logMessage("------------------------------");
 		
-		this.publishingOutboundPort.publish(receivingInboundPort.getPortURI(), channel, msg);
+		publicationPlugin.publish(channel, msg);
 	}
 }

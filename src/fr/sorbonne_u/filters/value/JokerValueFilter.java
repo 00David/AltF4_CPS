@@ -5,7 +5,12 @@ import java.io.Serializable;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.ValueFilterI;
 
 /**
- * Filtre acceptant n'importe quelle {@code value} donnée en paramètre à la méthode {@code match}.
+ * Filter accepting any {@code value} given as a parameter to the {@code match} method.
+ * 
+ * <p><strong>Invariants</strong></p>
+ * <pre>
+ * invariant	{@code true}	// no more invariant
+ * </pre>
  * 
  * @author Kevin Tang
  * @author David Vadimon

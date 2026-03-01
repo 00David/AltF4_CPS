@@ -5,7 +5,14 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI.PropertyI;
 
 /**
- * Classe contenant l'ensemble des filtres à appliquer aux valeurs des propriétés d'un {@link MessageI}, via la méthode {@code match}.
+ * Class containing all the filters to apply to the values of a {@link MessageI}'s properties, via the {@code match} method.
+ * 
+ * <p><strong>Invariants</strong></p>
+ * <pre>
+ * invariant	{@code propertyFilters != null}
+ * invariant	{@code propertiesFilters != null}
+ * invariant	{@code timeFilter != null}
+ * </pre>
  * 
  * @author Kevin Tang
  * @author David Vadimon
@@ -19,20 +26,32 @@ public class MessageFilter implements MessageFilterI{
 	private TimeFilterI timeFilter;
 	
 	/**
-	 * Construit un filtre de message.
-	 * @param propertyFilters L'ensemble des {@link PropertyFilterI} à appliquer aux valeurs des propriétés des messages.
-	 * @param propertiesFilters L'ensemble des {@link PropertiesFilterI} à appliquer aux valeurs des propriétés des messages.
-	 * @param timeFilter Un {@link TimeFilterI} à appliquer au timestamp du message. Peut être {@code null}.
-	 * @throws IllegalArgumentException si {@code propertyFilters} == {@code null} ou {@code propertiesFilters} == {@code null}.
+	 * Constructs a message filter.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code propertyFilters != null}
+	 * pre	{@code propertiesFilters != null}
+	 * pre	{@code timeFilter != null}
+	 * post	class invariants satisfied
+	 * </pre>
+	 * 
+	 * @param propertyFilters 				The set of {@link PropertyFilterI} to apply to the values of the message properties.
+	 * @param propertiesFilters 			The set of {@link PropertiesFilterI} to apply to the values of the message properties.
+	 * @param timeFilter 					A {@link TimeFilterI} to apply to the message timestamp. Can be {@code null}.
+	 * @throws IllegalArgumentException		if a precondition is not satisfied..
 	 */
 	public MessageFilter(PropertyFilterI[] propertyFilters, PropertiesFilterI[] propertiesFilters, TimeFilterI timeFilter) {
-		if (propertyFilters == null || propertiesFilters == null) {
-			throw new IllegalArgumentException("An array cannot be null");
-		}
+		// Precondition checks
+		if (propertyFilters == null || propertiesFilters == null) throw new IllegalArgumentException("An array cannot be null");
+		if (timeFilter == null) throw new IllegalArgumentException("Time filter cannot be null");
+		
 		this.propertyFilters = propertyFilters;
 		this.propertiesFilters = propertiesFilters;
 		this.timeFilter = timeFilter;
 	}
+	
+	// Getters postconditions are satisfied by class invariants
 
 	@Override
 	public PropertyFilterI[] getPropertyFilters() {
@@ -52,14 +71,14 @@ public class MessageFilter implements MessageFilterI{
 	@Override
 	public boolean match(MessageI message) {
 
-	    // 1. Filtre temporel
-	    if (timeFilter != null && !timeFilter.match(message.getTimeStamp())) {
+	    // 1. Time filter
+	    if (!timeFilter.match(message.getTimeStamp())) {
 	        return false;
 	    }
 
 	    PropertyI[] properties = message.getProperties();
 
-	    // 2. Filtres sur propriétés individuelles
+	    // 2. Filters on individual properties
 	    for (PropertyFilterI pf : propertyFilters) {
 	        boolean matched = false;
 
@@ -70,16 +89,16 @@ public class MessageFilter implements MessageFilterI{
 	            }
 	        }
 
-	        // La propriété attendue par le filtre n'a pas matché
+	        // The property expected by the filter did not match
 	        if (!matched) return false;
 	    }
 
-	    // 3. Filtres sur propriétés conjointes
+	    // 3. Filters on joint properties
 	    for (PropertiesFilterI pf : propertiesFilters) {
 	        if (!pf.match(properties)) return false;
 	    }
 
 	    return true;
 	}
-
+	
 }

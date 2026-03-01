@@ -5,8 +5,15 @@ import java.time.Instant;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.TimeFilterI;
 
 /**
- * Filtre temporel gardant les {@code timestamp} (de la méthode {@code match}) vérifiant : <br>
- * {@code minBound} <= {@code timestamp} <= {@code maxBound}, avec {@code minBound} et {@code maxBound} fixés dans le constructeur.
+ * Time filter keeping the {@code timestamp} (from the {@code match} method) verifying: <br>
+ * {@code minBound} <= {@code timestamp} <= {@code maxBound}, with {@code minBound} and {@code maxBound} set in the constructor.
+ * 
+ * <p><strong>Invariants</strong></p>
+ * <pre>
+ * invariant	{@code minBound != null}
+ * invariant	{@code maxBound != null}
+ * invariant	{@code !maxBound.isBefore(minBound)}
+ * </pre>
  * 
  * @author Kevin Tang
  * @author David Vadimon
@@ -18,11 +25,20 @@ public class IntervalTimeFilter implements TimeFilterI{
 	private Instant maxBound;
 	
 	/**
-	 * Construit le filtre, avec les {@code minBound} et {@code maxBound} utilisés dans le {@code match}.
-	 * @param minBound Borne temporelle inférieure du filtre.
-	 * @param maxBound Borne temporelle supérieure du filtre.
-	 * @throws IllegalArgumentException si {@code minBound} == {@code null} ou {@code maxBound} == {@code null}.
-	 * @throws IllegalArgumentException si {@code maxBound} < {@code minBound}.
+	 * Constructs the filter, with {@code minBound} and {@code maxBound} used in {@code match}.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code minBound != null}
+	 * pre	{@code maxBound != null}
+	 * pre	{@code !maxBound.isBefore(minBound)}
+	 * post	class invariants satisfied
+	 * </pre>
+	 * 
+	 * @param minBound 						Lower time bound of the filter.
+	 * @param maxBound 						Upper time bound of the filter.
+	 * @throws IllegalArgumentException		if {@code minBound} == {@code null} or {@code maxBound} == {@code null}.
+	 * @throws IllegalArgumentException		if {@code maxBound} < {@code minBound}.
 	 */
 	public IntervalTimeFilter(Instant minBound, Instant maxBound) {
         if (minBound == null || maxBound == null) throw new IllegalArgumentException("Bounds cannot be null");
@@ -31,13 +47,9 @@ public class IntervalTimeFilter implements TimeFilterI{
 		this.maxBound = maxBound;
 	}
 	
-	/**
-	 * @throws IllegalArgumentException si {@code timestamp} == {@code null}.
-	 */
 	@Override
 	public boolean match(Instant timestamp) {
-		// Verif précondition
-		if (timestamp == null) throw new IllegalArgumentException("Timestamp cannot be null");
+		if (timestamp == null) return false;
 		return !timestamp.isBefore(minBound) && !timestamp.isAfter(maxBound); // [minBound, maxBound]
 	}
 

@@ -8,8 +8,13 @@ import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.ValueFilterI;
 
 /**
- * Filtre indiquant si une {@link PositionI} (récupérée dans le constructeur)
- * est contenue dans une liste de {@link RegionI} (donnée en argument à {@code match}).
+ * Filter indicating whether a {@link PositionI} (provided in the constructor)
+ * is contained in a list of {@link RegionI} (given as an argument to {@code match}).
+ * 
+ * <p><strong>Invariants</strong></p>
+ * <pre>
+ * invariant	{@code position != null}
+ * </pre>
  * 
  * @author Kevin TANG
  * @author David VADIMON
@@ -20,9 +25,16 @@ public class PositionInRegionsValueFilter implements ValueFilterI {
 	private PositionI position; 
 
 	/**
-	 * Construit le filtre avec une {@link PositionI}.
-	 * @param filterValue La position acceptée par au moins une {@link RegionI} donnée dans la liste en argument à {@code match}.
-	 * @throws IllegalArgumentException si {@code position} == {@code null}.
+	 * Constructs the filter with a {@link PositionI}.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code position != null}
+	 * post	class invariant satisfied
+	 * </pre>
+	 * 
+	 * @param position 						The position accepted if it belongs to at least one {@link RegionI} given in the list argument to {@code match}.
+	 * @throws IllegalArgumentException		if {@code position} == {@code null}.
 	 */
 	public PositionInRegionsValueFilter(PositionI position) {
 		if (position == null) throw new IllegalArgumentException("A position cannot be null");
@@ -31,15 +43,15 @@ public class PositionInRegionsValueFilter implements ValueFilterI {
 	
 	@Override
 	public boolean match(Serializable value) {
-		if(value instanceof List<?>) {
-			List<RegionI> regions = (List<RegionI>)value;
+		if (value == null) return false;
+		
+		if(value instanceof List<?>) { // Java does not authorize "value instanceof List<RegionI>"
+			List<RegionI> regions = (List<RegionI>)value; // Not the cleanest thing, cannot do differently
 			for (RegionI region : regions) {
-				if (region.in(position)) return true; // Verifie que la position est dans au moins une région donnée
+				if (region.in(position)) return true; // Checks if the position is in at least one given region
 			}
 		}
 		return false;
 	}
-
-	
 
 }

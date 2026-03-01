@@ -1,17 +1,26 @@
 package fr.sorbonne_u.clients.connectors;
 
+import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.components.connectors.AbstractConnector;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 
 /**
- * La classe <code>ClientRegistrationServiceConnector</code> implemente un connecteur pour le port 
- * <code>ClientRegistrationOutboundPort</code> pour lier le port <code>Registration/code> du <code>Broker</code>.
- * @author Kevin TANG
- * @author David VADIMON
+ * Connector between an outbound port of the {@link Client} component and an inbound port of a {@link Broker}.<br>
+ * Delegates registration to the {@link BrokerRegistrationInboundPort}
+ * 
+ * <p><strong>Invariants</strong></p>
+ * <pre>
+ * invariant	{@code true}	// no more invariant
+ * </pre>
+ * 
+ * @author Kevin Tang
+ * @author David Vadimon
  */
 public class ClientRegistrationServiceConnector extends AbstractConnector implements RegistrationCI {
 
+	// Precondition and postcondition verifications are delegated to the the BrokerRegistrationInboundPort
+	
 	@Override
 	public boolean registered(String receptionPortURI) throws Exception {
 		return ((RegistrationCI)this.offering).registered(receptionPortURI);
@@ -69,5 +78,4 @@ public class ClientRegistrationServiceConnector extends AbstractConnector implem
 	public boolean modifyFilter(String receptionPortURI, String channel, MessageFilterI filter) throws Exception {
 		return ((RegistrationCI)this.offering).modifyFilter(receptionPortURI, channel, filter);
 	}
-
 }

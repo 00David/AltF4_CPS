@@ -7,10 +7,9 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import fr.sorbonne_u.clients.components.Client;
-import fr.sorbonne_u.clients.connectors.ClientPublishingServiceConnector;
+import fr.sorbonne_u.clients.plugins.ClientPublicationPlugin;
+import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
 import fr.sorbonne_u.components.AbstractComponent;
-import fr.sorbonne_u.components.annotations.OfferedInterfaces;
-import fr.sorbonne_u.components.annotations.RequiredInterfaces;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
@@ -23,26 +22,45 @@ import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.RegionData;
 
 /**
- * Classe représentant un bureau météorologique émettant des alertes aléatoires de manière périodique.
+ * Class representing a meteorological office emitting random alerts periodically.
+ * 
+ * <p>
+ * The office sends alerts at random intervals within the specified range.
+ * </p>
+ * 
+ * <p><strong>Invariants</strong></p>
+ * <pre>
+ * invariant	{@code bureauPosition != null}
+ * invariant	{@code sleepMinTime >= 0}
+ * invariant	{@code sleepMaxTime >= sleepMinTime}
+ * invariant	{@code publishingOutboundPortURI!= null & !publishingOutboundPortURI.isEmpty()}
+ * invariant	{@code subscriptionPlugin != null}
+ * </pre>
+ * 
  * @author Kevin TANG
  * @author David VADIMON
  */
-@RequiredInterfaces(required= {RegistrationCI.class,PublishingCI.class})
-@OfferedInterfaces(offered= {ReceivingCI.class})
-public class MeteoBureau extends Client{
+public class MeteoBureau extends Client {
 	
 	private PositionData bureauPosition;
 	
-	// Attente entre chaque envoi d'alerte, en secondes
+	// Waiting time between each alert in seconds
 	private int sleepMinTime;
 	private int sleepMaxTime;
+	
+	// Publication
+	protected final String publishingOutboundPortURI; 
+	protected ClientPublicationPlugin publicationPlugin;
+	
+	// Subscription + reception
+	protected final ClientSubscriptionPlugin subscriptionPlugin;
 
 	//--------------------------------------------------------------------------
 	// Constructor
 	//--------------------------------------------------------------------------
-	
+
 	/**
-	 * Crée un composant bureau météorologique du système de publication/souscription, étant un {@link Client}.
+	 * Creates a meteorological office component of the publish/subscribe system, extending {@link Client}.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
@@ -54,26 +72,32 @@ public class MeteoBureau extends Client{
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 * 
-	 * @param registrationOutboundPortURI   L'URI du port sortant réquérant {@link RegistrationCI}.
-	 * @param publishingOutboundPortURI     L'URI du port sortant réquérant {@link PublishingCI}.
-	 * @param receivingInboundPortURI       L'URI du port entrant offrant {@link ReceivingCI}.
-	 * @param bureauPosition                La position du bureau.
-	 * @param sleepMinTime					Le temps minimal d'attente entre chaque nouvel envoi de {@link MeteoAlert}.
-	 * @param sleepMaxTime					Le temps maximal d'attente entre chaque nouvel envoi de {@link MeteoAlert}.
-	 * @throws Exception                    Si problème lors de l'initialisation ou de la publication des ports.
+	 * @param registrationOutboundPortURI   URI of the outbound port requiring {@link RegistrationCI}.
+	 * @param publishingOutboundPortURI     URI of the outbound port requiring {@link PublishingCI}.
+	 * @param receivingInboundPortURI       URI of the inbound port offering {@link ReceivingCI}.
+	 * @param bureauPosition                The position of the office.
+	 * @param sleepMinTime                  Minimum waiting time between two alerts.
+	 * @param sleepMaxTime                  Maximum waiting time between two alerts.
+	 * @throws Exception                    If an error occurs during initialization or port publication.
 	 */
 	protected MeteoBureau(String registrationOutboundPortURI, String publishingOutboundPortURI, String receivingInboundPortURI, 
 			PositionData bureauPosition, int sleepMinTime, int sleepMaxTime) throws Exception {
-		super(registrationOutboundPortURI, publishingOutboundPortURI, receivingInboundPortURI);
+		super(receivingInboundPortURI, registrationOutboundPortURI, RegistrationClass.FREE);
 		assert(bureauPosition != null);
 		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime);
 		
 		this.bureauPosition = bureauPosition;
 		this.sleepMinTime = sleepMinTime;
 		this.sleepMaxTime = sleepMaxTime;
+		this.publishingOutboundPortURI = publishingOutboundPortURI;
 		
-		this.getTracer().setTitle("Bureau Meteo") ;
-		this.getTracer().setRelativePosition(1, 0) ;
+		// Install the subscription + reception plugin
+		this.subscriptionPlugin = new ClientSubscriptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
+		this.subscriptionPlugin.setPluginURI("subscription");
+		this.installPlugin(this.subscriptionPlugin);
+		
+		this.getTracer().setTitle("MeteoBureau");
+		this.getTracer().setRelativePosition(1, 0);
 	}
 
 	// --------------------------------------------------------------------------
@@ -85,34 +109,37 @@ public class MeteoBureau extends Client{
 		super.execute();
 		this.logMessage("executing MeteoBureau component");
 		
-		// Si l'on est pas enregistré sur le Broker
-		if (!this.registrationOutboundPort.registered(receivingInboundPort.getPortURI())) {
-			// On s'enregistre et on récupère l'URI du port entrant de publication du Broker
-			brokerPublishingPortURI = this.registrationOutboundPort.register(receivingInboundPort.getPortURI(), RegistrationClass.FREE);
-		}
-		assert (brokerPublishingPortURI != null);
+		// Register on the Broker
+		registrationPlugin.register(registrationClass);
+		assert (registrationPlugin.getBrokerPublishingPortURI() != null);
 		this.logMessage("MeteoBureau registered");
 		
-		// On connecte le port de publication
-		this.doPortConnection(this.publishingOutboundPort.getPortURI(), 
-				brokerPublishingPortURI, 
-				ClientPublishingServiceConnector.class.getCanonicalName());
+		// Install the publication plug-in.
+		this.publicationPlugin = new ClientPublicationPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort(),
+				publishingOutboundPortURI, registrationPlugin.getBrokerPublishingPortURI());
+		this.publicationPlugin.setPluginURI("publication");
+		this.installPlugin(this.publicationPlugin);
 		
-		// On envoie périodiquement une alerte sur le 'channel1'
-	    
-	    //this.scheduleNextSend(); // Pour l'instant ne marche pas
-	    
-	    // temporaire
+		// Send alerts periodically on 'channel1'
+	    //scheduleNextSend(); // For later, when scheduled threads
+		
 	    sendAlert("channel1");
 	}
 	
 	// --------------------------------------------------------------------------
-	// Envoi d'une alerte touchant une région
+	// Alert sending
 	// --------------------------------------------------------------------------
-	
+
 	/**
-	 * Prévoit d'envoyer une nouvelle alerte au bout d'un laps de temps.<br>
-	 * Pour l'instant pas utilisé, sera utilisé quand au moins 1 thread schedulable.
+	 * Schedules a new alert after a random interval.
+	 * 
+	 * <p>Currently unused. Will be used when at least one schedulable thread exists.</p>
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code true}	// no precondition.
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
 	 */
 	private void scheduleNextSend() {
 	    int seconds = ThreadLocalRandom.current().nextInt(sleepMinTime, sleepMaxTime);
@@ -135,7 +162,7 @@ public class MeteoBureau extends Client{
 	}
 
 	/**
-	 * Envoi une {@link MeteoAlert} avec attributs aléatoires.
+	 * Sends a {@link MeteoAlert} with random attributes.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
@@ -143,13 +170,12 @@ public class MeteoBureau extends Client{
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 * 
-	 * @param channel			Le nom du channel sur lequel envoyer l'alerte.
-	 * @throws Exception		Si problème lors de la publication.
+	 * @param channel      The name of the channel to send the alert on.
+	 * @throws Exception   If an error occurs during publishing.
 	 */
 	private void sendAlert(String channel) throws Exception {
 		assert(channel != null && !channel.isEmpty());	
 		
-		// temporaire
 		int seconds = ThreadLocalRandom.current().nextInt(sleepMinTime, sleepMaxTime); 
 		this.logMessage("MeteoBureau sleeps "+seconds+" seconds..."); 
 		Thread.sleep(seconds * 1000L);
@@ -161,9 +187,9 @@ public class MeteoBureau extends Client{
 		
 		MeteoAlertI.AlertType alert = randomAlert();
 		MeteoAlertI.Level level = randomLevel();
-		Instant instant = Instant.now(); // Début instantanné
+		Instant instant = Instant.now();
 		Duration duration = randomDuration();
-		MeteoAlert ma =new MeteoAlert(alert, level, regions, instant, duration);
+		MeteoAlert ma = new MeteoAlert(alert, level, regions, instant, duration);
 		
 		msg.setPayload(ma);
 		msg.putProperty("alert", alert);
@@ -176,68 +202,75 @@ public class MeteoBureau extends Client{
 		this.logMessage("MeteoBureau sending an alert "+ma);
 		this.logMessage("------------------------------");
 		
-		this.publishingOutboundPort.publish(receivingInboundPort.getPortURI(), channel, msg);
+		publicationPlugin.publish(channel, msg);
 		
-		// temporaire
+		// Recursive call
 		sendAlert("channel1");
 	}
 	
 	// --------------------------------------------------------------------------
-	// Internal methods
+	// Internal random helpers
 	// --------------------------------------------------------------------------
-	
+
 	/**
-	 * Renvoit un {@link MeteoAlertI.AlertType} aléatoire.
-	 * @return Le type d'une alerte.
+	 * Creates a random alert type.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code true}	// no precondition.
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 * 
+	 * @return a random alert type.
 	 */
-	private MeteoAlertI.AlertType randomAlert(){
-		int level = ThreadLocalRandom.current().nextInt(0, 6);
-	    switch (level) {
-        case 0:
-            return MeteoAlertI.AlertType.STORM;
-        case 1:
-            return MeteoAlertI.AlertType.ICY_STORM;
-        case 2:
-            return MeteoAlertI.AlertType.SNOW_STORM;
-        case 3:
-            return MeteoAlertI.AlertType.FLOODING;
-        case 4:
-            return MeteoAlertI.AlertType.EARTHQUAKE;
-        case 5:
-            return MeteoAlertI.AlertType.ERUPTION;
-        default:
-            throw new AssertionError("Impossible");
+	private MeteoAlertI.AlertType randomAlert() {
+		switch (ThreadLocalRandom.current().nextInt(0, 6)) {
+	        case 0: return MeteoAlertI.AlertType.STORM;
+	        case 1: return MeteoAlertI.AlertType.ICY_STORM;
+	        case 2: return MeteoAlertI.AlertType.SNOW_STORM;
+	        case 3: return MeteoAlertI.AlertType.FLOODING;
+	        case 4: return MeteoAlertI.AlertType.EARTHQUAKE;
+	        case 5: return MeteoAlertI.AlertType.ERUPTION;
+	        default: throw new AssertionError("Impossible");
 	    }
     }
 	
 	/**
-	 * Renvoit un {@link MeteoAlertI.Level} aléatoire.
-	 * @return Le niveau d'une alerte.
+	 * Creates a random alert level.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code true}	// no precondition.
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 * 
+	 * @return a random alert level.
 	 */
-	private MeteoAlertI.Level randomLevel(){
-		int level = ThreadLocalRandom.current().nextInt(0, 5);
-	    switch (level) {
-        case 0:
-            return MeteoAlertI.Level.GREEN;
-        case 1:
-            return MeteoAlertI.Level.YELLOW;
-        case 2:
-            return MeteoAlertI.Level.ORANGE;
-        case 3:
-            return MeteoAlertI.Level.RED;
-        case 4:
-            return MeteoAlertI.Level.SCARLET;
-        default:
-            throw new AssertionError("Impossible");
+	private MeteoAlertI.Level randomLevel() {
+		switch (ThreadLocalRandom.current().nextInt(0, 5)) {
+	        case 0: return MeteoAlertI.Level.GREEN;
+	        case 1: return MeteoAlertI.Level.YELLOW;
+	        case 2: return MeteoAlertI.Level.ORANGE;
+	        case 3: return MeteoAlertI.Level.RED;
+	        case 4: return MeteoAlertI.Level.SCARLET;
+	        default: throw new AssertionError("Impossible");
 	    }
     }
 	
 	/**
-	 * Renvoit une {@link RegionData} aléatoire, couvrant des zones 3 x 3, dans une carte de coordonnées totales 9 x 9.
-	 * @return La région d'une alerte.
+	 * Creates a random {@link RegionData}.
+	 * 
+	 * <p>The region created has a 3 x 3 size, with minimum X/Y in [0, 6[.</p> 
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code true}	// no precondition.
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 * 
+	 * @return a random {@link RegionData}.
 	 */
-	private RegionData randomRegion(){
-		// Zones 3 x 3
+	private RegionData randomRegion() {
 		double xMin = ThreadLocalRandom.current().nextInt(0, 6);
 		double xMax = xMin + 3;
 		double yMin = ThreadLocalRandom.current().nextInt(0, 6);
@@ -246,11 +279,19 @@ public class MeteoBureau extends Client{
     }
 
 	/**
-	 * Renvoit une {@link Duration} aléatoire d'une alerte, entre 5 et 60 secondes. 
-	 * @return La durée d'une alerte.
+	 * Creates a random {@link Duration}.
+	 * 
+	 * <p>The duration is between 5 and 60 seconds</p>
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code true}	// no precondition.
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 * 
+	 * @return a random {@link Duration}.
 	 */
 	private Duration randomDuration() {
-		// Durée entre 5 et 60 secondes
 	    int seconds = ThreadLocalRandom.current().nextInt(5, 61);
 	    return Duration.ofSeconds(seconds);
 	}

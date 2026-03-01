@@ -10,7 +10,8 @@ import fr.sorbonne_u.meteo.components.WindTurbine;
 import fr.sorbonne_u.meteo.data.PositionData;
 
 /**
- * Classe principale de lancement du programme.
+ * Main entry point for launching the program with client components publishing random messages on the broker.
+ * 
  * @author Kevin TANG
  * @author David VADIMON
  */
@@ -36,7 +37,7 @@ public class CVM extends AbstractCVM {
 	protected final String WindTurbinePublishingOutboundPortURI;
 	protected final String WindTurbineReceivingInboundPortURI;
 	
-	// URIs des composants
+	// Component URIs
 	protected String uriBroker;
 	protected String uriMB;
 	protected String uriMS1;
@@ -80,7 +81,7 @@ public class CVM extends AbstractCVM {
 		// Creation phase
 		// ---------------------------------------------------------------------
 		
-		// création du Broker
+		// Broker creation
 		int nbMaxChannelsSTD = 2;
 		int nbMaxChannelsPREM = 4;
 		this.uriBroker = AbstractComponent.createComponent(
@@ -90,7 +91,7 @@ public class CVM extends AbstractCVM {
 		this.toggleTracing(this.uriBroker);
 
 		
-		// création d'un bureau météo
+		// Creation of 1 MeteoBureau
 		PositionData bureauPosition = new PositionData(2, 1);
 		int sleepMinTimeMB = 20;
 		int sleepMaxTimeMB = 30;
@@ -101,7 +102,7 @@ public class CVM extends AbstractCVM {
 		assert this.isDeployedComponent(this.uriMB);
 		this.toggleTracing(this.uriMB);
 		
-		// création de 2 stations météo
+		// Creation of 2 MeteoStation
 		int sleepMinTimeMS = 5;
 		int sleepMaxTimeMS = 20;
 		double windMinXY = -10;
@@ -123,7 +124,7 @@ public class CVM extends AbstractCVM {
 		assert this.isDeployedComponent(this.uriMS2);
 		this.toggleTracing(this.uriMS2);
 		
-		// création d'une éolienne entre les 2 stations météo
+		// Creation of 1 WindTurbine between both MeteoStation
 		PositionData windTurbinePosition = new PositionData(2, 2);
 		this.uriWindTurbine = AbstractComponent.createComponent(WindTurbine.class.getCanonicalName(),
 				new Object[] {WindTurbineRegistrationOutboundPortURI,WindTurbinePublishingOutboundPortURI,WindTurbineReceivingInboundPortURI,
@@ -143,8 +144,8 @@ public class CVM extends AbstractCVM {
 		try {
 			CVM a = new CVM() ;
 			
-			int duree = 120; // en secondes
-			a.startStandardLifeCycle(duree * 1000L) ; // démarrage
+			int duree = 120; // in seconds
+			a.startStandardLifeCycle(duree * 1000L) ; // start
 
 			System.exit(0) ;
 		} catch (Throwable e) {

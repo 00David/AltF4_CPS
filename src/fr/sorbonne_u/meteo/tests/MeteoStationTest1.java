@@ -1,9 +1,8 @@
 package fr.sorbonne_u.meteo.tests;
 
 import fr.sorbonne_u.clients.components.Client;
-import fr.sorbonne_u.clients.connectors.ClientPublishingServiceConnector;
-import fr.sorbonne_u.components.annotations.OfferedInterfaces;
-import fr.sorbonne_u.components.annotations.RequiredInterfaces;
+import fr.sorbonne_u.clients.plugins.ClientPublicationPlugin;
+import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
@@ -13,33 +12,39 @@ import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.WindData;
 
 /**
- * Classe représentant une station météorologique émettant des donnéees de vents, suivant un scénario prédéfini.
+ * Class representing a {@link MeteoStation} emitting wind data following a predefined scenario.
  * 
  * <p>
- * <li> - Le composant va d'abord attendre 30 secondes après son lancement;
- * <li> - Il envoie une {@link WindData} au 'channel0'.
- * <li> - Il dort ensuite 120 secondes.
- * <li> - Il finit par renvoyer une nouvelle {@link WindData} au 'channel0'.
+ * The scenario:
+ * <li> - The component first waits 30 seconds after its launch.
+ * <li> - It sends a {@link WindData} to 'channel0'.
+ * <li> - It then sleeps for 120 seconds.
+ * <li> - Finally, it sends another {@link WindData} to 'channel0'.
  * </p>
  * 
  * @author Kevin TANG
  * @author David VADIMON
  */
-@RequiredInterfaces(required= {RegistrationCI.class,PublishingCI.class})
-@OfferedInterfaces(offered= {ReceivingCI.class})
 public class MeteoStationTest1 extends Client {
 	
 	private PositionData stationPosition;
 	private String channel = "channel0";
-	private int sleepSinceStart = 30; // en secondes
-	private int sleepAfterFirstWind = 120; // en secondes
+	private int sleepSinceStart = 30; // in seconds
+	private int sleepAfterFirstWind = 120; // in seconds
+	
+	// Publication
+	protected final String publishingOutboundPortURI;
+	protected ClientPublicationPlugin publicationPlugin;
+	
+	// Subscription + reception
+	protected final ClientSubscriptionPlugin subscriptionPlugin;
 	
 	// --------------------------------------------------------------------------
 	// Constructor
 	// --------------------------------------------------------------------------
 
 	/**
-	 * Crée un composant station météorologique du système de publication/souscription, étant un {@link Client}.
+	 * Creates a meteorological station component of the publish/subscribe system, extending {@link Client}.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
@@ -50,20 +55,26 @@ public class MeteoStationTest1 extends Client {
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 * 
-	 * @param registrationOutboundPortURI   L'URI du port sortant réquérant {@link RegistrationCI}.
-	 * @param publishingOutboundPortURI     L'URI du port sortant réquérant {@link PublishingCI}.
-	 * @param receivingInboundPortURI       L'URI du port entrant offrant {@link ReceivingCI}.
-	 * @param stationPosition               La position de la station.
-	 * @throws Exception                    Si problème lors de l'initialisation ou de la publication des ports.
+	 * @param registrationOutboundPortURI   URI of the outbound port requiring {@link RegistrationCI}.
+	 * @param publishingOutboundPortURI     URI of the outbound port requiring {@link PublishingCI}.
+	 * @param receivingInboundPortURI       URI of the inbound port offering {@link ReceivingCI}.
+	 * @param stationPosition               The position of the station.
+	 * @throws Exception                    If an error occurs during initialization or port publication.
 	 */
 	protected MeteoStationTest1(String registrationOutboundPortURI, String publishingOutboundPortURI, String receivingInboundPortURI, 
 			PositionData stationPosition) throws Exception {
-		super(registrationOutboundPortURI, publishingOutboundPortURI, receivingInboundPortURI);
+		super(receivingInboundPortURI, registrationOutboundPortURI, RegistrationClass.FREE);
 		assert(stationPosition != null);
 
 		this.stationPosition = stationPosition;
+		this.publishingOutboundPortURI = publishingOutboundPortURI;
 		
-		this.getTracer().setTitle("Station Meteo1");
+		// Install the subscription + reception plugin
+		this.subscriptionPlugin = new ClientSubscriptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
+		this.subscriptionPlugin.setPluginURI("subscription");
+		this.installPlugin(this.subscriptionPlugin);
+		
+		this.getTracer().setTitle("MeteoStation 1");
 		this.getTracer().setRelativePosition(2, 0);
 	}
 	
@@ -76,30 +87,28 @@ public class MeteoStationTest1 extends Client {
 		super.execute();
 		this.logMessage("executing MeteoStation component");
 		
-		// Si l'on est pas enregistré sur le Broker
-		if (!this.registrationOutboundPort.registered(receivingInboundPort.getPortURI())) {
-			// On s'enregistre et on récupère l'URI du port entrant de publication du Broker
-			brokerPublishingPortURI = this.registrationOutboundPort.register(receivingInboundPort.getPortURI(), RegistrationClass.FREE);
-		}
-		assert (brokerPublishingPortURI != null);
+		// Register on the Broker
+		registrationPlugin.register(registrationClass);
+		assert (registrationPlugin.getBrokerPublishingPortURI() != null);
 		this.logMessage("MeteoStation registered");
 		
-		// On connecte le port de publication
-		this.doPortConnection(this.publishingOutboundPort.getPortURI(), 
-				brokerPublishingPortURI, 
-				ClientPublishingServiceConnector.class.getCanonicalName());
+		// Install the publication plug-in.
+		this.publicationPlugin = new ClientPublicationPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort(),
+				publishingOutboundPortURI, registrationPlugin.getBrokerPublishingPortURI());
+		this.publicationPlugin.setPluginURI("publication");
+		this.installPlugin(this.publicationPlugin);
 		
 		sendWindData1();
 		sendWindData2();
 	}
 	
 	// --------------------------------------------------------------------------
-	// Envoi de 2 WindData
+	// Sending 2 WindData
 	// --------------------------------------------------------------------------
 
 	/**
-	 * Envoi un {@link WindData} prédéfini au bout de {@code sleepSinceStart} secondes.
-	 * @throws Exception		Si problème lors de la publication.
+	 * Sends a predefined {@link WindData} after {@code sleepSinceStart} seconds.
+	 * @throws Exception		If an error occurs during publishing.
 	 */
 	private void sendWindData1() throws Exception {
 		
@@ -107,7 +116,7 @@ public class MeteoStationTest1 extends Client {
 		Thread.sleep(sleepSinceStart * 1000L);
 		
 		Message msg = new Message();
-		// X et Y du vecteur du vent
+		// X and Y components of the wind vector
 		double xWind = 2.0;
 		double yWind = 2.0;
 		WindData wd = new WindData(stationPosition, xWind, yWind);
@@ -121,12 +130,12 @@ public class MeteoStationTest1 extends Client {
 		this.logMessage("MeteoStation sending wind data "+wd);
 		this.logMessage("------------------------------");
 		
-		this.publishingOutboundPort.publish(receivingInboundPort.getPortURI(), channel, msg);
+		publicationPlugin.publish(channel, msg);
 	}
 	
 	/**
-	 * Envoi un {@link WindData} prédéfini '{@code sleepAfterFirstWind}' secondes après le 1er envoi.
-	 * @throws Exception		Si problème lors de la publication.
+	 * Sends a predefined {@link WindData} '{@code sleepAfterFirstWind}' seconds after the first send.
+	 * @throws Exception		If an error occurs during publishing.
 	 */
 	private void sendWindData2() throws Exception {
 		
@@ -134,7 +143,7 @@ public class MeteoStationTest1 extends Client {
 		Thread.sleep(sleepAfterFirstWind * 1000L);
 		
 		Message msg = new Message();
-		// X et Y du vecteur du vent
+		// X and Y components of the wind vector
 		double xWind = 2.0;
 		double yWind = 2.0;
 		WindData wd = new WindData(stationPosition, xWind, yWind);
@@ -148,6 +157,6 @@ public class MeteoStationTest1 extends Client {
 		this.logMessage("MeteoStation sending wind data "+wd);
 		this.logMessage("------------------------------");
 		
-		this.publishingOutboundPort.publish(receivingInboundPort.getPortURI(), channel, msg);
+		publicationPlugin.publish(channel, msg);
 	}
 }
