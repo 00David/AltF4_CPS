@@ -54,8 +54,6 @@ public class ClientReceivingPluginInboundPort extends AbstractInboundPort implem
 
 	@Override
 	public void receive(String channel, MessageI message) throws Exception {
-		this.getOwner().handleRequest(this.getPluginURI(), 
-				owner -> ((Client)owner).receiveService(channel, message));
 		this.getOwner().handleRequest(
 				new AbstractComponent.AbstractService<Void>(this.getPluginURI()) {
 					@Override

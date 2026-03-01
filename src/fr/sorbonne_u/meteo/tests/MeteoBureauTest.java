@@ -5,9 +5,8 @@ import java.time.Instant;
 import java.util.ArrayList;
 
 import fr.sorbonne_u.clients.components.Client;
-import fr.sorbonne_u.clients.connectors.ClientPublishingServiceConnector;
-import fr.sorbonne_u.components.annotations.OfferedInterfaces;
-import fr.sorbonne_u.components.annotations.RequiredInterfaces;
+import fr.sorbonne_u.clients.plugins.ClientPublicationPlugin;
+import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
@@ -35,8 +34,6 @@ import fr.sorbonne_u.meteo.data.RegionData;
  * @author Kevin TANG
  * @author David VADIMON
  */
-@RequiredInterfaces(required= {RegistrationCI.class,PublishingCI.class})
-@OfferedInterfaces(offered= {ReceivingCI.class})
 public class MeteoBureauTest extends Client{
 	
 	private PositionData bureauPosition;
@@ -44,6 +41,13 @@ public class MeteoBureauTest extends Client{
 	private int sleepSinceStart = 90; // in seconds
 	private int durationAlertTime = 30; // in seconds
 	private int sleepAfterSafeAlert = 60; // in seconds
+	
+	// Publication
+	protected final String publishingOutboundPortURI; 
+	protected ClientPublicationPlugin publicationPlugin;
+	
+	// Subscription + reception
+	protected final ClientSubscriptionPlugin subscriptionPlugin;
 
 	//---------------------------------------------------------------------------
 	// Constructor
@@ -69,10 +73,16 @@ public class MeteoBureauTest extends Client{
 	 */
 	protected MeteoBureauTest(String registrationOutboundPortURI, String publishingOutboundPortURI, String receivingInboundPortURI, 
 			PositionData bureauPosition) throws Exception {
-		super(registrationOutboundPortURI, publishingOutboundPortURI, receivingInboundPortURI);
+		super(receivingInboundPortURI, registrationOutboundPortURI, RegistrationClass.FREE);
 		assert(bureauPosition != null);
 		
 		this.bureauPosition = bureauPosition;
+		this.publishingOutboundPortURI = publishingOutboundPortURI;
+		
+		// Install the subscription + reception plugin
+		this.subscriptionPlugin = new ClientSubscriptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
+		this.subscriptionPlugin.setPluginURI("subscription");
+		this.installPlugin(this.subscriptionPlugin);
 		
 		this.getTracer().setTitle("MeteoBureau") ;
 		this.getTracer().setRelativePosition(1, 0) ;
@@ -87,18 +97,16 @@ public class MeteoBureauTest extends Client{
 		super.execute();
 		this.logMessage("executing MeteoBureau component");
 		
-		// If not registered on the Broker
-		if (!this.registrationOutboundPort.registered(receivingInboundPort.getPortURI())) {
-			// Register and get the Broker's publishing inbound port URI
-			brokerPublishingPortURI = this.registrationOutboundPort.register(receivingInboundPort.getPortURI(), RegistrationClass.FREE);
-		}
-		assert (brokerPublishingPortURI != null);
+		// Register on the Broker
+		registrationPlugin.register(registrationClass);
+		assert (registrationPlugin.getBrokerPublishingPortURI() != null);
 		this.logMessage("MeteoBureau registered");
 		
-		// Connect the publishing port
-		this.doPortConnection(this.publishingOutboundPort.getPortURI(), 
-				brokerPublishingPortURI, 
-				ClientPublishingServiceConnector.class.getCanonicalName());
+		// Install the publication plug-in.
+		this.publicationPlugin = new ClientPublicationPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort(),
+				publishingOutboundPortURI, registrationPlugin.getBrokerPublishingPortURI());
+		this.publicationPlugin.setPluginURI("publication");
+		this.installPlugin(this.publicationPlugin);
 		
 		sendAlertDanger();
 		sendAlertSafe();
@@ -142,7 +150,7 @@ public class MeteoBureauTest extends Client{
 		this.logMessage("MeteoBureau sending a DANGER alert "+ma);
 		this.logMessage("------------------------------");
 		
-		this.publishingOutboundPort.publish(receivingInboundPort.getPortURI(), channel, msg);
+		publicationPlugin.publish(channel, msg);
 	}
 	
 	/**
@@ -177,7 +185,7 @@ public class MeteoBureauTest extends Client{
 		this.logMessage("MeteoBureau sending a SAFE alert "+ma);
 		this.logMessage("------------------------------");
 		
-		this.publishingOutboundPort.publish(receivingInboundPort.getPortURI(), channel, msg);
+		publicationPlugin.publish(channel, msg);
 	}
 	
 	/**
@@ -212,6 +220,6 @@ public class MeteoBureauTest extends Client{
 		this.logMessage("MeteoBureau sending a DANGER alert "+ma);
 		this.logMessage("------------------------------");
 		
-		this.publishingOutboundPort.publish(receivingInboundPort.getPortURI(), channel, msg);
+		publicationPlugin.publish(channel, msg);
 	}
 }

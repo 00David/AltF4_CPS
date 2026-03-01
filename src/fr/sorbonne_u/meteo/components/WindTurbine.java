@@ -1,27 +1,22 @@
 package fr.sorbonne_u.meteo.components;
 
-import java.io.Serializable;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.stream.Stream;
 
 import fr.sorbonne_u.clients.components.Client;
-import fr.sorbonne_u.components.annotations.OfferedInterfaces;
-import fr.sorbonne_u.components.annotations.RequiredInterfaces;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.LevelI;
 import fr.sorbonne_u.cps.meteo.interfaces.PositionI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.PropertyFilterI;
-import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.filters.MessageFilter;
 import fr.sorbonne_u.filters.property.PropertiesFilter;
 import fr.sorbonne_u.filters.property.PropertyFilter;
 import fr.sorbonne_u.filters.time.GreaterOrEqualTimeFilter;
 import fr.sorbonne_u.filters.value.PositionInRegionsValueFilter;
-import fr.sorbonne_u.meteo.data.MeteoAlert;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.WindData;
+import fr.sorbonne_u.meteo.plugins.WindTurbineReceptionPlugin;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
@@ -41,13 +36,12 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.TimeFilterI;
  * invariant	{@code pos != null}
  * invariant	{@code orientation != null}
  * invariant	{@code maxWorkingLevel != null}
+ * invariant	{@code subscriptionPlugin != null}
  * </pre>
  * 
  * @author Kevin TANG
  * @author David VADIMON
  */
-@RequiredInterfaces(required = { RegistrationCI.class, PublishingCI.class })
-@OfferedInterfaces(offered = { ReceivingCI.class })
 public class WindTurbine extends Client {
 
 	// Stores wind data received from messages
@@ -65,6 +59,9 @@ public class WindTurbine extends Client {
 
 	// Indicates whether the turbine is in safety mode or not (false by default)
 	private boolean safeMode;
+	
+	// Subscription + reception
+	protected final WindTurbineReceptionPlugin subscriptionPlugin;
 
 	//--------------------------------------------------------------------------
 	// Constructor
@@ -92,7 +89,7 @@ public class WindTurbine extends Client {
      */
 	protected WindTurbine(String registrationOutboundPortURI, String publishingOutboundPortURI,
 			String receivingInboundPortURI, PositionI pos,LevelI maxWorkingLevel) throws Exception {
-		super(registrationOutboundPortURI, publishingOutboundPortURI, receivingInboundPortURI);
+		super(receivingInboundPortURI, registrationOutboundPortURI, RegistrationClass.FREE);
 		assert (pos != null);
 		assert (maxWorkingLevel != null);
 
@@ -101,7 +98,12 @@ public class WindTurbine extends Client {
 		this.orientation = new PositionData(0, 0);
 		this.safeMode = false;
 		this.maxWorkingLevel = maxWorkingLevel;
-
+		
+		// Install the subscription + reception plugin (Wind turbine version)
+		this.subscriptionPlugin = new WindTurbineReceptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
+		this.subscriptionPlugin.setPluginURI("subscription");
+		this.installPlugin(this.subscriptionPlugin);
+		
 		this.getTracer().setTitle("WindTurbine");
 		this.getTracer().setRelativePosition(0, 0);
 
@@ -113,15 +115,12 @@ public class WindTurbine extends Client {
 
 	@Override
 	public void execute() throws Exception {
-
 		super.execute();
 		this.logMessage("executing WindTurbine component");
 
-		if (!this.registrationOutboundPort.registered(receivingInboundPort.getPortURI())) {
-			brokerPublishingPortURI = this.registrationOutboundPort.register(receivingInboundPort.getPortURI(), RegistrationClass.FREE);
-		}
-
-		assert (brokerPublishingPortURI != null);
+		// Register on the Broker
+		registrationPlugin.register(registrationClass);
+		assert (registrationPlugin.getBrokerPublishingPortURI() != null);
 		this.logMessage("WindTurbine registered");
 
 		startWindTurbine();
@@ -149,8 +148,7 @@ public class WindTurbine extends Client {
         TimeFilterI timeFilter = new GreaterOrEqualTimeFilter(Instant.now());
 
         // Wind data subscription
-        this.registrationOutboundPort.subscribe(receivingInboundPort.getPortURI(), "channel0",
-                new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], timeFilter));
+        subscriptionPlugin.subscribe("channel0", new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], timeFilter));
         this.logMessage("WindTurbine subscribed to channel0");
 
         // Alert data subscription
@@ -158,91 +156,30 @@ public class WindTurbine extends Client {
         // Create a filter accepting regions containing the wind turbine position
         propFiltersAlert[0] = new PropertyFilter("regions", new PositionInRegionsValueFilter(this.pos));
 
-        this.registrationOutboundPort.subscribe(receivingInboundPort.getPortURI(), "channel1",
-                new MessageFilter(propFiltersAlert, new PropertiesFilter[0], timeFilter));
+        subscriptionPlugin.subscribe("channel1", new MessageFilter(propFiltersAlert, new PropertiesFilter[0], timeFilter));
         this.logMessage("WindTurbine subscribed to channel1");
     }
 	
 	// --------------------------------------------------------------------------
-	// Component internal services
+	// Component public methods
 	// --------------------------------------------------------------------------
-
-	@Override
-	public Void receiveService(String channel, MessageI message) {
-		// Precondition checks
-		assert(channel != null);
-		assert(!channel.isEmpty());
-		assert(message != null);
-		
-		this.logMessage("------------------------------");
-		this.logMessage("WindTurbine received message '" + message + "' from the channel : " + channel);
-		Serializable payload = message.getPayload();
-
-		// Handling received wind data
-		if (payload instanceof WindData && !safeMode) {
-			this.datas.add((WindData) payload);
-			calculateNeededDirection();
-			
-		// Handling received meteo alert
-		} else if (payload instanceof MeteoAlert) {
-			MeteoAlertI alert = (MeteoAlertI) payload;
-			react(alert.getLevel());
-			
-		// Handling received wind data while in safe mode (nothing)
-		} else {
-			this.logMessage("------------------------------");
-		}
-
-		return null;
+	
+	public boolean inSafeMode() {
+		return safeMode;
 	}
-
-	@Override
-	public Void receiveService(String channel, MessageI[] messages) {
-		// Precondition checks
-		assert(channel != null);
-		assert(!channel.isEmpty());
-		assert(messages != null);
-		assert(messages.length > 0);
-		assert(Stream.of(messages).allMatch(m -> m != null));
-		
-		this.logMessage("------------------------------");
-		this.logMessage("WindTurbine received multiple messages from the channel : " + channel);
-		for (MessageI mes : messages) {
-			Serializable payload = mes.getPayload();
-			
-			// Handling received wind data
-			if (payload instanceof WindData && !safeMode) {
-				this.datas.add((WindData) payload);
-				calculateNeededDirection();
-			
-			// Handling received wind data
-			} else if (payload instanceof MeteoAlert) {
-				MeteoAlertI alert = (MeteoAlertI) payload;
-				react(alert.getLevel());
-				
-			// Handling received wind data while in safe mode (nothing)
-			} else {
-				this.logMessage("------------------------------");
-			}
-		}
-
-		return null;
-	}
-
-	// --------------------------------------------------------------------------
-	// Component internal methods
-	// --------------------------------------------------------------------------
 
     /**
-     * Calculates the orientation to adopt according to the collected wind data.
+     * Calculates the orientation to adopt according to the collected wind data so far + the {@code newWindData} added.
      * 
 	 * <p><strong>Contrat</strong></p>
 	 * <pre>
 	 * pre  {@code true}	// no precondition.
-	 * post	{@code true}	// no postcondition.
+	 * post	{@code datas.contains(newWindData)}
 	 * </pre>
      */
-	private void calculateNeededDirection() {
+	public void calculateNeededDirection(WindData newWindData) {
+		if (newWindData != null) datas.add(newWindData);
+		
 		double x = 0;
 		double y = 0;
 
@@ -269,7 +206,43 @@ public class WindTurbine extends Client {
 		this.logMessage("------------------------------");
 	}
 	
+    /**
+     * Reacts to the received alert level according to operation threshold.
+     * 
+	 * <p><strong>Contrat</strong></p>
+	 * <pre>
+	 * pre  {@code true}	// no precondition.
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 * 
+     * @param level Received alert level.
+     */
+	public void react(LevelI level) {
+		if (level == null) {
+			this.logMessage("------------------------------");
+			return;
+		}
+
+		MeteoAlertI.Level maxLevel = (MeteoAlertI.Level) this.maxWorkingLevel;
+		MeteoAlertI.Level alertLevel = (MeteoAlertI.Level) level;
+
+		if (alertLevel.ordinal() > maxLevel.ordinal() && !safeMode) {
+			goInSafeMode();
+			this.datas.clear(); // Erase previous wind datas
+		} else if (alertLevel.ordinal() <= maxLevel.ordinal() && safeMode) {
+			goBacktoNormalMode();
+		
+		// Don't change anything, if we have :
+		// - received an alert above the maximum operating level while already in safe mode
+		// - received an alert within the operating range while already in normal operation (safeMode == false)
+		} else {
+			this.logMessage("------------------------------");
+		}
+	}
 	
+	// --------------------------------------------------------------------------
+	// Component internal methods
+	// --------------------------------------------------------------------------
 
     /**
      * Computes the distance between the turbine and a meteorological station.
@@ -294,38 +267,8 @@ public class WindTurbine extends Client {
 		return Math.sqrt(dx * dx + dy * dy);
 	}
 	
-    /**
-     * Reacts to the received alert level according to operation threshold.
-     * 
-	 * <p><strong>Contrat</strong></p>
-	 * <pre>
-	 * pre  {@code true}	// no precondition.
-	 * post	{@code true}	// no postcondition.
-	 * </pre>
-	 * 
-     * @param level Received alert level.
-     */
-	private void react(LevelI level) {
-
-		MeteoAlertI.Level maxLevel = (MeteoAlertI.Level) this.maxWorkingLevel;
-		MeteoAlertI.Level alertLevel = (MeteoAlertI.Level) level;
-
-		if (alertLevel.ordinal() > maxLevel.ordinal() && !safeMode) {
-			goInSafeMode();
-			this.datas.clear(); // Erase previous wind datas
-		} else if (alertLevel.ordinal() <= maxLevel.ordinal() && safeMode) {
-			goBacktoNormalMode();
-		
-		// Don't change anything, if we have :
-		// - received an alert above the maximum operating level while already in safe mode
-		// - received an alert within the operating range while already in normal operation (safeMode == false)
-		} else {
-			this.logMessage("------------------------------");
-		}
-	}
-	
 	/**
-	 * Met l'eolienne en mode sécurité.
+	 * WindTurbine enters safe mode, stops operating.
 	 * 
 	 * <p><strong>Contrat</strong></p>
 	 * <pre>
@@ -344,7 +287,7 @@ public class WindTurbine extends Client {
 	}
 
 	/**
-	 * Remet l'eolienne en fonctionnement normal
+	 * WindTurbine returns to normal operation.
 	 * 
 	 * <p><strong>Contrat</strong></p>
 	 * <pre>
@@ -361,5 +304,4 @@ public class WindTurbine extends Client {
 		// Postcondition check
 		assert(this.safeMode == false);
 	}
-
 }

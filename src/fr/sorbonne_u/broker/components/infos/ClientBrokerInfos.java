@@ -1,5 +1,9 @@
-package fr.sorbonne_u.broker.components;
+package fr.sorbonne_u.broker.components.infos;
 
+import fr.sorbonne_u.broker.components.Broker;
+import fr.sorbonne_u.broker.components.infos.exceptions.ChannelNumberNotInitializedException;
+import fr.sorbonne_u.broker.components.infos.exceptions.NegativeRemainingChannelsException;
+import fr.sorbonne_u.broker.components.infos.exceptions.CannotIncreaseRemainingChannelsException;
 import fr.sorbonne_u.broker.ports.BrokerReceivingOutboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 
@@ -7,11 +11,15 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
  * Class storing all information about a {@link Client} registered on the {@link Broker}.
  * 
  * <p>
+ * Before creating an instance, the {@link Broker} must initialize static attributes {@code nbMaxChannelsStd} and {@code nbMaxChannelsPrem}.
+ * </p>
+ * 
+ * <p>
  * Each instance is uniquely identified by its {@code clientPortURI} attribute.
  * </p>
  * 
  * <p>
- * Maintained information:
+ * Maintained information includes:
  * <ul>
  *   <li>The URI of the client port.</li>
  *   <li>The {@link RegistrationClass} of the client.</li>
@@ -23,7 +31,6 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
  * <pre>
  * invariant	{@code clientPortURI != null && !clientPortURI.isEmpty()}
  * invariant	{@code rc != null}
- * invariant	{@code clientOutboundPort != null}
  * invariant	{@code nbChannelsRemaining >= 0}
  * </pre>
  * 
@@ -48,22 +55,23 @@ public class ClientBrokerInfos {
 	 * <pre>
 	 * pre  {@code clientPortURI != null && !clientPortURI.isEmpty()}
 	 * pre  {@code rc != null}
-	 * pre  {@code clientOutboundPort != null}
 	 * pre  {@code nbMaxChannelsStd >= 0}
 	 * pre  {@code nbMaxChannelsPrem >= 0}
 	 * post class invariants satisfied
 	 * </pre>
 	 * 
-	 * @param clientPortURI         	the URI of the client's inbound port offering the {@code ReceivingCI} component interface.
-	 * @param rc                    	the registration class of the client.
-	 * @param clientOutboundPort    	the outbound port of the {@link Broker} requiring the {@code ReceivingCI} interface, associated with the client.
-	 * @throws IllegalArgumentException if a precondition is not satisfied.
+	 * @param clientPortURI         				the URI of the client's inbound port offering the {@code ReceivingCI} component interface.
+	 * @param rc                    				the registration class of the client.
+	 * @param clientOutboundPort    				the outbound port of the {@link Broker} requiring the {@code ReceivingCI} interface, associated with the client.
+	 * @throws IllegalArgumentException 			if a precondition is not satisfied, except for {@code nbMaxChannelsStd} and {@code nbMaxChannelsPrem}.
+	 * @throws ChannelNumberNotInitializedException	if {@code nbMaxChannelsStd} or {@code nbMaxChannelsPrem} have not yet been initialized by the {@link Broker}.
 	 */
 	public ClientBrokerInfos(String clientPortURI, RegistrationClass rc, BrokerReceivingOutboundPort clientOutboundPort) {
 		if (clientPortURI == null || clientPortURI.isEmpty()) throw new IllegalArgumentException("A client port URI cannot be null or empty");
 		if (rc == null) throw new IllegalArgumentException("A registration class cannot be null");
-		if (clientOutboundPort == null) throw new IllegalArgumentException("A client outbound port cannot be null");
-		if (nbMaxChannelsStd < 0 || nbMaxChannelsPrem < 0) throw new IllegalArgumentException("Max channels must be positive");
+		
+		if (nbMaxChannelsStd < 0) throw new ChannelNumberNotInitializedException("Max channels must be positive for standard clients");
+		if (nbMaxChannelsPrem < 0) throw new ChannelNumberNotInitializedException("Max channels must be positive for premium clients");
 		
 		this.clientPortURI = clientPortURI;
 		this.rc = rc;
@@ -133,7 +141,7 @@ public class ClientBrokerInfos {
      * <p><strong>Contract</strong></p>
      * <pre>
      * pre  {@code true} // no precondition
-     * post {@code return != null}
+     * post {@code true} // no postcondition
      * </pre>
 	 * 
 	 * @return the client's {@link BrokerReceivingOutboundPort}.
@@ -169,10 +177,12 @@ public class ClientBrokerInfos {
 	 * pre  {@code this.nbChannelsRemaining > 0}
 	 * post {@code this.nbChannelsRemaining >= 0}
 	 * </pre>
+	 * 
+	 * @throws NegativeRemainingChannelsException	if {@code this.nbChannelsRemaining} would become negative.
 	 */
 	public void decreaseRemainingChannels() {
 		// Precondition check
-		assert(nbChannelsRemaining > 0);
+		if (nbChannelsRemaining == 0) throw new NegativeRemainingChannelsException("The number of remaining channels cannot become negative");
 		
 		nbChannelsRemaining--;
 		
@@ -181,15 +191,20 @@ public class ClientBrokerInfos {
 	}
 	
 	/**
-	 * Increases the number of channels the client can still create.
+	 * Increases the number of channels the client can still create, if the client is not FREE.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
-     * pre  {@code true} // no precondition
+     * pre  {@code this.rc != RegistrationClass.FREE}
      * post {@code true} // no postcondition
 	 * </pre>
+	 * 
+	 * @throws CannotIncreaseRemainingChannelsException	if {@code this.nbChannelsRemaining} would become strictly positive for a FREE client.
 	 */
 	public void increaseRemainingChannels() {
+		// Precondition check
+		if (rc == RegistrationClass.FREE) throw new CannotIncreaseRemainingChannelsException("A free client cannot have more than 0 channels to create");
+		
 		nbChannelsRemaining++;
 	}
 	

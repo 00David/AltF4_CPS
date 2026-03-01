@@ -3,19 +3,27 @@ package fr.sorbonne_u.filters.tests;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
 import fr.sorbonne_u.filters.tests.utils.IMC;
 import fr.sorbonne_u.filters.value.IdenticalValueFilter;
 import fr.sorbonne_u.filters.value.JokerValueFilter;
+import fr.sorbonne_u.filters.value.PositionInRegionsValueFilter;
+import fr.sorbonne_u.meteo.data.PositionData;
+import fr.sorbonne_u.meteo.data.RegionData;
+import fr.sorbonne_u.filters.value.AbstractMultiValuesFilter;
 
 /**
  * Test class for simple and multi-value filters, including:
  * <li> {@link IdenticalValueFilter} </li>
- * <li> {@link IMC}, extending {@link MultiValuesFilter} </li>
  * <li> {@link JokerValueFilter} </li>
+ * <li> {@link PositionInRegionsValueFilter} </li>
+ * <li> {@link IMC}, extending {@link AbstractMultiValuesFilter} </li>
  * 
  * @author Kevin Tang
  * @author David Vadimon
@@ -72,9 +80,52 @@ public class ValueFiltersTest {
         assertTrue(filter.match(null));
         assertTrue(filter.match(Calendar.getInstance()));
     }
+    
+    // --------------------------------------------------
+    // PositionInRegionsValueFilter tests
+    // --------------------------------------------------
+    @Test
+    void testPositionInRegionsValueFilterConstructor() {
+        // normal case
+    	PositionInRegionsValueFilter filter = new PositionInRegionsValueFilter(new PositionData(2.0,2.0));
+        assertNotNull(filter);
+
+        // null parameter: throws IllegalArgumentException
+        assertThrows(IllegalArgumentException.class, () -> new IdenticalValueFilter(null));
+    }
+    
+    @Test
+    void testPositionInRegionsValueFilterMatch() {
+    	// X position = 2, Y position = 3
+    	PositionInRegionsValueFilter filter = new PositionInRegionsValueFilter(new PositionData(2,3));
+
+    	
+    	// test matching with different regions
+    	RegionData region1 = new RegionData(0, 4, 0, 6);
+    	RegionData region2 = new RegionData(0, 1, 0, 6);
+    	
+    	List<RegionI> regions1 = new ArrayList<>();
+    	regions1.add(region1);
+    	assertTrue(filter.match((Serializable)regions1), "should pass"); // Both X position inside [0, 4] and Y position inside [0, 6]
+    	
+    	List<RegionI> regions2 = new ArrayList<>();
+    	regions2.add(region2);
+    	assertFalse(filter.match((Serializable)regions2), "should fail"); // X position outside [0, 1]
+        
+    	List<RegionI> regions3 = new ArrayList<>();
+    	regions3.add(region1);
+    	regions3.add(region2);
+    	assertTrue(filter.match((Serializable)regions3), "should pass"); // X and Y positions inside region1, its enough
+    	
+    	List<RegionI> regions4 = new ArrayList<>();
+    	assertFalse(filter.match((Serializable)regions4), "should fail"); // No region in the list
+
+        // null value: should fail
+        assertFalse(filter.match(null));
+    }
 
     // --------------------------------------------------
-    // IMC tests (MultiValuesFilter)
+    // IMC tests (concrete case of AbstractMultiValuesFilter)
     // --------------------------------------------------
     @Test
     void testIMCTestConstructor() {

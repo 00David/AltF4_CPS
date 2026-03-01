@@ -56,7 +56,7 @@ public class TimeFiltersTest {
         assertTrue(filter.match(t1), "timestamp == filter should pass");
         assertTrue(filter.match(t2), "timestamp > filter should pass");
         assertFalse(filter.match(t0), "timestamp < filter should fail");
-        assertThrows(IllegalArgumentException.class, () -> filter.match(null), "null timestamp should throw exception");
+        assertFalse(filter.match(null), "null timestamp should fail");
     }
 
     // --------------------------------------------------
@@ -79,7 +79,7 @@ public class TimeFiltersTest {
         assertTrue(filter.match(t1), "timestamp == filter should pass");
         assertTrue(filter.match(t0), "timestamp < filter should pass");
         assertFalse(filter.match(t2), "timestamp > filter should fail");
-        assertThrows(IllegalArgumentException.class, () -> filter.match(null), "null timestamp should throw exception");
+        assertFalse(filter.match(null), "null timestamp should fail");
     }
 
     // --------------------------------------------------
@@ -106,7 +106,7 @@ public class TimeFiltersTest {
         assertTrue(filter.match(t0), "timestamp == minBound should pass");
         assertTrue(filter.match(t1), "timestamp inside interval should pass");
         assertTrue(filter.match(t2), "timestamp == maxBound should pass");
-        assertThrows(IllegalArgumentException.class, () -> filter.match(null), "null timestamp should throw exception");
+        assertFalse(filter.match(null), "null timestamp should fail");
     }
     
     @Test

@@ -70,12 +70,13 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	public void	installOn(ComponentI owner) throws Exception {
 		super.installOn(owner);
 		this.addRequiredInterface(RegistrationCI.class);
-		this.registrationOutboundPort = new ClientRegistrationOutboundPort(registrationOutboundPortURI, this.getOwner());
-		this.registrationOutboundPort.publishPort();
 	}
 	
 	@Override
 	public void	initialise() throws Exception {
+		this.registrationOutboundPort = new ClientRegistrationOutboundPort(registrationOutboundPortURI, this.getOwner());
+		this.registrationOutboundPort.publishPort();
+		
 		this.getOwner().doPortConnection(this.registrationOutboundPort.getPortURI(),
 				Broker.registrationPortURI(),
 				ClientRegistrationServiceConnector.class.getCanonicalName());
@@ -124,7 +125,7 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	@Override
 	public void register(RegistrationClass rc) throws AlreadyRegisteredException {
 		try {
-			registrationOutboundPort.register(receivingInboundPortURI, rc);
+			brokerPublishingPortURI = registrationOutboundPort.register(receivingInboundPortURI, rc);
 		} catch (AlreadyRegisteredException e) {
 			throw e;
 		} catch (Exception e) {

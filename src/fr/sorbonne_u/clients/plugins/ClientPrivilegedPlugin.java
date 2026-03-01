@@ -34,7 +34,7 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 	
 	// Privileged management
 	protected final String privilegedOutboundPortURI;
-	protected ClientPrivilegedOutboundPort privilegedOutboundPort;
+	protected ClientPrivilegedOutboundPort privilegedOutboundPort; // Set up after plugin installation + initialization
 	
 	// Broker inbound port
 	protected final String brokerPublishingPortURI;
@@ -72,12 +72,13 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 	public void	installOn(ComponentI owner) throws Exception {
 		super.installOn(owner);
 		this.addRequiredInterface(PrivilegedClientCI.class);
-		this.privilegedOutboundPort = new ClientPrivilegedOutboundPort(privilegedOutboundPortURI, this.getOwner());
-		this.privilegedOutboundPort.publishPort();
 	}
 	
 	@Override
 	public void	initialise() throws Exception {
+		this.privilegedOutboundPort = new ClientPrivilegedOutboundPort(privilegedOutboundPortURI, this.getOwner());
+		this.privilegedOutboundPort.publishPort();
+		
 		this.getOwner().doPortConnection(this.privilegedOutboundPort.getPortURI(),
 				brokerPublishingPortURI,
 				ClientPrivilegedServiceConnector.class.getCanonicalName());

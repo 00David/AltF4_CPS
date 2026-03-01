@@ -31,7 +31,7 @@ public class Muscle extends AbstractMultiValuesFilter{
 	 * </pre>
 	 */
 	public Muscle() {
-		super(new String[]{"poids", "poids_musculaire"});
+		super(new String[]{"weight", "muscle_weight"});
 	}
 
 	/**

@@ -4,7 +4,7 @@ import java.time.Duration;
 import java.util.concurrent.Future;
 import java.util.stream.Stream;
 
-import fr.sorbonne_u.clients.ports.ClientReceivingInboundPort;
+import fr.sorbonne_u.clients.ports.ClientReceivingPluginInboundPort;
 import fr.sorbonne_u.clients.ports.ClientRegistrationOutboundPort;
 import fr.sorbonne_u.components.AbstractPlugin;
 import fr.sorbonne_u.components.ComponentI;
@@ -19,7 +19,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.plugins.interfaces.ClientSubscriptionI;
 
 /**
- * The {@link Client} plugin having a {@link ClientReceivingInboundPort}.
+ * The {@link Client} plugin having a {@link ClientReceivingPluginInboundPort}.
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -36,7 +36,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	
 	// Reception
 	protected final String receivingInboundPortURI;
-	protected ClientReceivingInboundPort receivingInboundPort; // Set up after plugin installation + initialization
+	protected ClientReceivingPluginInboundPort receivingInboundPort; // Set up after plugin installation + initialization
 	
 	// Registration
 	protected final ClientRegistrationOutboundPort registrationOutboundPort;
@@ -51,7 +51,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	 * post	class invariants satisfied
 	 * </pre>
 	 * 
-	 * @param receivingInboundPortURI		the client inbound port URI offering {@link ReceivingCI} interface, used for creating the {@link ClientReceivingInboundPort}.
+	 * @param receivingInboundPortURI		the client inbound port URI offering {@link ReceivingCI} interface, used for creating the {@link ClientReceivingPluginInboundPort}.
 	 * @param registrationOutboundPort		the client outbound port requiring {@link RegistrationCI} interface.
 	 */
 	public ClientSubscriptionPlugin(String receivingInboundPortURI, ClientRegistrationOutboundPort registrationOutboundPort){
@@ -67,8 +67,14 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	public void	installOn(ComponentI owner) throws Exception {
 		super.installOn(owner);
 		this.addOfferedInterface(ReceivingCI.class);
-		this.receivingInboundPort = new ClientReceivingInboundPort(receivingInboundPortURI, this.getOwner());
+
+	}
+	
+	@Override
+	public void	initialise() throws Exception {
+		this.receivingInboundPort = new ClientReceivingPluginInboundPort(receivingInboundPortURI, this.getOwner(), this.getPluginURI());
 		this.receivingInboundPort.publishPort();
+		super.initialise();
 	}
 	
 	@Override

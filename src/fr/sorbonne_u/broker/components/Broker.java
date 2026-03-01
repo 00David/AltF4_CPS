@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import fr.sorbonne_u.broker.components.infos.ChannelBrokerInfos;
+import fr.sorbonne_u.broker.components.infos.ClientBrokerInfos;
 import fr.sorbonne_u.broker.connectors.BrokerReceivingServiceConnector;
 import fr.sorbonne_u.broker.ports.BrokerReceivingOutboundPort;
 import fr.sorbonne_u.broker.ports.BrokerPrivilegedInboundPort;
@@ -123,13 +125,13 @@ public class Broker extends AbstractComponent{
 		ClientBrokerInfos.nbMaxChannelsStd = nbMaxChannelsStd;
 		ClientBrokerInfos.nbMaxChannelsPrem = nbMaxChannelsPrem;
 		
-		// Creation of N channel
+		// Creation of N channels
 		for (int i = 0; i < N; i++) {
 			String chan = "channel"+i;
-			channelsInfos.put(chan, new ChannelBrokerInfos(chan, "*", null, false));
+			channelsInfos.put(chan, new ChannelBrokerInfos(chan, ".*", null, false));
 		}
 		// channel0 -> MeteoStation wind datas
-		// channel1 -> MeteoBureau alerts
+		// channel1 -> MeteoBureau wind alerts
 
 		this.registrationPort = new BrokerRegistrationInboundPort(registrationPortURI, this);
 		this.registrationPort.publishPort();

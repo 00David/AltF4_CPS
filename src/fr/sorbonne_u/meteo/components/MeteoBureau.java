@@ -7,10 +7,9 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import fr.sorbonne_u.clients.components.Client;
-import fr.sorbonne_u.clients.connectors.ClientPublishingServiceConnector;
+import fr.sorbonne_u.clients.plugins.ClientPublicationPlugin;
+import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
 import fr.sorbonne_u.components.AbstractComponent;
-import fr.sorbonne_u.components.annotations.OfferedInterfaces;
-import fr.sorbonne_u.components.annotations.RequiredInterfaces;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
@@ -34,13 +33,13 @@ import fr.sorbonne_u.meteo.data.RegionData;
  * invariant	{@code bureauPosition != null}
  * invariant	{@code sleepMinTime >= 0}
  * invariant	{@code sleepMaxTime >= sleepMinTime}
+ * invariant	{@code publishingOutboundPortURI!= null & !publishingOutboundPortURI.isEmpty()}
+ * invariant	{@code subscriptionPlugin != null}
  * </pre>
  * 
  * @author Kevin TANG
  * @author David VADIMON
  */
-@RequiredInterfaces(required= {RegistrationCI.class,PublishingCI.class})
-@OfferedInterfaces(offered= {ReceivingCI.class})
 public class MeteoBureau extends Client {
 	
 	private PositionData bureauPosition;
@@ -48,6 +47,13 @@ public class MeteoBureau extends Client {
 	// Waiting time between each alert in seconds
 	private int sleepMinTime;
 	private int sleepMaxTime;
+	
+	// Publication
+	protected final String publishingOutboundPortURI; 
+	protected ClientPublicationPlugin publicationPlugin;
+	
+	// Subscription + reception
+	protected final ClientSubscriptionPlugin subscriptionPlugin;
 
 	//--------------------------------------------------------------------------
 	// Constructor
@@ -76,13 +82,19 @@ public class MeteoBureau extends Client {
 	 */
 	protected MeteoBureau(String registrationOutboundPortURI, String publishingOutboundPortURI, String receivingInboundPortURI, 
 			PositionData bureauPosition, int sleepMinTime, int sleepMaxTime) throws Exception {
-		super(registrationOutboundPortURI, publishingOutboundPortURI, receivingInboundPortURI);
+		super(receivingInboundPortURI, registrationOutboundPortURI, RegistrationClass.FREE);
 		assert(bureauPosition != null);
 		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime);
 		
 		this.bureauPosition = bureauPosition;
 		this.sleepMinTime = sleepMinTime;
 		this.sleepMaxTime = sleepMaxTime;
+		this.publishingOutboundPortURI = publishingOutboundPortURI;
+		
+		// Install the subscription + reception plugin
+		this.subscriptionPlugin = new ClientSubscriptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
+		this.subscriptionPlugin.setPluginURI("subscription");
+		this.installPlugin(this.subscriptionPlugin);
 		
 		this.getTracer().setTitle("MeteoBureau");
 		this.getTracer().setRelativePosition(1, 0);
@@ -97,17 +109,16 @@ public class MeteoBureau extends Client {
 		super.execute();
 		this.logMessage("executing MeteoBureau component");
 		
-		// Register on the Broker if not already registered
-		if (!this.registrationOutboundPort.registered(receivingInboundPort.getPortURI())) {
-			brokerPublishingPortURI = this.registrationOutboundPort.register(receivingInboundPort.getPortURI(), RegistrationClass.FREE);
-		}
-		assert (brokerPublishingPortURI != null);
+		// Register on the Broker
+		registrationPlugin.register(registrationClass);
+		assert (registrationPlugin.getBrokerPublishingPortURI() != null);
 		this.logMessage("MeteoBureau registered");
 		
-		// Connect the publishing port
-		this.doPortConnection(this.publishingOutboundPort.getPortURI(), 
-				brokerPublishingPortURI, 
-				ClientPublishingServiceConnector.class.getCanonicalName());
+		// Install the publication plug-in.
+		this.publicationPlugin = new ClientPublicationPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort(),
+				publishingOutboundPortURI, registrationPlugin.getBrokerPublishingPortURI());
+		this.publicationPlugin.setPluginURI("publication");
+		this.installPlugin(this.publicationPlugin);
 		
 		// Send alerts periodically on 'channel1'
 	    //scheduleNextSend(); // For later, when scheduled threads
@@ -191,7 +202,7 @@ public class MeteoBureau extends Client {
 		this.logMessage("MeteoBureau sending an alert "+ma);
 		this.logMessage("------------------------------");
 		
-		this.publishingOutboundPort.publish(receivingInboundPort.getPortURI(), channel, msg);
+		publicationPlugin.publish(channel, msg);
 		
 		// Recursive call
 		sendAlert("channel1");

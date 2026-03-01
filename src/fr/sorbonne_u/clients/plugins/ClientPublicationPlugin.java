@@ -88,12 +88,13 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 	public void	installOn(ComponentI owner) throws Exception {
 		super.installOn(owner);
 		this.addRequiredInterface(PublishingCI.class);
-		this.publishingOutboundPort = new ClientPublishingOutboundPort(publishingOutboundPortURI, this.getOwner());
-		this.publishingOutboundPort.publishPort();
 	}
 	
 	@Override
 	public void	initialise() throws Exception {
+		this.publishingOutboundPort = new ClientPublishingOutboundPort(publishingOutboundPortURI, this.getOwner());
+		this.publishingOutboundPort.publishPort();
+		
 		this.getOwner().doPortConnection(this.publishingOutboundPort.getPortURI(),
 				brokerPublishingPortURI,
 				ClientPublishingServiceConnector.class.getCanonicalName());

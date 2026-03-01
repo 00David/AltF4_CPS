@@ -4,10 +4,9 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import fr.sorbonne_u.clients.components.Client;
-import fr.sorbonne_u.clients.connectors.ClientPublishingServiceConnector;
+import fr.sorbonne_u.clients.plugins.ClientPublicationPlugin;
+import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
 import fr.sorbonne_u.components.AbstractComponent;
-import fr.sorbonne_u.components.annotations.OfferedInterfaces;
-import fr.sorbonne_u.components.annotations.RequiredInterfaces;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
@@ -27,13 +26,13 @@ import fr.sorbonne_u.meteo.data.WindData;
  * <pre>
  * invariant	{@code sleepMinTime >= 0}
  * invariant	{@code sleepMaxTime >= sleepMinTime}
+ * invariant	{@code publishingOutboundPortURI!= null & !publishingOutboundPortURI.isEmpty()}
+ * invariant	{@code subscriptionPlugin != null}
  * </pre>
  * 
  * @author Kevin TANG
  * @author David VADIMON
  */
-@RequiredInterfaces(required= {RegistrationCI.class,PublishingCI.class})
-@OfferedInterfaces(offered= {ReceivingCI.class})
 public class MeteoStation extends Client {
 	
 	private PositionData stationPosition;
@@ -45,6 +44,13 @@ public class MeteoStation extends Client {
 	// Bounds for generating X and Y components of wind vectors
 	private double windMinXY;
 	private double windMaxXY;
+	
+	// Publication
+	protected final String publishingOutboundPortURI;
+	protected ClientPublicationPlugin publicationPlugin;
+	
+	// Subscription + reception
+	protected final ClientSubscriptionPlugin subscriptionPlugin;
 	
 	// --------------------------------------------------------------------------
 	// Constructor
@@ -76,7 +82,7 @@ public class MeteoStation extends Client {
 	 */
 	protected MeteoStation(String registrationOutboundPortURI, String publishingOutboundPortURI, String receivingInboundPortURI, 
 			PositionData stationPosition, int sleepMinTime, int sleepMaxTime, double windMinXY, double windMaxXY) throws Exception {
-		super(registrationOutboundPortURI, publishingOutboundPortURI, receivingInboundPortURI);
+		super(receivingInboundPortURI, registrationOutboundPortURI, RegistrationClass.FREE);
 		assert(stationPosition != null);
 		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime);
 		assert(windMaxXY >= windMinXY);
@@ -86,6 +92,12 @@ public class MeteoStation extends Client {
 		this.sleepMaxTime = sleepMaxTime;
 		this.windMinXY = windMinXY;
 		this.windMaxXY = windMaxXY;
+		this.publishingOutboundPortURI = publishingOutboundPortURI;
+		
+		// Install the subscription + reception plugin
+		this.subscriptionPlugin = new ClientSubscriptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
+		this.subscriptionPlugin.setPluginURI("subscription");
+		this.installPlugin(this.subscriptionPlugin);
 		
 		this.getTracer().setTitle("MeteoStation");
 		this.getTracer().setRelativePosition(2, 0);
@@ -100,15 +112,16 @@ public class MeteoStation extends Client {
 		super.execute();
 		this.logMessage("executing MeteoStation component");
 		
-		if (!this.registrationOutboundPort.registered(receivingInboundPort.getPortURI())) {
-			brokerPublishingPortURI = this.registrationOutboundPort.register(receivingInboundPort.getPortURI(), RegistrationClass.FREE);
-		}
-		assert (brokerPublishingPortURI != null);
+		// Register on the Broker
+		registrationPlugin.register(registrationClass);
+		assert (registrationPlugin.getBrokerPublishingPortURI() != null);
 		this.logMessage("MeteoStation registered");
 		
-		this.doPortConnection(this.publishingOutboundPort.getPortURI(), 
-				brokerPublishingPortURI, 
-				ClientPublishingServiceConnector.class.getCanonicalName());
+		// Install the publication plug-in.
+		this.publicationPlugin = new ClientPublicationPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort(),
+				publishingOutboundPortURI, registrationPlugin.getBrokerPublishingPortURI());
+		this.publicationPlugin.setPluginURI("publication");
+		this.installPlugin(this.publicationPlugin);
 		
 		// Send WindData periodically on 'channel0'
 		//scheduleNextSend(); // For later, when scheduled threads
@@ -182,7 +195,7 @@ public class MeteoStation extends Client {
 		this.logMessage("MeteoStation sending wind data "+wd);
 		this.logMessage("------------------------------");
 		
-		this.publishingOutboundPort.publish(receivingInboundPort.getPortURI(), channel, msg);
+		publicationPlugin.publish(channel, msg);
 		
 		// Recursive call
 		sendWindData("channel0");

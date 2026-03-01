@@ -1,4 +1,4 @@
-package fr.sorbonne_u.broker.components;
+package fr.sorbonne_u.broker.components.infos;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 
+import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 
@@ -19,12 +20,14 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
  * 
  * <p>
  * Maintained information includes:
- * <li> - The channel name.
- * <li> - A set of pairs: (subscriber client port + channel filter).
- * <li> - Whether the channel is accessible only to privileged clients or to everyone (default channel).
- * <li> - The regular expression defining the accepted client port URIs for this channel.
- * <li> - The client port that created the channel, or {@code null} if it was created by the {@link Broker}.
- * <li> - A FIFO queue of {@link MessageI} pending on the channel (to be sent).
+ * <ul>
+ * 	<li> - The channel name.
+ * 	<li> - A set of pairs: (subscriber client port + channel filter).
+ * 	<li> - Whether the channel is accessible only to privileged clients or to everyone (default channel).
+ * 	<li> - The regular expression defining the accepted client port URIs for this channel.
+ * 	<li> - The client port that created the channel, or {@code null} if it was created by the {@link Broker}.
+ * 	<li> - A FIFO queue of {@link MessageI} pending on the channel (to be sent).
+ * </ul>
  * </p>
  * 
  * <p><strong>Invariants</strong></p>
@@ -342,7 +345,7 @@ public class ChannelBrokerInfos {
      * 
      * <p><strong>Contract</strong></p>
      * <pre>
-     * pre  {@code msg != null}
+     * pre  {@code msgs != null && !msgs.isEmpty()}
      * post  {@code this.messages.containsAll(msgs)}
      * </pre>
      * 
