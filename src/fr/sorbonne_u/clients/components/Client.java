@@ -52,7 +52,7 @@ public abstract class Client extends AbstractComponent {
 	 * pre	{@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
 	 * pre	{@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
 	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
-	 * post	{@code true}	// no postcondition.
+	 * post	class invariants satisfied
 	 * </pre>
 	 * 
 	 * @param registrationOutboundPortURI The URI of the outbound port requiring {@link RegistrationCI}.
@@ -72,8 +72,8 @@ public abstract class Client extends AbstractComponent {
 		this.receivingInboundPort = new ClientReceivingInboundPort(receivingInboundPortURI, this);
 		
 		//publish ports
-		this.registrationOutboundPort.localPublishPort();
-		this.publishingOutboundPort.localPublishPort();
+		this.registrationOutboundPort.publishPort();
+		this.publishingOutboundPort.publishPort();
 		this.receivingInboundPort.publishPort();
 
 		AbstractComponent.checkImplementationInvariant(this);

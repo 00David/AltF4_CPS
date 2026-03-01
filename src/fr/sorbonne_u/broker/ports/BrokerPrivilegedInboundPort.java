@@ -1,11 +1,7 @@
 package fr.sorbonne_u.broker.ports;
 
-import java.util.ArrayList;
-
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.components.ComponentI;
-import fr.sorbonne_u.components.ports.AbstractInboundPort;
-import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 
 /**
@@ -22,7 +18,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
  * @author David Vadimon
  */
 public class BrokerPrivilegedInboundPort
-extends		AbstractInboundPort
+extends		BrokerPublishingInboundPort
 implements	PrivilegedClientCI {
 
 	private static final long serialVersionUID = 1878031196993861332L;
@@ -51,20 +47,6 @@ implements	PrivilegedClientCI {
 	}
 	
 	// Precondition and postcondition verifications are delegated to the Broker
-
-	@Override
-	public void publish(String receptionPortURI, String channel, MessageI message) throws Exception {
-		ArrayList<MessageI> messages =  new ArrayList<MessageI>();
-		messages.add(message);
-		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).publishService(receptionPortURI, channel, messages));
-	}
-
-	@Override
-	public void publish(String receptionPortURI, String channel, ArrayList<MessageI> messages) throws Exception {
-		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).publishService(receptionPortURI, channel, messages));
-	}
 
 	@Override
 	public boolean hasCreatedChannel(String receptionPortURI, String channel) throws Exception {

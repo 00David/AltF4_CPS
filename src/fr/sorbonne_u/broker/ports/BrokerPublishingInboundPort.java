@@ -4,6 +4,7 @@ import java.util.ArrayList;
 
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.components.ComponentI;
+import fr.sorbonne_u.components.interfaces.OfferedCI;
 import fr.sorbonne_u.components.ports.AbstractInboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
@@ -46,6 +47,11 @@ implements	PublishingCI {
 		assert(uri != null && !uri.isEmpty());
 		assert(owner != null);
 		assert(owner instanceof Broker);
+	}
+	
+	// Used for BrokerPrivilegedInboundPort constructor
+	public BrokerPublishingInboundPort(String uri, Class<? extends OfferedCI> implementedInterface, ComponentI owner) throws Exception {
+		super(uri, implementedInterface, owner);
 	}
 
 	// Precondition and postcondition verifications are delegated to the Broker

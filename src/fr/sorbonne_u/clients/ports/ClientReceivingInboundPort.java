@@ -30,14 +30,14 @@ public class ClientReceivingInboundPort extends AbstractInboundPort implements R
 	 * <pre>
 	 * pre {@code uri != null && !uri.isEmpty()}
 	 * pre {@code owner != null}
-	 * pre {@code owner instanceof Broker}
+	 * pre {@code owner instanceof Client}
 	 * post {@code  true}	// no postcondition.
 	 * </pre>
 	 * 
 	 * @param uri    the URI of the port.
 	 * @param owner  the component owning the port.
 	 */
-	public ClientReceivingInboundPort(String uri,ComponentI owner) throws Exception {
+	public ClientReceivingInboundPort(String uri, ComponentI owner) throws Exception {
 		super(uri,ReceivingCI.class,owner);
 		// Precondition checks
 		assert(uri != null && !uri.isEmpty());

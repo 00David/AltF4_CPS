@@ -59,8 +59,6 @@ public class WindTurbine extends Client {
 	// The orientation of the wind turbine
 	private PositionData orientation; // PositionData is used as a vector here, for the WindTurbine orientation
 
-	private String brokerPublishingPortURI = null;
-
 	// Maximum alert level (inclusive) at which the turbine operates.
     // If a higher level is received, the turbine enters safety mode.
 	private LevelI maxWorkingLevel;
@@ -104,7 +102,7 @@ public class WindTurbine extends Client {
 		this.safeMode = false;
 		this.maxWorkingLevel = maxWorkingLevel;
 
-		this.getTracer().setTitle("Eolienne");
+		this.getTracer().setTitle("WindTurbine");
 		this.getTracer().setRelativePosition(0, 0);
 
 	}

@@ -1,6 +1,9 @@
 package fr.sorbonne_u.clients.connectors;
 
+import java.util.ArrayList;
+
 import fr.sorbonne_u.broker.components.Broker;
+import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 
 /**
@@ -18,6 +21,16 @@ import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 public class ClientPrivilegedServiceConnector extends ClientPublishingServiceConnector implements PrivilegedClientCI {
 
 	// Precondition and postcondition verifications are delegated to the the BrokerPrivilegedInboundPort
+	
+	@Override
+	public void publish(String receptionPortURI, String channel, MessageI message) throws Exception {
+		((PrivilegedClientCI)this.offering).publish(receptionPortURI, channel, message);
+	}
+
+	@Override
+	public void publish(String receptionPortURI, String channel, ArrayList<MessageI> messages) throws Exception {
+		((PrivilegedClientCI)this.offering).publish(receptionPortURI, channel, messages);
+	}
 	
 	@Override
 	public boolean hasCreatedChannel(String receptionPortURI, String channel) throws Exception {
