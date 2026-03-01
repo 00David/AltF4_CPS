@@ -164,6 +164,17 @@ public class WindTurbine extends Client {
 	// Component public methods
 	// --------------------------------------------------------------------------
 	
+	/**
+	 * Indicates if the wind turbine is in safe mode.
+	 * 
+	 * <p><strong>Contrat</strong></p>
+	 * <pre>
+	 * pre  {@code true}	// no precondition.
+	 * post	{@code true} 	// no postcondition.
+	 * </pre>
+	 * 
+	 * @return true if wind turbine is in safe mode, otherwise it operates normally.
+	 */
 	public boolean inSafeMode() {
 		return safeMode;
 	}
