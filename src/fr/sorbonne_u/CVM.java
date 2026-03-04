@@ -5,6 +5,7 @@ import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.cvm.AbstractCVM;
 import fr.sorbonne_u.meteo.tests.CVMTest;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
+import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.meteo.components.MeteoBureau;
 import fr.sorbonne_u.meteo.components.MeteoStation;
 import fr.sorbonne_u.meteo.components.WindTurbine;
@@ -101,8 +102,8 @@ public class CVM extends AbstractCVM {
 		int sleepMaxTimeMB = 30;
 		this.uriMB = AbstractComponent.createComponent(
 				MeteoBureau.class.getCanonicalName(),
-				new Object[] { MBRegistrationOutboundPortURI, MBPublishingOutboundPortURI, MBReceivingInboundPortURI, 1, 0,
-						bureauPosition, sleepMinTimeMB, sleepMaxTimeMB});
+				new Object[] { MBRegistrationOutboundPortURI, MBPublishingOutboundPortURI, MBReceivingInboundPortURI, "", // privileged port URI empty
+						RegistrationClass.FREE, 1, 0, bureauPosition, sleepMinTimeMB, sleepMaxTimeMB});
 		assert this.isDeployedComponent(this.uriMB);
 		this.toggleTracing(this.uriMB);
 		
@@ -115,16 +116,16 @@ public class CVM extends AbstractCVM {
 		PositionData station1Position = new PositionData(1, 2);
 		this.uriMS1 = AbstractComponent.createComponent(
 				MeteoStation.class.getCanonicalName(),
-				new Object[] { MS1RegistrationOutboundPortURI, MS1PublishingOutboundPortURI, MS1ReceivingInboundPortURI, 1, 0,
-						station1Position, sleepMinTimeMS, sleepMaxTimeMS, windMinXY, windMaxXY});
+				new Object[] { MS1RegistrationOutboundPortURI, MS1PublishingOutboundPortURI, MS1ReceivingInboundPortURI, "", // privileged port URI empty
+						RegistrationClass.FREE, 1, 0, station1Position, sleepMinTimeMS, sleepMaxTimeMS, windMinXY, windMaxXY});
 		assert this.isDeployedComponent(this.uriMS1);
 		this.toggleTracing(this.uriMS1);
 	
 		PositionData station2Position = new PositionData(3, 2);
 		this.uriMS2 = AbstractComponent.createComponent(
 				MeteoStation.class.getCanonicalName(),
-				new Object[] { MS2RegistrationOutboundPortURI, MS2PublishingOutboundPortURI, MS2ReceivingInboundPortURI, 1, 0,
-						station2Position, sleepMinTimeMS, sleepMaxTimeMS, windMinXY, windMaxXY});
+				new Object[] { MS2RegistrationOutboundPortURI, MS2PublishingOutboundPortURI, MS2ReceivingInboundPortURI, "", // privileged port URI empty
+						RegistrationClass.FREE, 1, 0, station2Position, sleepMinTimeMS, sleepMaxTimeMS, windMinXY, windMaxXY});
 		assert this.isDeployedComponent(this.uriMS2);
 		this.toggleTracing(this.uriMS2);
 		

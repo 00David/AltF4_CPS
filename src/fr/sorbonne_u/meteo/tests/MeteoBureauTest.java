@@ -5,11 +5,13 @@ import java.time.Instant;
 import java.util.ArrayList;
 
 import fr.sorbonne_u.clients.components.Client;
+import fr.sorbonne_u.clients.plugins.ClientPrivilegedPlugin;
 import fr.sorbonne_u.clients.plugins.ClientPublicationPlugin;
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
 import fr.sorbonne_u.components.utils.tests.TestScenario;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
+import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
@@ -40,6 +42,10 @@ public class MeteoBureauTest extends Client{
 	// Subscription + reception
 	protected final ClientSubscriptionPlugin subscriptionPlugin;
 	
+	// Privileged management
+	protected String privilegedOutboundPortURI = null; // stays null if the client is not privileged
+	protected ClientPrivilegedPlugin privilegedPlugin = null; // stays null if the client is not privileged
+	
 	// Scenario
 	protected final TestScenario testScenario;
 
@@ -55,6 +61,7 @@ public class MeteoBureauTest extends Client{
 	 * pre	{@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
 	 * pre	{@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
 	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
+	 * pre	{@code privilegedOutboundPortURI != null}, if {@code rc != FREE : !privilegedOutboundPortURI.isEmpty()}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
 	 * pre	{@code bureauPosition != null}
 	 * pre  {@code testScenario != null}
@@ -64,17 +71,24 @@ public class MeteoBureauTest extends Client{
 	 * @param registrationOutboundPortURI   URI of the outbound port requiring {@link RegistrationCI}.
 	 * @param publishingOutboundPortURI     URI of the outbound port requiring {@link PublishingCI}.
 	 * @param receivingInboundPortURI       URI of the inbound port offering {@link ReceivingCI}.
+	 * @param privilegedOutboundPortURI	    URI of the outbound port requiring {@link PrivilegedClientCI}. Can be empty if the client if FREE, otherwise it cannot.
+	 * @param rc			   				The registration class of the component.
 	 * @param bureauPosition                The position of the office.
 	 * @param testScenario					Test scenario in which this component participate.
 	 * @param reflectionInboundPortURI		URI of the reflection inbound port to be created in this component.
 	 * @throws Exception                    If an error occurs during initialization or port publication.
 	 */
-	protected MeteoBureauTest(String registrationOutboundPortURI, String publishingOutboundPortURI, String receivingInboundPortURI, 
-			int nbThreads, int nbSchedulableThreads, PositionData bureauPosition, TestScenario testScenario, String reflectionInboundPortURI) throws Exception {
-		super(receivingInboundPortURI, registrationOutboundPortURI, RegistrationClass.FREE, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
+	protected MeteoBureauTest(String registrationOutboundPortURI, String publishingOutboundPortURI, String receivingInboundPortURI, String privilegedOutboundPortURI, 
+			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData bureauPosition, TestScenario testScenario, String reflectionInboundPortURI) throws Exception {
+		super(receivingInboundPortURI, registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
 		// Some preconditions are checked inside the superconstructor while others are checked here
 		assert(bureauPosition != null);
 		assert(testScenario != null);
+		assert(privilegedOutboundPortURI != null);
+		if (rc != RegistrationClass.FREE) {
+			assert (!privilegedOutboundPortURI.isEmpty());
+			this.privilegedOutboundPortURI = privilegedOutboundPortURI;
+		}
 		
 		this.bureauPosition = bureauPosition;
 		this.publishingOutboundPortURI = publishingOutboundPortURI;
@@ -108,6 +122,13 @@ public class MeteoBureauTest extends Client{
 				publishingOutboundPortURI, registrationPlugin.getBrokerPublishingPortURI());
 		this.publicationPlugin.setPluginURI("publication");
 		this.installPlugin(this.publicationPlugin);
+		
+		// Install the privileged plug-in if it is allowed.
+		if (this.registrationClass == RegistrationClass.STANDARD || this.registrationClass == RegistrationClass.PREMIUM) {
+			this.privilegedPlugin = new ClientPrivilegedPlugin(receivingInboundPortURI, privilegedOutboundPortURI, registrationPlugin.getBrokerPublishingPortURI());
+			this.privilegedPlugin.setPluginURI("privileged");
+			this.installPlugin(this.privilegedPlugin);
+		}
 		
 		// Initialization of the clock
 		this.initialiseClock(

@@ -38,6 +38,7 @@ public abstract class Client extends AbstractComponent {
 	 * pre	{@code receivingPortURI != null && !receivingPortURI.isEmpty()}
 	 * pre	{@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
 	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
+	 * pre	{@code registrationClass != null}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
 	 * post	class invariants satisfied
 	 * </pre>
@@ -62,6 +63,7 @@ public abstract class Client extends AbstractComponent {
 	 * pre	{@code receivingPortURI != null && !receivingPortURI.isEmpty()}
 	 * pre	{@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
 	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
+	 * pre	{@code registrationClass != null}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
 	 * post	class invariants satisfied
 	 * </pre>
@@ -82,6 +84,7 @@ public abstract class Client extends AbstractComponent {
 		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty());
 		assert(registrationPluginURI != null && !registrationPluginURI.isEmpty());
 		assert(registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty());
+		assert(registrationClass != null);
 		assert(nbThreads >= 0 && nbSchedulableThreads >= 0);
 		
 		this.receivingInboundPortURI = receivingInboundPortURI;
@@ -107,6 +110,7 @@ public abstract class Client extends AbstractComponent {
 	 * pre	{@code receivingPortURI != null && !receivingPortURI.isEmpty()}
 	 * pre	{@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
 	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
+	 * pre	{@code registrationClass != null}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
 	 * post	class invariants satisfied
 	 * </pre>
@@ -135,6 +139,7 @@ public abstract class Client extends AbstractComponent {
 	 * pre	{@code receivingPortURI != null && !receivingPortURI.isEmpty()}
 	 * pre	{@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
 	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
+	 * pre	{@code registrationClass != null}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
 	 * post	class invariants satisfied
 	 * </pre>
@@ -156,6 +161,7 @@ public abstract class Client extends AbstractComponent {
 		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty());
 		assert(registrationPluginURI != null && !registrationPluginURI.isEmpty());
 		assert(registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty());
+		assert(registrationClass != null);
 		assert(nbThreads >= 0 && nbSchedulableThreads >= 0);
 		
 		this.receivingInboundPortURI = receivingInboundPortURI;

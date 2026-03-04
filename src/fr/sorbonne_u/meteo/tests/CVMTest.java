@@ -13,6 +13,7 @@ import fr.sorbonne_u.components.utils.tests.TestStep;
 import fr.sorbonne_u.components.utils.tests.TestStepI;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
+import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.exceptions.VerboseException;
 import fr.sorbonne_u.meteo.components.WindTurbine;
 import fr.sorbonne_u.meteo.data.PositionData;
@@ -245,8 +246,8 @@ public class CVMTest extends AbstractCVM {
 		
 		String meteoBureau_URI_verif = AbstractComponent.createComponent(
 				MeteoBureauTest.class.getCanonicalName(),
-				new Object[] {MBRegistrationOutboundPortURI, MBPublishingOutboundPortURI, MBReceivingInboundPortURI,
-						1, 1, bureauPosition, testScenario, MB_URI});
+				new Object[] {MBRegistrationOutboundPortURI, MBPublishingOutboundPortURI, MBReceivingInboundPortURI, "", // privileged port URI empty
+						RegistrationClass.FREE, 1, 1, bureauPosition, testScenario, MB_URI});
 		assert MB_URI.equals(meteoBureau_URI_verif);
 		assert this.isDeployedComponent(MB_URI);
 		this.toggleTracing(MB_URI);
@@ -255,8 +256,8 @@ public class CVMTest extends AbstractCVM {
 		
 		String meteoStation1_URI_verif = AbstractComponent.createComponent(
 				MeteoStationTest.class.getCanonicalName(),
-				new Object[] {MS1RegistrationOutboundPortURI, MS1PublishingOutboundPortURI, MS1ReceivingInboundPortURI,
-						1, 1, station1Position, testScenario, MS1_URI});
+				new Object[] {MS1RegistrationOutboundPortURI, MS1PublishingOutboundPortURI, MS1ReceivingInboundPortURI, "", // privileged port URI empty
+						RegistrationClass.FREE, 1, 1, station1Position, testScenario, MS1_URI});
 		assert MS1_URI.equals(meteoStation1_URI_verif);
 		assert this.isDeployedComponent(MS1_URI);
 		this.toggleTracing(MS1_URI);
@@ -264,8 +265,8 @@ public class CVMTest extends AbstractCVM {
 		
 		String meteoStation2_URI_verif = AbstractComponent.createComponent(
 				MeteoStationTest.class.getCanonicalName(),
-				new Object[] {MS2RegistrationOutboundPortURI, MS2PublishingOutboundPortURI, MS2ReceivingInboundPortURI,
-						1, 1, station2Position, testScenario, MS2_URI});
+				new Object[] {MS2RegistrationOutboundPortURI, MS2PublishingOutboundPortURI, MS2ReceivingInboundPortURI, "", // privileged port URI empty
+						RegistrationClass.FREE, 1, 1, station2Position, testScenario, MS2_URI});
 		assert MS2_URI.equals(meteoStation2_URI_verif);
 		assert this.isDeployedComponent(MS2_URI);
 		this.toggleTracing(MS2_URI);

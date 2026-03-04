@@ -31,6 +31,8 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.TimeFilterI;
  * appropriate decisions for its orientation or safety mode.
  * </p>
  * 
+ * <p>A classic WindTurbine is necessarily a FREE client</p>
+ * 
  * <p><strong>Invariants</strong></p>
  * <pre>
  * invariant	{@code datas != null}
