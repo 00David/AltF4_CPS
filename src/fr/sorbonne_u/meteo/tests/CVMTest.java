@@ -167,7 +167,7 @@ public class CVMTest extends AbstractCVM {
 						owner -> {
 							try {
 								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.RED, 
-										step2_3_regions, step2_Instant, Duration.ofSeconds(STEP3-STEP2), "channel1");
+										step2_3_regions, step2_Instant, Duration.ofSeconds((long)((STEP3-STEP2)/ACCELERATION_FACTOR)), "channel1");
 							} catch (Exception e) {
 								System.err.println("Step 2 alert publication failed with exception " + e);
 							}
@@ -180,7 +180,7 @@ public class CVMTest extends AbstractCVM {
 						owner -> {
 							try {
 								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.GREEN, 
-										step2_3_regions, step3_Instant, Duration.ofSeconds(30), "channel1");
+										step2_3_regions, step3_Instant, Duration.ofSeconds((long)((STEP3-STEP2)/ACCELERATION_FACTOR)), "channel1");
 							} catch (Exception e) {
 								System.err.println("Step 3 alert publication failed with exception " + e);
 							}
@@ -205,7 +205,7 @@ public class CVMTest extends AbstractCVM {
 						owner -> {
 							try {
 								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.RED, 
-										step5_regions, step5_Instant, Duration.ofSeconds(30), "channel1");
+										step5_regions, step5_Instant, Duration.ofSeconds((long)((STEP3-STEP2)/ACCELERATION_FACTOR)), "channel1");
 							} catch (Exception e) {
 								System.err.println("Step 5 alert publication failed with exception " + e);
 							}
