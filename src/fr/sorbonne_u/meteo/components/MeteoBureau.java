@@ -4,12 +4,10 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 
 import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.plugins.ClientPublicationPlugin;
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
-import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
@@ -67,6 +65,7 @@ public class MeteoBureau extends Client {
 	 * pre	{@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
 	 * pre	{@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
 	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
+	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
 	 * pre	{@code bureauPosition != null}
 	 * pre	{@code sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime}
 	 * post	{@code true}	// no postcondition.
@@ -75,14 +74,17 @@ public class MeteoBureau extends Client {
 	 * @param registrationOutboundPortURI   URI of the outbound port requiring {@link RegistrationCI}.
 	 * @param publishingOutboundPortURI     URI of the outbound port requiring {@link PublishingCI}.
 	 * @param receivingInboundPortURI       URI of the inbound port offering {@link ReceivingCI}.
+	 * @param nbThreads						Number of threads to be created in the component pool.
+	 * @param nbSchedulableThreads			Number of threads to be created in the component schedulable pool.
 	 * @param bureauPosition                The position of the office.
 	 * @param sleepMinTime                  Minimum waiting time between two alerts.
 	 * @param sleepMaxTime                  Maximum waiting time between two alerts.
 	 * @throws Exception                    If an error occurs during initialization or port publication.
 	 */
 	protected MeteoBureau(String registrationOutboundPortURI, String publishingOutboundPortURI, String receivingInboundPortURI, 
-			PositionData bureauPosition, int sleepMinTime, int sleepMaxTime) throws Exception {
-		super(receivingInboundPortURI, registrationOutboundPortURI, RegistrationClass.FREE);
+			int nbThreads, int nbSchedulableThreads, PositionData bureauPosition, int sleepMinTime, int sleepMaxTime) throws Exception {
+		super(receivingInboundPortURI, registrationOutboundPortURI, RegistrationClass.FREE, nbThreads, nbSchedulableThreads);
+		// Some preconditions are checked inside the superconstructor while others are checked here
 		assert(bureauPosition != null);
 		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime);
 		
@@ -97,7 +99,7 @@ public class MeteoBureau extends Client {
 		this.installPlugin(this.subscriptionPlugin);
 		
 		this.getTracer().setTitle("MeteoBureau");
-		this.getTracer().setRelativePosition(1, 0);
+		this.getTracer().setRelativePosition((int)bureauPosition.getPosX(), (int)bureauPosition.getPosY());
 	}
 
 	// --------------------------------------------------------------------------
@@ -120,46 +122,12 @@ public class MeteoBureau extends Client {
 		this.publicationPlugin.setPluginURI("publication");
 		this.installPlugin(this.publicationPlugin);
 		
-		// Send alerts periodically on 'channel1'
-	    //scheduleNextSend(); // For later, when scheduled threads
-		
 	    sendAlert("channel1");
 	}
 	
 	// --------------------------------------------------------------------------
 	// Alert sending
 	// --------------------------------------------------------------------------
-
-	/**
-	 * Schedules a new alert after a random interval.
-	 * 
-	 * <p>Currently unused. Will be used when at least one schedulable thread exists.</p>
-	 * 
-	 * <p><strong>Contract</strong></p>
-	 * <pre>
-	 * pre	{@code true}	// no precondition.
-	 * post	{@code true}	// no postcondition.
-	 * </pre>
-	 */
-	private void scheduleNextSend() {
-	    int seconds = ThreadLocalRandom.current().nextInt(sleepMinTime, sleepMaxTime);
-
-	    this.scheduleTask(
-	        new AbstractComponent.AbstractTask() {
-	            @Override
-	            public void run() {
-	                try {
-	                    ((MeteoBureau) this.getTaskOwner()).sendAlert("channel1");
-	                    ((MeteoBureau) this.getTaskOwner()).scheduleNextSend();
-	                } catch (Throwable e) {
-	                    e.printStackTrace();
-	                }
-	            }
-	        },
-	        seconds,
-	        TimeUnit.SECONDS
-	    );
-	}
 
 	/**
 	 * Sends a {@link MeteoAlert} with random attributes.
@@ -173,7 +141,7 @@ public class MeteoBureau extends Client {
 	 * @param channel      The name of the channel to send the alert on.
 	 * @throws Exception   If an error occurs during publishing.
 	 */
-	private void sendAlert(String channel) throws Exception {
+	protected void sendAlert(String channel) throws Exception {
 		assert(channel != null && !channel.isEmpty());	
 		
 		int seconds = ThreadLocalRandom.current().nextInt(sleepMinTime, sleepMaxTime); 
@@ -223,7 +191,7 @@ public class MeteoBureau extends Client {
 	 * 
 	 * @return a random alert type.
 	 */
-	private MeteoAlertI.AlertType randomAlert() {
+	protected MeteoAlertI.AlertType randomAlert() {
 		switch (ThreadLocalRandom.current().nextInt(0, 6)) {
 	        case 0: return MeteoAlertI.AlertType.STORM;
 	        case 1: return MeteoAlertI.AlertType.ICY_STORM;
@@ -246,7 +214,7 @@ public class MeteoBureau extends Client {
 	 * 
 	 * @return a random alert level.
 	 */
-	private MeteoAlertI.Level randomLevel() {
+	protected MeteoAlertI.Level randomLevel() {
 		switch (ThreadLocalRandom.current().nextInt(0, 5)) {
 	        case 0: return MeteoAlertI.Level.GREEN;
 	        case 1: return MeteoAlertI.Level.YELLOW;
@@ -270,7 +238,7 @@ public class MeteoBureau extends Client {
 	 * 
 	 * @return a random {@link RegionData}.
 	 */
-	private RegionData randomRegion() {
+	protected RegionData randomRegion() {
 		double xMin = ThreadLocalRandom.current().nextInt(0, 6);
 		double xMax = xMin + 3;
 		double yMin = ThreadLocalRandom.current().nextInt(0, 6);
@@ -291,7 +259,7 @@ public class MeteoBureau extends Client {
 	 * 
 	 * @return a random {@link Duration}.
 	 */
-	private Duration randomDuration() {
+	protected Duration randomDuration() {
 	    int seconds = ThreadLocalRandom.current().nextInt(5, 61);
 	    return Duration.ofSeconds(seconds);
 	}

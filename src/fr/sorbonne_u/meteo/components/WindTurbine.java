@@ -17,6 +17,7 @@ import fr.sorbonne_u.filters.value.PositionInRegionsValueFilter;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.WindData;
 import fr.sorbonne_u.meteo.plugins.WindTurbineReceptionPlugin;
+import fr.sorbonne_u.meteo.tests.WindTurbineTest;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
@@ -45,26 +46,26 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.TimeFilterI;
 public class WindTurbine extends Client {
 
 	// Stores wind data received from messages
-	private ArrayList<WindData> datas;
+	protected final ArrayList<WindData> datas;
 
 	// The position of the wind turbine
-	private PositionData pos;
+	protected final PositionData pos;
 
 	// The orientation of the wind turbine
-	private PositionData orientation; // PositionData is used as a vector here, for the WindTurbine orientation
+	protected PositionData orientation; // PositionData is used as a vector here, for the WindTurbine orientation
 
 	// Maximum alert level (inclusive) at which the turbine operates.
     // If a higher level is received, the turbine enters safety mode.
-	private LevelI maxWorkingLevel;
+	protected final LevelI maxWorkingLevel;
 
 	// Indicates whether the turbine is in safety mode or not (false by default)
-	private boolean safeMode;
+	protected boolean safeMode;
 	
 	// Subscription + reception
 	protected final WindTurbineReceptionPlugin subscriptionPlugin;
 
 	//--------------------------------------------------------------------------
-	// Constructor
+	// Constructors
 	//--------------------------------------------------------------------------
 	
 	/**
@@ -75,6 +76,7 @@ public class WindTurbine extends Client {
      * pre  {@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
      * pre  {@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
      * pre  {@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
+	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
      * pre  {@code pos != null}
      * pre  {@code maxWorkingLevel != null}
      * post {@code true} // no postcondition.
@@ -83,17 +85,20 @@ public class WindTurbine extends Client {
      * @param registrationOutboundPortURI URI of the outbound port requesting {@link RegistrationCI}.
      * @param publishingOutboundPortURI   URI of the outbound port requesting {@link PublishingCI}.
      * @param receivingInboundPortURI     URI of the inbound port providing {@link ReceivingCI}.
+	 * @param nbThreads					  Number of threads to be created in the component pool.
+	 * @param nbSchedulableThreads		  Number of threads to be created in the component schedulable pool.
      * @param pos                         The position of the wind turbine.
      * @param maxWorkingLevel             Maximum alert level (inclusive) at which the turbine operates.
      * @throws Exception                  If a problem occurs during initialization or port publication.
      */
-	protected WindTurbine(String registrationOutboundPortURI, String publishingOutboundPortURI,
-			String receivingInboundPortURI, PositionI pos,LevelI maxWorkingLevel) throws Exception {
-		super(receivingInboundPortURI, registrationOutboundPortURI, RegistrationClass.FREE);
+	protected WindTurbine(String registrationOutboundPortURI, String publishingOutboundPortURI, String receivingInboundPortURI, 
+			int nbThreads, int nbSchedulableThreads, PositionData pos,LevelI maxWorkingLevel) throws Exception {
+		super(receivingInboundPortURI, registrationOutboundPortURI, RegistrationClass.FREE, nbThreads, nbSchedulableThreads);
+		// Some preconditions are checked inside the superconstructor while others are checked here
 		assert (pos != null);
 		assert (maxWorkingLevel != null);
 
-		this.pos = (PositionData) pos;
+		this.pos = pos;
 		this.datas = new ArrayList<WindData>();
 		this.orientation = new PositionData(0, 0);
 		this.safeMode = false;
@@ -105,8 +110,55 @@ public class WindTurbine extends Client {
 		this.installPlugin(this.subscriptionPlugin);
 		
 		this.getTracer().setTitle("WindTurbine");
-		this.getTracer().setRelativePosition(0, 0);
+		this.getTracer().setRelativePosition((int)pos.getPosX(), (int)pos.getPosY());
+	}
+	
+	/**
+     * Creates a wind turbine component for the publish/subscribe system, extending a {@link Client}.
+     * 
+     * <p>Takes {@code reflectionInboundPortURI} as a parameter, used by test sub-class {@link WindTurbineTest}.</p>
+     * 
+     * <p><strong>Contract</strong></p>
+     * <pre>
+     * pre  {@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
+     * pre  {@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
+     * pre  {@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
+	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
+     * pre  {@code pos != null}
+     * pre  {@code maxWorkingLevel != null}
+     * post {@code true} // no postcondition.
+     * </pre>
+     * 
+     * @param registrationOutboundPortURI URI of the outbound port requesting {@link RegistrationCI}.
+     * @param publishingOutboundPortURI   URI of the outbound port requesting {@link PublishingCI}.
+     * @param receivingInboundPortURI     URI of the inbound port providing {@link ReceivingCI}.
+	 * @param nbThreads					  Number of threads to be created in the component pool.
+	 * @param nbSchedulableThreads		  Number of threads to be created in the component schedulable pool.
+     * @param pos                         The position of the wind turbine.
+     * @param maxWorkingLevel             Maximum alert level (inclusive) at which the turbine operates.
+	 * @param reflectionInboundPortURI	  URI of the reflection inbound port to be created in this component.
+     * @throws Exception                  If a problem occurs during initialization or port publication.
+     */
+	protected WindTurbine(String registrationOutboundPortURI, String publishingOutboundPortURI, String receivingInboundPortURI, 
+			int nbThreads, int nbSchedulableThreads, PositionData pos, LevelI maxWorkingLevel, String reflectionInboundPortURI) throws Exception {
+		super(receivingInboundPortURI, registrationOutboundPortURI, RegistrationClass.FREE, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
+		// Some preconditions are checked inside the superconstructor while others are checked here
+		assert (pos != null);
+		assert (maxWorkingLevel != null);
 
+		this.pos = pos;
+		this.datas = new ArrayList<WindData>();
+		this.orientation = new PositionData(0, 0);
+		this.safeMode = false;
+		this.maxWorkingLevel = maxWorkingLevel;
+		
+		// Install the subscription + reception plugin (Wind turbine version)
+		this.subscriptionPlugin = new WindTurbineReceptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
+		this.subscriptionPlugin.setPluginURI("subscription");
+		this.installPlugin(this.subscriptionPlugin);
+		
+		this.getTracer().setTitle("WindTurbine");
+		this.getTracer().setRelativePosition((int)pos.getPosX(), (int)pos.getPosY());
 	}
 
 	// --------------------------------------------------------------------------
@@ -142,7 +194,7 @@ public class WindTurbine extends Client {
      * 
      * @throws Exception If a problem occurs while connecting ports.
      */
-	public void startWindTurbine() throws Exception {
+	protected void startWindTurbine() throws Exception {
 
         // Create a filter only accepting messages after the turbine subscription
         TimeFilterI timeFilter = new GreaterOrEqualTimeFilter(Instant.now());
@@ -267,7 +319,7 @@ public class WindTurbine extends Client {
      * @param stationPos Position of the meteorological station.
      * @return the distance between the turbine and a {@code stationPos}.
      */
-	private double distance(PositionI stationPos) {
+	protected double distance(PositionI stationPos) {
 		// Precondition checks
 		assert(stationPos != null);
 		assert(stationPos instanceof PositionData);
@@ -287,7 +339,7 @@ public class WindTurbine extends Client {
 	 * post {@code this.safemode == true}
 	 * </pre>
 	 */
-	private void goInSafeMode() {
+	protected void goInSafeMode() {
 		if (!this.safeMode) {
 			this.logMessage("WindTurbine going into security mode.");
 			this.logMessage("------------------------------");
@@ -306,7 +358,7 @@ public class WindTurbine extends Client {
 	 * post {@code this.safemode == false}
 	 * </pre>
 	 */
-	private void goBacktoNormalMode() {
+	protected void goBacktoNormalMode() {
 		if (this.safeMode) {
 			this.logMessage("WindTurbine returning to normal operation.");
 			this.logMessage("------------------------------");

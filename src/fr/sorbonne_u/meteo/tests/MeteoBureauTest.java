@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.plugins.ClientPublicationPlugin;
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
+import fr.sorbonne_u.components.utils.tests.TestScenario;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
@@ -16,31 +17,21 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.messages.Message;
 import fr.sorbonne_u.meteo.data.MeteoAlert;
 import fr.sorbonne_u.meteo.data.PositionData;
-import fr.sorbonne_u.meteo.data.RegionData;
+import fr.sorbonne_u.utils.aclocks.ClocksServer;
 
 /**
  * Test class representing a {@link MeteoBureau} following a predefined scenario.
  * 
- * <p>
- * The scenario tested:
- * <li> - The weather office sleeps during the first 90 seconds of the program.
- * <li> - It sends a dangerous alert (RED level) to 'channel1' lasting 30 seconds.
- * <li> - It then sleeps for 30 seconds during the alert.
- * <li> - It wakes up and sends a safe alert (GREEN level) indicating the end of danger.
- * <li> - It then sleeps for 60 seconds.
- * <li> - It wakes up and sends a restricted alert limited to the office's area, not affecting the wind turbine.
- * </p>
+ * <p>The scenario is described in the {@link CVMTest} class.</p>
+ * 
+ * <p>The class does not extend {@link MeteoBureau} because it has already a defined random behavior on launch, here it is not the case.</p>
  * 
  * @author Kevin TANG
  * @author David VADIMON
  */
 public class MeteoBureauTest extends Client{
 	
-	private PositionData bureauPosition;
-	private String channel = "channel1";
-	private int sleepSinceStart = 90; // in seconds
-	private int durationAlertTime = 30; // in seconds
-	private int sleepAfterSafeAlert = 60; // in seconds
+	protected final PositionData bureauPosition;
 	
 	// Publication
 	protected final String publishingOutboundPortURI; 
@@ -48,6 +39,9 @@ public class MeteoBureauTest extends Client{
 	
 	// Subscription + reception
 	protected final ClientSubscriptionPlugin subscriptionPlugin;
+	
+	// Scenario
+	protected final TestScenario testScenario;
 
 	//---------------------------------------------------------------------------
 	// Constructor
@@ -61,7 +55,9 @@ public class MeteoBureauTest extends Client{
 	 * pre	{@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
 	 * pre	{@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
 	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
+	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
 	 * pre	{@code bureauPosition != null}
+	 * pre  {@code testScenario != null}
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 * 
@@ -69,15 +65,20 @@ public class MeteoBureauTest extends Client{
 	 * @param publishingOutboundPortURI     URI of the outbound port requiring {@link PublishingCI}.
 	 * @param receivingInboundPortURI       URI of the inbound port offering {@link ReceivingCI}.
 	 * @param bureauPosition                The position of the office.
+	 * @param testScenario					Test scenario in which this component participate.
+	 * @param reflectionInboundPortURI		URI of the reflection inbound port to be created in this component.
 	 * @throws Exception                    If an error occurs during initialization or port publication.
 	 */
 	protected MeteoBureauTest(String registrationOutboundPortURI, String publishingOutboundPortURI, String receivingInboundPortURI, 
-			PositionData bureauPosition) throws Exception {
-		super(receivingInboundPortURI, registrationOutboundPortURI, RegistrationClass.FREE);
+			int nbThreads, int nbSchedulableThreads, PositionData bureauPosition, TestScenario testScenario, String reflectionInboundPortURI) throws Exception {
+		super(receivingInboundPortURI, registrationOutboundPortURI, RegistrationClass.FREE, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
+		// Some preconditions are checked inside the superconstructor while others are checked here
 		assert(bureauPosition != null);
+		assert(testScenario != null);
 		
 		this.bureauPosition = bureauPosition;
 		this.publishingOutboundPortURI = publishingOutboundPortURI;
+		this.testScenario = testScenario;
 		
 		// Install the subscription + reception plugin
 		this.subscriptionPlugin = new ClientSubscriptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
@@ -85,7 +86,7 @@ public class MeteoBureauTest extends Client{
 		this.installPlugin(this.subscriptionPlugin);
 		
 		this.getTracer().setTitle("MeteoBureau") ;
-		this.getTracer().setRelativePosition(1, 0) ;
+		this.getTracer().setRelativePosition((int)bureauPosition.getPosX(), (int)bureauPosition.getPosY()) ;
 	}
 
 	// --------------------------------------------------------------------------
@@ -108,116 +109,60 @@ public class MeteoBureauTest extends Client{
 		this.publicationPlugin.setPluginURI("publication");
 		this.installPlugin(this.publicationPlugin);
 		
-		sendAlertDanger();
-		sendAlertSafe();
-		sendUncaughtAlert();
+		// Initialization of the clock
+		this.initialiseClock(
+				ClocksServer.STANDARD_INBOUNDPORT_URI,
+				this.testScenario.getClockURI());
+		// Component ready for executing the scenario
+		this.executeTestScenario(this.testScenario);
 	}
 	
 	// --------------------------------------------------------------------------
 	// Sending alerts
 	// --------------------------------------------------------------------------
-
-	/**
-	 * Sends an alert indicating the start of a dangerous alert.
-	 * @throws Exception		If an error occurs during publishing.
-	 */
-	public void sendAlertDanger() throws Exception {
-
-		// Sleep for a certain number of seconds since start
-		// Then send a dangerous alert
-		this.logMessage("MeteoBureau sleeps "+sleepSinceStart+" seconds..."); 
-		Thread.sleep(sleepSinceStart * 1000L);
-		
-		Message msg = new Message();
-		
-		ArrayList<RegionI> regions = new ArrayList<>();
-		double x = bureauPosition.getPosX(); double y = bureauPosition.getPosY();
-		regions.add(new RegionData(x-1, x+1, y-1, y+1)); // 3x3 zone around the office
-		MeteoAlertI.AlertType alert = MeteoAlertI.AlertType.EARTHQUAKE;
-		MeteoAlertI.Level level = MeteoAlertI.Level.RED;
-		Instant instant = Instant.now(); // start instant
-		Duration duration = Duration.ofSeconds(durationAlertTime);
-		MeteoAlert ma = new MeteoAlert(alert, level, regions, instant, duration);
-		
-		msg.setPayload(ma);
-		msg.putProperty("alert", alert);
-		msg.putProperty("level", level);
-		msg.putProperty("regions", regions);
-		msg.putProperty("instant", instant);
-		msg.putProperty("duration", duration);
-			
-		this.logMessage("------------------------------");
-		this.logMessage("MeteoBureau sending a DANGER alert "+ma);
-		this.logMessage("------------------------------");
-		
-		publicationPlugin.publish(channel, msg);
-	}
 	
 	/**
-	 * Sends an alert indicating the end of the previous danger alert.
-	 * @throws Exception		If an error occurs during publishing.
+	 * Publishes an alert on the given {@code channel}, with the given parameters.
+	 * 
+	 * <pre>
+	 * pre	{@code type != null}
+	 * pre	{@code level != null}
+	 * pre	{@code regions != null}
+	 * pre	{@code instant != null}
+	 * pre	{@code duration != null}
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 * 
+	 * @param type			The alert type.
+	 * @param level			The alert level.
+	 * @param regions		The regions affected by the alert.
+	 * @param instant		The start time of the alert.
+	 * @param duration 		The duration of the alert.
+	 * @param channel		The channel on which it must publish the alert.
+	 * @throws Exception	If an error occurs while publishing.
 	 */
-	public void sendAlertSafe() throws Exception {
-		
-		// Sleep for the duration of the dangerous alert
-		this.logMessage("MeteoBureau sleeps "+durationAlertTime+" seconds..."); 
-		Thread.sleep(durationAlertTime * 1000L);
+	public void publishAlert(MeteoAlertI.AlertType type, MeteoAlertI.Level level, ArrayList<RegionI> regions, 
+			Instant instant, Duration duration, String channel) throws Exception {
+		// Precondition checks
+		assert(type != null);
+		assert(level != null);
+		assert(regions != null);
+		assert(instant != null);
+		assert(duration != null);
+		assert(channel != null && !channel.isEmpty());
 		
 		Message msg = new Message();
-		
-		ArrayList<RegionI> regions = new ArrayList<>();
-		double x = bureauPosition.getPosX(); double y = bureauPosition.getPosY();
-		regions.add(new RegionData(x-1, x+1, y-1, y+1)); // 3x3 zone
-		MeteoAlertI.AlertType alert = MeteoAlertI.AlertType.EARTHQUAKE;
-		MeteoAlertI.Level level = MeteoAlertI.Level.GREEN;
-		Instant instant = Instant.now();
-		Duration duration = Duration.ofSeconds(durationAlertTime);
-		MeteoAlert ma = new MeteoAlert(alert, level, regions, instant, duration);
-		
+		MeteoAlert ma = new MeteoAlert(type, level, regions, instant, duration);
 		msg.setPayload(ma);
-		msg.putProperty("alert", alert);
+		msg.putProperty("alert", type);
 		msg.putProperty("level", level);
 		msg.putProperty("regions", regions);
 		msg.putProperty("instant", instant);
 		msg.putProperty("duration", duration);
 			
 		this.logMessage("------------------------------");
-		this.logMessage("MeteoBureau sending a SAFE alert "+ma);
-		this.logMessage("------------------------------");
-		
-		publicationPlugin.publish(channel, msg);
-	}
-	
-	/**
-	 * Sends an alert not received by the wind turbine, after filtering the concerned region.
-	 * @throws Exception		If an error occurs during publishing.
-	 */
-	public void sendUncaughtAlert() throws Exception {
-		
-		// Sleep for a certain number of seconds after the safe alert
-		this.logMessage("MeteoBureau sleeps "+sleepAfterSafeAlert+" seconds..."); 
-		Thread.sleep(sleepAfterSafeAlert * 1000L);
-		
-		Message msg = new Message();
-		
-		ArrayList<RegionI> regions = new ArrayList<>();
-		double x = bureauPosition.getPosX(); double y = bureauPosition.getPosY();
-		regions.add(new RegionData(x, x, y, y)); // zone exactly on the MeteoBureau
-		MeteoAlertI.AlertType alert = MeteoAlertI.AlertType.EARTHQUAKE;
-		MeteoAlertI.Level level = MeteoAlertI.Level.RED;
-		Instant instant = Instant.now();
-		Duration duration = Duration.ofSeconds(durationAlertTime);
-		MeteoAlert ma = new MeteoAlert(alert, level, regions, instant, duration);
-		
-		msg.setPayload(ma);
-		msg.putProperty("alert", alert);
-		msg.putProperty("level", level);
-		msg.putProperty("regions", regions);
-		msg.putProperty("instant", instant);
-		msg.putProperty("duration", duration);
-			
-		this.logMessage("------------------------------");
-		this.logMessage("MeteoBureau sending a DANGER alert "+ma);
+		this.logMessage("MeteoBureau sending a "+level+" alert "+ma+"\nto channel : '"+channel+"'");
 		this.logMessage("------------------------------");
 		
 		publicationPlugin.publish(channel, msg);

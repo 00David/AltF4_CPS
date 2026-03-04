@@ -110,17 +110,22 @@ public class Broker extends AbstractComponent{
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre {@code N >= 0}
+	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
 	 * post class invariants satisfied
 	 * </pre>
 	 * 
-	 * @param N					The number of default channels in the Broker (from 'channel0' to 'channel[N-1]').
-	 * @param nbMaxChannelsStd	The maximum number of channels that can be managed by a standard privileged client.
-	 * @param nbMaxChannelsPrem	The maximum number of channels that can be managed by a premium privileged client.
-	 * @throws Exception		If there is a problem while publishing a port.
+	 * @param N						The number of default channels in the Broker (from 'channel0' to 'channel[N-1]').
+	 * @param nbMaxChannelsStd		The maximum number of channels that can be managed by a standard privileged client.
+	 * @param nbMaxChannelsPrem		The maximum number of channels that can be managed by a premium privileged client.
+	 * @param nbThreads				Number of threads to be created in the component pool.
+	 * @param nbSchedulableThreads	Number of threads to be created in the component schedulable pool.
+	 * @throws Exception			If there is a problem while publishing a port.
 	 */
-	protected Broker(int N, int nbMaxChannelsStd, int nbMaxChannelsPrem) throws Exception {
-		super(1, 0);
+	protected Broker(int N, int nbMaxChannelsStd, int nbMaxChannelsPrem, int nbThreads, int nbSchedulableThreads) throws Exception {
+		super(nbThreads, nbSchedulableThreads);
+		// Precondition checks
 		assert(N>=0);
+		assert(nbThreads >= 0 && nbSchedulableThreads >= 0);
 		
 		ClientBrokerInfos.nbMaxChannelsStd = nbMaxChannelsStd;
 		ClientBrokerInfos.nbMaxChannelsPrem = nbMaxChannelsPrem;
@@ -152,7 +157,7 @@ public class Broker extends AbstractComponent{
 			this.getLogger().setDirectory(System.getProperty("user.home"));
 		}
 		this.getTracer().setTitle("Broker");
-		this.getTracer().setRelativePosition(2, 2);
+		this.getTracer().setRelativePosition(0, 4);
 		
 		assert	this.isPortExisting(registrationPortURI) :
 					new PostconditionException("The component must have a "

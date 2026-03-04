@@ -1,12 +1,10 @@
 package fr.sorbonne_u.meteo.components;
 
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 
 import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.plugins.ClientPublicationPlugin;
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
-import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
@@ -64,6 +62,7 @@ public class MeteoStation extends Client {
 	 * pre  {@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
 	 * pre  {@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
 	 * pre  {@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
+	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
 	 * pre  {@code stationPosition != null}
 	 * pre  {@code sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime}
 	 * pre  {@code windMaxXY >= windMinXY}
@@ -73,6 +72,8 @@ public class MeteoStation extends Client {
 	 * @param registrationOutboundPortURI URI of the outbound port requesting {@link RegistrationCI}.
 	 * @param publishingOutboundPortURI   URI of the outbound port requesting {@link PublishingCI}.
 	 * @param receivingInboundPortURI     URI of the inbound port providing {@link ReceivingCI}.
+	 * @param nbThreads					  Number of threads to be created in the component pool.
+	 * @param nbSchedulableThreads		  Number of threads to be created in the component schedulable pool.
 	 * @param stationPosition             The position of the station.
 	 * @param sleepMinTime                Minimum wait time between each new {@link WindData} sending.
 	 * @param sleepMaxTime                Maximum wait time between each new {@link WindData} sending.
@@ -81,8 +82,9 @@ public class MeteoStation extends Client {
 	 * @throws Exception                  If a problem occurs during initialization or port publication.
 	 */
 	protected MeteoStation(String registrationOutboundPortURI, String publishingOutboundPortURI, String receivingInboundPortURI, 
-			PositionData stationPosition, int sleepMinTime, int sleepMaxTime, double windMinXY, double windMaxXY) throws Exception {
-		super(receivingInboundPortURI, registrationOutboundPortURI, RegistrationClass.FREE);
+			int nbThreads, int nbSchedulableThreads, PositionData stationPosition, int sleepMinTime, int sleepMaxTime, double windMinXY, double windMaxXY) throws Exception {
+		super(receivingInboundPortURI, registrationOutboundPortURI, RegistrationClass.FREE, nbThreads, nbSchedulableThreads);
+		// Some preconditions are checked inside the superconstructor while others are checked here
 		assert(stationPosition != null);
 		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime);
 		assert(windMaxXY >= windMinXY);
@@ -100,7 +102,7 @@ public class MeteoStation extends Client {
 		this.installPlugin(this.subscriptionPlugin);
 		
 		this.getTracer().setTitle("MeteoStation");
-		this.getTracer().setRelativePosition(2, 0);
+		this.getTracer().setRelativePosition((int)stationPosition.getPosX(), (int)stationPosition.getPosY());
 	}
 	
 	// --------------------------------------------------------------------------
@@ -123,46 +125,12 @@ public class MeteoStation extends Client {
 		this.publicationPlugin.setPluginURI("publication");
 		this.installPlugin(this.publicationPlugin);
 		
-		// Send WindData periodically on 'channel0'
-		//scheduleNextSend(); // For later, when scheduled threads
-		
 		sendWindData("channel0");
 	}
 	
 	// --------------------------------------------------------------------------
 	// Periodic sending
 	// --------------------------------------------------------------------------
-
-	/**
-	 * Schedules a new {@link WindData} with random X/Y components in the range [windMinXY, windMaxXY].
-	 * 
-	 * <p>Currently unused. Will be used when at least one schedulable thread exists.</p>
-	 * 
-	 * <p><strong>Contract</strong></p>
-	 * <pre>
-	 * pre	{@code true}	// no precondition.
-	 * post	{@code true}	// no postcondition.
-	 * </pre>
-	 */
-	private void scheduleNextSend() {
-	    int seconds = ThreadLocalRandom.current().nextInt(sleepMinTime, sleepMaxTime);
-
-	    this.scheduleTask(
-	        new AbstractComponent.AbstractTask() {
-	            @Override
-	            public void run() {
-	                try {
-	                    ((MeteoStation) this.getTaskOwner()).sendWindData("channel0");
-	                    ((MeteoStation) this.getTaskOwner()).scheduleNextSend();
-	                } catch (Throwable e) {
-	                    e.printStackTrace();
-	                }
-	            }
-	        },
-	        seconds,
-	        TimeUnit.SECONDS
-	    );
-	}
 	
 	/**
 	 * Sends a {@link WindData} with random X/Y components in the range [windMinXY, windMaxXY].
@@ -174,7 +142,7 @@ public class MeteoStation extends Client {
 	 * </pre>
 	 * 
 	 */
-	private void sendWindData(String channel) throws Exception {
+	protected void sendWindData(String channel) throws Exception {
 		assert(channel != null && !channel.isEmpty());
 		
 		int seconds = ThreadLocalRandom.current().nextInt(sleepMinTime, sleepMaxTime); 
