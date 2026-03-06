@@ -8,6 +8,7 @@ import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.plugins.ClientPrivilegedPlugin;
 import fr.sorbonne_u.clients.plugins.ClientPublicationPlugin;
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
+import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.utils.tests.TestScenario;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
@@ -16,7 +17,10 @@ import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
+import fr.sorbonne_u.exceptions.PostconditionException;
+import fr.sorbonne_u.exceptions.PreconditionException;
 import fr.sorbonne_u.messages.Message;
+import fr.sorbonne_u.meteo.components.MeteoBureau;
 import fr.sorbonne_u.meteo.data.MeteoAlert;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.utils.aclocks.ClocksServer;
@@ -82,11 +86,11 @@ public class MeteoBureauTest extends Client{
 			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData bureauPosition, TestScenario testScenario, String reflectionInboundPortURI) throws Exception {
 		super(receivingInboundPortURI, registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
 		// Some preconditions are checked inside the superconstructor while others are checked here
-		assert(bureauPosition != null);
-		assert(testScenario != null);
-		assert(privilegedOutboundPortURI != null);
+		assert(bureauPosition != null) : new PreconditionException("bureauPosition cannot be null");
+		assert(testScenario != null) : new PreconditionException("testScenario cannot be null");	
+		assert(privilegedOutboundPortURI != null) : new PreconditionException("privilegedOutboundPortURI cannot be null");
 		if (rc != RegistrationClass.FREE) {
-			assert (!privilegedOutboundPortURI.isEmpty());
+			assert (!privilegedOutboundPortURI.isEmpty()) : new PreconditionException("privilegedOutboundPortURI cannot be empty if the client is privileged");
 			this.privilegedOutboundPortURI = privilegedOutboundPortURI;
 		}
 		
@@ -98,6 +102,20 @@ public class MeteoBureauTest extends Client{
 		this.subscriptionPlugin = new ClientSubscriptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
 		this.subscriptionPlugin.setPluginURI("subscription");
 		this.installPlugin(this.subscriptionPlugin);
+		
+		// Invariant checks
+		AbstractComponent.checkImplementationInvariant(this);
+		AbstractComponent.checkInvariant(this);
+		
+		// Postcondition checks
+		assert subscriptionPlugin.isInitialised() : 
+			new PostconditionException("Subscription (+reception) plugin must be initialized");
+		assert	this.isPortExisting(receivingInboundPortURI) : 
+			new PostconditionException("The component must have a port with URI " + receivingInboundPortURI);
+		assert	this.findPortFromURI(receivingInboundPortURI).getImplementedInterface().equals(ReceivingCI.class) : 
+			new PostconditionException("The component must have a port with implemented interface ReceivingCI");
+		assert	this.findPortFromURI(receivingInboundPortURI).isPublished() :
+			new PostconditionException("The component must have a port published with URI " + receivingInboundPortURI);
 		
 		this.getTracer().setTitle("MeteoBureau") ;
 		this.getTracer().setRelativePosition((int)bureauPosition.getPosX(), (int)bureauPosition.getPosY()) ;
@@ -166,12 +184,12 @@ public class MeteoBureauTest extends Client{
 	public void publishAlert(MeteoAlertI.AlertType type, MeteoAlertI.Level level, ArrayList<RegionI> regions, 
 			Instant instant, Duration duration, String channel) throws Exception {
 		// Precondition checks
-		assert(type != null);
-		assert(level != null);
-		assert(regions != null);
-		assert(instant != null);
-		assert(duration != null);
-		assert(channel != null && !channel.isEmpty());
+		assert(type != null) : new PreconditionException("type cannot be null");
+		assert(level != null) : new PreconditionException("level cannot be null");
+		assert(regions != null) : new PreconditionException("regions cannot be null");
+		assert(instant != null) : new PreconditionException("instant cannot be null");
+		assert(duration != null) : new PreconditionException("duration cannot be null");
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
 		
 		Message msg = new Message();
 		MeteoAlert ma = new MeteoAlert(type, level, regions, instant, duration);

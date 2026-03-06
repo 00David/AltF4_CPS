@@ -6,6 +6,7 @@ import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.components.connectors.AbstractConnector;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
+import fr.sorbonne_u.clients.components.Client;
 
 /**
  * Connector between an outbound port of the {@link Client} component and an inbound port of a {@link Broker}.<br>

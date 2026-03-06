@@ -14,7 +14,6 @@ import fr.sorbonne_u.meteo.data.PositionData;
 /**
  * Main entry point for launching the program with client components publishing random messages on the broker.
  * 
- * 
  * <p>Executing test class {@link CVMTest} provides a prepared scenario for a better understanding of the system.</p>
  * 
  * @author Kevin TANG

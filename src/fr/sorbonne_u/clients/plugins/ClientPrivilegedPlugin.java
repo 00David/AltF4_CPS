@@ -1,5 +1,6 @@
 package fr.sorbonne_u.clients.plugins;
 
+import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.connectors.ClientPrivilegedServiceConnector;
 import fr.sorbonne_u.clients.ports.ClientPrivilegedOutboundPort;
 import fr.sorbonne_u.components.AbstractPlugin;
@@ -12,6 +13,7 @@ import fr.sorbonne_u.cps.pubsub.exceptions.UnknownClientException;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
+import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
  * The {@link Client} plugin having a {@link ClientPrivilegedOutboundPort}.
@@ -56,8 +58,8 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 	public ClientPrivilegedPlugin(String receivingInboundPortURI, String privilegedOutboundPortURI, 
 			String brokerPublishingPortURI){
 		// Precondition checks
-		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty());
-		assert(privilegedOutboundPortURI != null && !privilegedOutboundPortURI.isEmpty());
+		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : new PreconditionException("receivingInboundPortURI cannot be null or empty");
+		assert(privilegedOutboundPortURI != null && !privilegedOutboundPortURI.isEmpty()) : new PreconditionException("privilegedOutboundPortURI cannot be null or empty");
 		
 		this.receivingInboundPortURI = receivingInboundPortURI;
 		this.privilegedOutboundPortURI = privilegedOutboundPortURI;

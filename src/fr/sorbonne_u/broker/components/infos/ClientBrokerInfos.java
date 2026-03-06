@@ -5,6 +5,7 @@ import fr.sorbonne_u.broker.components.infos.exceptions.ChannelNumberNotInitiali
 import fr.sorbonne_u.broker.components.infos.exceptions.NegativeRemainingChannelsException;
 import fr.sorbonne_u.broker.components.infos.exceptions.CannotIncreaseRemainingChannelsException;
 import fr.sorbonne_u.broker.ports.BrokerReceivingOutboundPort;
+import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 
 /**
@@ -24,6 +25,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
  *   <li>The URI of the client port.</li>
  *   <li>The {@link RegistrationClass} of the client.</li>
  *   <li>The {@link BrokerReceivingOutboundPort}, outbound port towards this client.</li>
+ *   <li>The number of remaining channels the client can create. When one its channels is destroyed, the number is increased.</li>
  * </ul>
  * </p>
  * 
@@ -46,7 +48,7 @@ public class ClientBrokerInfos {
 	private final String clientPortURI;
 	private RegistrationClass rc;
 	private final BrokerReceivingOutboundPort clientOutboundPort;
-	private int nbChannelsRemaining;
+	private int nbRemainingChannels;
 	
 	/**
 	 * Creates the information structure for a {@link Client} registered on the {@link Broker}.
@@ -70,8 +72,8 @@ public class ClientBrokerInfos {
 		if (clientPortURI == null || clientPortURI.isEmpty()) throw new IllegalArgumentException("A client port URI cannot be null or empty");
 		if (rc == null) throw new IllegalArgumentException("A registration class cannot be null");
 		
-		if (nbMaxChannelsStd < 0) throw new ChannelNumberNotInitializedException("Max channels must be positive for standard clients");
-		if (nbMaxChannelsPrem < 0) throw new ChannelNumberNotInitializedException("Max channels must be positive for premium clients");
+		if (nbMaxChannelsStd < 0) throw new ChannelNumberNotInitializedException("Number of max channels for standard clients cannot be negative");
+		if (nbMaxChannelsPrem < 0) throw new ChannelNumberNotInitializedException("Number of max channels for premium clients cannot be negative");
 		
 		this.clientPortURI = clientPortURI;
 		this.rc = rc;
@@ -79,13 +81,13 @@ public class ClientBrokerInfos {
 		
 		switch(rc) {
 		case FREE:
-			this.nbChannelsRemaining = 0;
+			this.nbRemainingChannels = 0;
 			break;
 		case STANDARD:
-			this.nbChannelsRemaining = nbMaxChannelsStd;
+			this.nbRemainingChannels = nbMaxChannelsStd;
 			break;
 		default:
-			this.nbChannelsRemaining = nbMaxChannelsPrem;
+			this.nbRemainingChannels = nbMaxChannelsPrem;
 			break;
 		}
 	}
@@ -166,7 +168,7 @@ public class ClientBrokerInfos {
 	 * @return true if at least one channel can be created by the client, false otherwise.
 	 */
 	public boolean canCreateChannel() {
-		return nbChannelsRemaining > 0;
+		return nbRemainingChannels > 0;
 	}
 	
 	/**
@@ -174,20 +176,20 @@ public class ClientBrokerInfos {
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
-	 * pre  {@code this.nbChannelsRemaining > 0}
-	 * post {@code this.nbChannelsRemaining >= 0}
+	 * pre  {@code this.nbRemainingChannels > 0}
+	 * post {@code this.nbRemainingChannels >= 0}
 	 * </pre>
 	 * 
 	 * @throws NegativeRemainingChannelsException	if {@code this.nbChannelsRemaining} would become negative.
 	 */
 	public void decreaseRemainingChannels() {
 		// Precondition check
-		if (nbChannelsRemaining == 0) throw new NegativeRemainingChannelsException("The number of remaining channels cannot become negative");
+		if (nbRemainingChannels == 0) throw new NegativeRemainingChannelsException("The number of remaining channels cannot become negative");
 		
-		nbChannelsRemaining--;
+		nbRemainingChannels--;
 		
 		// Postcondition check
-		assert(nbChannelsRemaining >= 0);
+		assert(nbRemainingChannels >= 0);
 	}
 	
 	/**
@@ -205,7 +207,7 @@ public class ClientBrokerInfos {
 		// Precondition check
 		if (rc == RegistrationClass.FREE) throw new CannotIncreaseRemainingChannelsException("A free client cannot have more than 0 channels to create");
 		
-		nbChannelsRemaining++;
+		nbRemainingChannels++;
 	}
 	
 	// A ClientBrokerInfos is uniquely identified by the client's port URI

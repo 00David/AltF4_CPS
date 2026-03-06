@@ -4,11 +4,12 @@ import java.time.Instant;
 import java.util.ArrayList;
 
 import fr.sorbonne_u.clients.components.Client;
+import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.LevelI;
-import fr.sorbonne_u.cps.meteo.interfaces.PositionI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.PropertyFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
+import fr.sorbonne_u.exceptions.PreconditionException;
 import fr.sorbonne_u.filters.MessageFilter;
 import fr.sorbonne_u.filters.property.PropertiesFilter;
 import fr.sorbonne_u.filters.property.PropertyFilter;
@@ -22,6 +23,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.TimeFilterI;
+import fr.sorbonne_u.exceptions.PostconditionException;
 
 /**
  * The WindTurbine component is a {@link Client} of the system.
@@ -39,7 +41,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.TimeFilterI;
  * invariant	{@code pos != null}
  * invariant	{@code orientation != null}
  * invariant	{@code maxWorkingLevel != null}
- * invariant	{@code subscriptionPlugin != null}
+ * invariant	{@code subscriptionPlugin != null && subscriptionPlugin.isInitialised()}
  * </pre>
  * 
  * @author Kevin TANG
@@ -81,7 +83,7 @@ public class WindTurbine extends Client {
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
      * pre  {@code pos != null}
      * pre  {@code maxWorkingLevel != null}
-     * post {@code true} // no postcondition.
+     * post class invariants satisfied
      * </pre>
      * 
      * @param registrationOutboundPortURI URI of the outbound port requesting {@link RegistrationCI}.
@@ -97,8 +99,8 @@ public class WindTurbine extends Client {
 			int nbThreads, int nbSchedulableThreads, PositionData pos,LevelI maxWorkingLevel) throws Exception {
 		super(receivingInboundPortURI, registrationOutboundPortURI, RegistrationClass.FREE, nbThreads, nbSchedulableThreads);
 		// Some preconditions are checked inside the superconstructor while others are checked here
-		assert (pos != null);
-		assert (maxWorkingLevel != null);
+		assert (pos != null) : new PreconditionException("WindTurbine position cannot be null");	
+		assert (maxWorkingLevel != null) : new PreconditionException("max working level cannot be null");	
 
 		this.pos = pos;
 		this.datas = new ArrayList<WindData>();
@@ -110,6 +112,20 @@ public class WindTurbine extends Client {
 		this.subscriptionPlugin = new WindTurbineReceptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
 		this.subscriptionPlugin.setPluginURI("subscription");
 		this.installPlugin(this.subscriptionPlugin);
+		
+		// Invariant checks
+		AbstractComponent.checkImplementationInvariant(this);
+		AbstractComponent.checkInvariant(this);
+		
+		// Postcondition checks
+		assert subscriptionPlugin.isInitialised() : 
+			new PostconditionException("Subscription (+reception) plugin must be initialized");
+		assert	this.isPortExisting(receivingInboundPortURI) : 
+			new PostconditionException("The component must have a port with URI " + receivingInboundPortURI);
+		assert	this.findPortFromURI(receivingInboundPortURI).getImplementedInterface().equals(ReceivingCI.class) : 
+			new PostconditionException("The component must have a port with implemented interface ReceivingCI");
+		assert	this.findPortFromURI(receivingInboundPortURI).isPublished() :
+			new PostconditionException("The component must have a port published with URI " + receivingInboundPortURI);
 		
 		this.getTracer().setTitle("WindTurbine");
 		this.getTracer().setRelativePosition((int)pos.getPosX(), (int)pos.getPosY());
@@ -128,7 +144,7 @@ public class WindTurbine extends Client {
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
      * pre  {@code pos != null}
      * pre  {@code maxWorkingLevel != null}
-     * post {@code true} // no postcondition.
+     * post class invariants satisfied
      * </pre>
      * 
      * @param registrationOutboundPortURI URI of the outbound port requesting {@link RegistrationCI}.
@@ -145,8 +161,8 @@ public class WindTurbine extends Client {
 			int nbThreads, int nbSchedulableThreads, PositionData pos, LevelI maxWorkingLevel, String reflectionInboundPortURI) throws Exception {
 		super(receivingInboundPortURI, registrationOutboundPortURI, RegistrationClass.FREE, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
 		// Some preconditions are checked inside the superconstructor while others are checked here
-		assert (pos != null);
-		assert (maxWorkingLevel != null);
+		assert (pos != null) : new PreconditionException("WindTurbine position cannot be null");	
+		assert (maxWorkingLevel != null) : new PreconditionException("max working level cannot be null");	
 
 		this.pos = pos;
 		this.datas = new ArrayList<WindData>();
@@ -249,7 +265,7 @@ public class WindTurbine extends Client {
 		double y = 0;
 
 		for (WindData d : datas) {
-			double distance = distance(d.getPosition());
+			double distance = distance((PositionData)d.getPosition()); // having a WindData implies that its position is a 'PositionData'
 			double weight = 0;
 			
 			if(distance == 0) {
@@ -269,6 +285,9 @@ public class WindTurbine extends Client {
 		this.orientation = new PositionData(x, y);
 		this.logMessage("WindTurbine has changed orientation : now = " + this.orientation);
 		this.logMessage("------------------------------");
+		
+		// Postcondition check
+		assert(datas.contains(newWindData)) : new PostconditionException("New wind data must be considered");
 	}
 	
     /**
@@ -314,21 +333,19 @@ public class WindTurbine extends Client {
      * 
      * <p><strong>Contract</strong></p>
      * <pre>
-     * pre  {@code stationPos != null && stationPos instanceof PositionData}
+     * pre  {@code stationPos != null}
      * post {@code true} // no postcondition.
      * </pre>
      * 
      * @param stationPos Position of the meteorological station.
      * @return the distance between the turbine and a {@code stationPos}.
      */
-	protected double distance(PositionI stationPos) {
-		// Precondition checks
-		assert(stationPos != null);
-		assert(stationPos instanceof PositionData);
+	protected double distance(PositionData stationPos) {
+		// Precondition check
+		assert(stationPos != null) : new PreconditionException("stationPos cannot be null");	
 		
-		PositionData stationP = (PositionData) stationPos;
-		double dx = stationP.getPosX() - this.pos.getPosX();
-		double dy = stationP.getPosY() - this.pos.getPosY();
+		double dx = stationPos.getPosX() - this.pos.getPosX();
+		double dy = stationPos.getPosY() - this.pos.getPosY();
 		return Math.sqrt(dx * dx + dy * dy);
 	}
 	
@@ -348,7 +365,7 @@ public class WindTurbine extends Client {
 			this.safeMode = true;
 		}
 		// Postcondition check
-		assert(this.safeMode == true);
+		assert(this.safeMode == true) : new PostconditionException("Safe mode must be turned on");
 	}
 
 	/**
@@ -367,6 +384,6 @@ public class WindTurbine extends Client {
 			this.safeMode = false;
 		}
 		// Postcondition check
-		assert(this.safeMode == false);
+		assert(this.safeMode == false) : new PostconditionException("Safe mode must be turned off");
 	}
 }

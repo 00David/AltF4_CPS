@@ -5,6 +5,8 @@ import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
+import fr.sorbonne_u.exceptions.PostconditionException;
+import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
  * The abstract class providing a component that acts as a client of the publish/subscribe system.
@@ -15,6 +17,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
  * <pre>
  * invariant	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty}
  * invariant	{@code registrationPlugin != null && registrationPlugin instanceof ClientRegistrationPlugin}
+ * invariant 	{@code registrationPlugin.isInitialised()}
  * invariant	{@code registrationClass != null}
  * </pre>
  * 
@@ -81,11 +84,11 @@ public abstract class Client extends AbstractComponent {
 		super(nbThreads,nbSchedulableThreads);
 		
 		// Precondition checks
-		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty());
-		assert(registrationPluginURI != null && !registrationPluginURI.isEmpty());
-		assert(registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty());
-		assert(registrationClass != null);
-		assert(nbThreads >= 0 && nbSchedulableThreads >= 0);
+		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : new PreconditionException("receivingInboundPortURI cannot be empty or null");
+		assert(registrationPluginURI != null && !registrationPluginURI.isEmpty()) : new PreconditionException("registrationPluginURI cannot be empty or null");
+		assert(registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()) : new PreconditionException("registrationOutboundPortURI cannot be empty or null");
+		assert(registrationClass != null) : new PreconditionException("registrationClass cannot be null");
+		assert(nbThreads >= 0 && nbSchedulableThreads >= 0) : new PreconditionException("cannot have a negative number of threads");
 		
 		this.receivingInboundPortURI = receivingInboundPortURI;
 		this.registrationClass = registrationClass;
@@ -95,8 +98,19 @@ public abstract class Client extends AbstractComponent {
 		this.registrationPlugin.setPluginURI(registrationPluginURI);
 		this.installPlugin(this.registrationPlugin);
 		
+		// Invariant checks
 		AbstractComponent.checkImplementationInvariant(this);
 		AbstractComponent.checkInvariant(this);
+		
+		// Postcondition checks
+		assert registrationPlugin.isInitialised() : 
+			new PostconditionException("Registration plugin must be initialized");
+		assert	this.isPortExisting(registrationOutboundPortURI) : 
+			new PostconditionException("The component must have a port with URI " + registrationOutboundPortURI);
+		assert	this.findPortFromURI(registrationOutboundPortURI).getImplementedInterface().equals(RegistrationCI.class) : 
+			new PostconditionException("The component must have a port with implemented interface RegistrationCI");
+		assert	this.findPortFromURI(registrationOutboundPortURI).isPublished() :
+			new PostconditionException("The component must have a port published with URI " + registrationOutboundPortURI);
 	}
 	
 	/**
@@ -158,11 +172,11 @@ public abstract class Client extends AbstractComponent {
 		super(reflectionInboundPortURI, nbThreads,nbSchedulableThreads);
 		
 		// Precondition checks
-		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty());
-		assert(registrationPluginURI != null && !registrationPluginURI.isEmpty());
-		assert(registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty());
-		assert(registrationClass != null);
-		assert(nbThreads >= 0 && nbSchedulableThreads >= 0);
+		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : new PreconditionException("receivingInboundPortURI cannot be empty or null");
+		assert(registrationPluginURI != null && !registrationPluginURI.isEmpty()) : new PreconditionException("registrationPluginURI cannot be empty or null");
+		assert(registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()) : new PreconditionException("registrationOutboundPortURI cannot be empty or null");
+		assert(registrationClass != null) : new PreconditionException("registrationClass cannot be empty or null");
+		assert(nbThreads >= 0 && nbSchedulableThreads >= 0) : new PreconditionException("cannot have a negative number of threads");
 		
 		this.receivingInboundPortURI = receivingInboundPortURI;
 		this.registrationClass = registrationClass;
@@ -172,7 +186,18 @@ public abstract class Client extends AbstractComponent {
 		this.registrationPlugin.setPluginURI(registrationPluginURI);
 		this.installPlugin(this.registrationPlugin);
 		
+		// Invariant checks
 		AbstractComponent.checkImplementationInvariant(this);
 		AbstractComponent.checkInvariant(this);
+		
+		// Postcondition checks
+		assert registrationPlugin.isInitialised() : 
+			new PostconditionException("Registration plugin must be initialized");
+		assert	this.isPortExisting(registrationOutboundPortURI) : 
+			new PostconditionException("The component must have a port with URI " + registrationOutboundPortURI);
+		assert	this.findPortFromURI(registrationOutboundPortURI).getImplementedInterface().equals(RegistrationCI.class) : 
+			new PostconditionException("The component must have a port with implemented interface RegistrationCI");
+		assert	this.findPortFromURI(registrationOutboundPortURI).isPublished() :
+			new PostconditionException("The component must have a port published with URI " + registrationOutboundPortURI);
 	}
 }

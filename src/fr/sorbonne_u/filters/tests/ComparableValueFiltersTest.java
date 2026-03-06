@@ -12,9 +12,14 @@ import fr.sorbonne_u.filters.value.comparable.LessThanValueFilter;
 
 /**
  * Unit tests for filters on comparable values:
- * <li> {@link EqualToValueFilter} </li>
- * <li> {@link GreaterThanValueFilter} </li>
- * <li> {@link LessThanValueFilter} </li>
+ * 
+ * <p>
+ * <ul>
+ * 	<li> {@link EqualToValueFilter} </li>
+ * 	<li> {@link GreaterThanValueFilter} </li>
+ * 	<li> {@link LessThanValueFilter} </li>
+ * </ul>
+ * </p>
  * 
  * @author Kevin Tang
  * @author David Vadimon

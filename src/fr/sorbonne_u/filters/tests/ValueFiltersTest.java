@@ -20,10 +20,15 @@ import fr.sorbonne_u.filters.value.AbstractMultiValuesFilter;
 
 /**
  * Test class for simple and multi-value filters, including:
- * <li> {@link IdenticalValueFilter} </li>
- * <li> {@link JokerValueFilter} </li>
- * <li> {@link PositionInRegionsValueFilter} </li>
- * <li> {@link IMC}, extending {@link AbstractMultiValuesFilter} </li>
+ * 
+ * <p>
+ * <ul>
+ * 	<li> {@link IdenticalValueFilter} </li>
+ * 	<li> {@link JokerValueFilter} </li>
+ * 	<li> {@link PositionInRegionsValueFilter} </li>
+ * 	<li> {@link IMC}, an example extending {@link AbstractMultiValuesFilter} </li>
+ * </ul>
+ * </p>
  * 
  * @author Kevin Tang
  * @author David Vadimon

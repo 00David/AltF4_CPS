@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.concurrent.Future;
 import java.util.stream.Stream;
 
+import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.ports.ClientReceivingPluginInboundPort;
 import fr.sorbonne_u.clients.ports.ClientRegistrationOutboundPort;
 import fr.sorbonne_u.components.AbstractPlugin;
@@ -17,6 +18,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.plugins.interfaces.ClientSubscriptionI;
+import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
  * The {@link Client} plugin having a {@link ClientReceivingPluginInboundPort}.
@@ -55,6 +57,10 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	 * @param registrationOutboundPort		the client outbound port requiring {@link RegistrationCI} interface.
 	 */
 	public ClientSubscriptionPlugin(String receivingInboundPortURI, ClientRegistrationOutboundPort registrationOutboundPort){
+		// Precondition checks
+		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : new PreconditionException("receivingInboundPortURI cannot be null or empty");
+		assert(registrationOutboundPort != null) : new PreconditionException("registrationOutboundPort cannot be null");
+		
 		this.receivingInboundPortURI = receivingInboundPortURI;
 		this.registrationOutboundPort = registrationOutboundPort;
 	}

@@ -9,6 +9,7 @@ import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.plugins.ClientPrivilegedPlugin;
 import fr.sorbonne_u.clients.plugins.ClientPublicationPlugin;
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
+import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
@@ -16,6 +17,8 @@ import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
+import fr.sorbonne_u.exceptions.PostconditionException;
+import fr.sorbonne_u.exceptions.PreconditionException;
 import fr.sorbonne_u.messages.Message;
 import fr.sorbonne_u.meteo.data.MeteoAlert;
 import fr.sorbonne_u.meteo.data.PositionData;
@@ -35,7 +38,7 @@ import fr.sorbonne_u.meteo.data.RegionData;
  * invariant	{@code sleepMaxTime >= sleepMinTime}
  * invariant	{@code publishingOutboundPortURI!= null & !publishingOutboundPortURI.isEmpty()}
  * invariant	if {@code this.rc != FREE} : {@code privilegedOutboundPortURI != null && !privilegedOutboundPortURI.isEmpty()}
- * invariant	{@code subscriptionPlugin != null}
+ * invariant	{@code subscriptionPlugin != null && subscriptionPlugin.isInitialised()}
  * </pre>
  * 
  * @author Kevin TANG
@@ -95,11 +98,11 @@ public class MeteoBureau extends Client {
 			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData bureauPosition, int sleepMinTime, int sleepMaxTime) throws Exception {
 		super(receivingInboundPortURI, registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads);
 		// Some preconditions are checked inside the superconstructor while others are checked here
-		assert(bureauPosition != null);
-		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime);
-		assert(privilegedOutboundPortURI != null);
+		assert(bureauPosition != null) : new PreconditionException("bureauPosition cannot be null");
+		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime) : new PreconditionException("sleep times must be coherent");
+		assert(privilegedOutboundPortURI != null) : new PreconditionException("privilegedOutboundPortURI cannot be null");
 		if (rc != RegistrationClass.FREE) {
-			assert (!privilegedOutboundPortURI.isEmpty());
+			assert (!privilegedOutboundPortURI.isEmpty()) : new PreconditionException("privilegedOutboundPortURI cannot be empty if the client is privileged");
 			this.privilegedOutboundPortURI = privilegedOutboundPortURI;
 		}
 		
@@ -112,6 +115,20 @@ public class MeteoBureau extends Client {
 		this.subscriptionPlugin = new ClientSubscriptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
 		this.subscriptionPlugin.setPluginURI("subscription");
 		this.installPlugin(this.subscriptionPlugin);
+		
+		// Invariant checks
+		AbstractComponent.checkImplementationInvariant(this);
+		AbstractComponent.checkInvariant(this);
+		
+		// Postcondition checks
+		assert subscriptionPlugin.isInitialised() : 
+			new PostconditionException("Subscription (+reception) plugin must be initialized");
+		assert	this.isPortExisting(receivingInboundPortURI) : 
+			new PostconditionException("The component must have a port with URI " + receivingInboundPortURI);
+		assert	this.findPortFromURI(receivingInboundPortURI).getImplementedInterface().equals(ReceivingCI.class) : 
+			new PostconditionException("The component must have a port with implemented interface ReceivingCI");
+		assert	this.findPortFromURI(receivingInboundPortURI).isPublished() :
+			new PostconditionException("The component must have a port published with URI " + receivingInboundPortURI);
 		
 		this.getTracer().setTitle("MeteoBureau");
 		this.getTracer().setRelativePosition((int)bureauPosition.getPosX(), (int)bureauPosition.getPosY());
@@ -136,12 +153,14 @@ public class MeteoBureau extends Client {
 				publishingOutboundPortURI, registrationPlugin.getBrokerPublishingPortURI());
 		this.publicationPlugin.setPluginURI("publication");
 		this.installPlugin(this.publicationPlugin);
+		assert publicationPlugin.isInitialised();
 		
 		// Install the privileged plug-in if it is allowed.
 		if (this.registrationClass == RegistrationClass.STANDARD || this.registrationClass == RegistrationClass.PREMIUM) {
 			this.privilegedPlugin = new ClientPrivilegedPlugin(receivingInboundPortURI, privilegedOutboundPortURI, registrationPlugin.getBrokerPublishingPortURI());
 			this.privilegedPlugin.setPluginURI("privileged");
 			this.installPlugin(this.privilegedPlugin);
+			assert privilegedPlugin.isInitialised();
 		}
 		
 	    sendAlert("channel1");
@@ -164,7 +183,8 @@ public class MeteoBureau extends Client {
 	 * @throws Exception   If an error occurs during publishing.
 	 */
 	protected void sendAlert(String channel) throws Exception {
-		assert(channel != null && !channel.isEmpty());	
+		// Precondition check
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");	
 		
 		int seconds = ThreadLocalRandom.current().nextInt(sleepMinTime, sleepMaxTime); 
 		this.logMessage("MeteoBureau sleeps "+seconds+" seconds..."); 

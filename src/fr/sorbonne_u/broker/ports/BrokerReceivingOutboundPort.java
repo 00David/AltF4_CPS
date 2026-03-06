@@ -6,6 +6,7 @@ import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.components.ports.AbstractOutboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
+import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
  * Outbound port of a {@link Broker}, allowing the sending of one or more messages to a client.<br>
@@ -42,9 +43,9 @@ public class BrokerReceivingOutboundPort
 	public BrokerReceivingOutboundPort(String uri, ComponentI owner) throws Exception {
 		super(uri, ReceivingCI.class, owner) ;
 		// Precondition checks
-		assert(uri != null && !uri.isEmpty());
-		assert(owner != null);
-		assert(owner instanceof Broker);
+		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
+		assert(owner != null) : new PreconditionException("owner cannot be null");
+		assert(owner instanceof Broker) : new PreconditionException("owner must be a Broker");
 	}
 	
 	// Precondition and postcondition verifications are delegated to the BrokerReceivingServiceConnector

@@ -2,6 +2,7 @@ package fr.sorbonne_u.clients.plugins;
 
 import java.util.ArrayList;
 
+import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.connectors.ClientPublishingServiceConnector;
 import fr.sorbonne_u.clients.ports.ClientPublishingOutboundPort;
 import fr.sorbonne_u.clients.ports.ClientRegistrationOutboundPort;
@@ -16,6 +17,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.plugins.interfaces.ClientPublicationI;
+import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
  * The {@link Client} plugin having a {@link ClientPublishingOutboundPort}.
@@ -68,10 +70,10 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 	public ClientPublicationPlugin(String receivingInboundPortURI, ClientRegistrationOutboundPort registrationOutboundPort,
 			String publishingOutboundPortURI, String brokerPublishingPortURI){
 		// Precondition checks
-		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty());
-		assert(registrationOutboundPort != null);
-		assert(publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty());
-		assert(brokerPublishingPortURI != null && !brokerPublishingPortURI.isEmpty());
+		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : new PreconditionException("receivingInboundPortURI cannot be null or empty");
+		assert(registrationOutboundPort != null) : new PreconditionException("registrationOutboundPort cannot be null");
+		assert(publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()) : new PreconditionException("publishingOutboundPortURI cannot be null or empty");
+		assert(brokerPublishingPortURI != null && !brokerPublishingPortURI.isEmpty()) : new PreconditionException("brokerPublishingPortURI cannot be null or empty");
 		
 		
 		this.receivingInboundPortURI = receivingInboundPortURI;

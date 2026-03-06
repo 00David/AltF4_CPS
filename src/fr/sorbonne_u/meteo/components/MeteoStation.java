@@ -6,11 +6,14 @@ import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.plugins.ClientPrivilegedPlugin;
 import fr.sorbonne_u.clients.plugins.ClientPublicationPlugin;
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
+import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
+import fr.sorbonne_u.exceptions.PostconditionException;
+import fr.sorbonne_u.exceptions.PreconditionException;
 import fr.sorbonne_u.messages.Message;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.WindData;
@@ -28,7 +31,7 @@ import fr.sorbonne_u.meteo.data.WindData;
  * invariant	{@code sleepMaxTime >= sleepMinTime}
  * invariant	{@code publishingOutboundPortURI!= null & !publishingOutboundPortURI.isEmpty()}
  * invariant	if {@code this.rc != FREE} : {@code privilegedOutboundPortURI != null && !privilegedOutboundPortURI.isEmpty()}
- * invariant	{@code subscriptionPlugin != null}
+ * invariant	{@code subscriptionPlugin != null && subscriptionPlugin.isInitialised()}
  * </pre>
  * 
  * @author Kevin TANG
@@ -87,20 +90,20 @@ public class MeteoStation extends Client {
 	 * @param stationPosition             The position of the station.
 	 * @param sleepMinTime                Minimum wait time between each new {@link WindData} sending.
 	 * @param sleepMaxTime                Maximum wait time between each new {@link WindData} sending.
-	 * @param windMinXY                   Minimum X value for a new wind vector {@link WindData}.
-	 * @param windMaxXY                   Maximum X value for a new wind vector {@link WindData}.
+	 * @param windMinXY                   Minimum X value for a new {@link WindData}.
+	 * @param windMaxXY                   Maximum X value for a new {@link WindData}.
 	 * @throws Exception                  If a problem occurs during initialization or port publication.
 	 */
 	protected MeteoStation(String registrationOutboundPortURI, String publishingOutboundPortURI, String receivingInboundPortURI, String privilegedOutboundPortURI, 
 			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData stationPosition, int sleepMinTime, int sleepMaxTime, double windMinXY, double windMaxXY) throws Exception {
 		super(receivingInboundPortURI, registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads);
 		// Some preconditions are checked inside the superconstructor while others are checked here
-		assert(stationPosition != null);
-		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime);
-		assert(windMaxXY >= windMinXY);
-		assert(privilegedOutboundPortURI != null);
+		assert(stationPosition != null) : new PreconditionException("stationPosition cannot be null");	
+		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime): new PreconditionException("sleep times must be coherent");
+		assert(windMaxXY >= windMinXY): new PreconditionException("wind range must be coherent");
+		assert(privilegedOutboundPortURI != null) : new PreconditionException("privilegedOutboundPortURI cannot be null");
 		if (rc != RegistrationClass.FREE) {
-			assert (!privilegedOutboundPortURI.isEmpty());
+			assert (!privilegedOutboundPortURI.isEmpty()) : new PreconditionException("privilegedOutboundPortURI cannot be empty if the client is privileged");
 			this.privilegedOutboundPortURI = privilegedOutboundPortURI;
 		}
 
@@ -115,6 +118,20 @@ public class MeteoStation extends Client {
 		this.subscriptionPlugin = new ClientSubscriptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
 		this.subscriptionPlugin.setPluginURI("subscription");
 		this.installPlugin(this.subscriptionPlugin);
+		
+		// Invariant checks
+		AbstractComponent.checkImplementationInvariant(this);
+		AbstractComponent.checkInvariant(this);
+		
+		// Postcondition checks
+		assert subscriptionPlugin.isInitialised() : 
+			new PostconditionException("Subscription (+reception) plugin must be initialized");
+		assert	this.isPortExisting(receivingInboundPortURI) : 
+			new PostconditionException("The component must have a port with URI " + receivingInboundPortURI);
+		assert	this.findPortFromURI(receivingInboundPortURI).getImplementedInterface().equals(ReceivingCI.class) : 
+			new PostconditionException("The component must have a port with implemented interface ReceivingCI");
+		assert	this.findPortFromURI(receivingInboundPortURI).isPublished() :
+			new PostconditionException("The component must have a port published with URI " + receivingInboundPortURI);
 		
 		this.getTracer().setTitle("MeteoStation");
 		this.getTracer().setRelativePosition((int)stationPosition.getPosX(), (int)stationPosition.getPosY());
@@ -139,12 +156,14 @@ public class MeteoStation extends Client {
 				publishingOutboundPortURI, registrationPlugin.getBrokerPublishingPortURI());
 		this.publicationPlugin.setPluginURI("publication");
 		this.installPlugin(this.publicationPlugin);
+		assert publicationPlugin.isInitialised();
 		
 		// Install the privileged plug-in if it is allowed.
 		if (this.registrationClass == RegistrationClass.STANDARD || this.registrationClass == RegistrationClass.PREMIUM) {
 			this.privilegedPlugin = new ClientPrivilegedPlugin(receivingInboundPortURI, privilegedOutboundPortURI, registrationPlugin.getBrokerPublishingPortURI());
 			this.privilegedPlugin.setPluginURI("privileged");
 			this.installPlugin(this.privilegedPlugin);
+			assert privilegedPlugin.isInitialised();
 		}
 		
 		sendWindData("channel0");
@@ -165,7 +184,8 @@ public class MeteoStation extends Client {
 	 * 
 	 */
 	protected void sendWindData(String channel) throws Exception {
-		assert(channel != null && !channel.isEmpty());
+		// Precondition check
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");	
 		
 		int seconds = ThreadLocalRandom.current().nextInt(sleepMinTime, sleepMaxTime); 
 		this.logMessage("MeteoStation sleeps "+seconds+" seconds..."); 

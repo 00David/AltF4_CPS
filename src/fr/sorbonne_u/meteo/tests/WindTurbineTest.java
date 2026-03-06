@@ -1,5 +1,6 @@
 package fr.sorbonne_u.meteo.tests;
 
+import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.utils.tests.TestScenario;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.LevelI;
 import fr.sorbonne_u.meteo.components.WindTurbine;
@@ -8,6 +9,7 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
+import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
  * Test class representing a {@link WindTurbine}, following a predefined scenario.
@@ -61,9 +63,13 @@ public class WindTurbineTest extends WindTurbine {
 		super(registrationOutboundPortURI, publishingOutboundPortURI, receivingInboundPortURI, 1, 0, pos, maxWorkingLevel,
 				reflectionInboundPortURI);
 		// Some preconditions are checked inside the superconstructor while others are checked here
-		assert(testScenario != null);
+		assert(testScenario != null) : new PreconditionException("testScenario cannot be null");	
 		
 		this.testScenario = testScenario;
+		
+		// Invariant checks
+		AbstractComponent.checkImplementationInvariant(this);
+		AbstractComponent.checkInvariant(this);
 	}
 
 	// --------------------------------------------------------------------------

@@ -7,9 +7,8 @@ import java.util.HashMap;
 import fr.sorbonne_u.cps.pubsub.exceptions.UnknownPropertyException;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 
-
 /**
- * The <code>Message</code> class implementing a message for the publication/subscription system.
+ * The Message class implementing a message for the publication/subscription system.
  * 
  * <p>The timestamp is initialized with the message creation time (not while setting the payload)</p>
  * 

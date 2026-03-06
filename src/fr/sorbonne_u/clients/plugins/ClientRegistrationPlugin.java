@@ -1,6 +1,7 @@
 package fr.sorbonne_u.clients.plugins;
 
 import fr.sorbonne_u.broker.components.Broker;
+import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.connectors.ClientRegistrationServiceConnector;
 import fr.sorbonne_u.clients.ports.ClientRegistrationOutboundPort;
 import fr.sorbonne_u.components.AbstractPlugin;
@@ -13,6 +14,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.cps.pubsub.plugins.interfaces.ClientRegistrationI;
+import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
  * The {@link Client} plugin having a {@link ClientRegistrationOutboundPort}.
@@ -55,8 +57,8 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	 */
 	public ClientRegistrationPlugin(String receivingInboundPortURI, String registrationOutboundPortURI){
 		// Precondition checks
-		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty());
-		assert(registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty());
+		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : new PreconditionException("receivingInboundPortURI cannot be null or empty");
+		assert(registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()) : new PreconditionException("registrationOutboundPortURI cannot be null or empty");
 		
 		this.receivingInboundPortURI = receivingInboundPortURI;
 		this.registrationOutboundPortURI = registrationOutboundPortURI;

@@ -84,6 +84,9 @@ public class RegionData implements RegionI {
 	 */
 	@Override
 	public boolean in(PositionI p) {
+		// Special case when the position is null, we return false
+		if (p == null) return false;
+		
 		// Precondition check
 		if (!(p instanceof PositionData)) throw new IllegalArgumentException("Position must be an instance of PositionData");
 		

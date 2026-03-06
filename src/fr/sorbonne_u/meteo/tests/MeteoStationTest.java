@@ -4,13 +4,17 @@ import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.plugins.ClientPrivilegedPlugin;
 import fr.sorbonne_u.clients.plugins.ClientPublicationPlugin;
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
+import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.utils.tests.TestScenario;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
+import fr.sorbonne_u.exceptions.PostconditionException;
+import fr.sorbonne_u.exceptions.PreconditionException;
 import fr.sorbonne_u.messages.Message;
+import fr.sorbonne_u.meteo.components.MeteoStation;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.WindData;
 import fr.sorbonne_u.utils.aclocks.ClocksServer;
@@ -75,10 +79,11 @@ public class MeteoStationTest extends Client {
 			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData stationPosition, TestScenario testScenario, String reflectionInboundPortURI) throws Exception {
 		super(receivingInboundPortURI, registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
 		// Some preconditions are checked inside the superconstructor while others are checked here
-		assert(stationPosition != null);
-		assert(testScenario != null);
+		assert(stationPosition != null) : new PreconditionException("stationPosition cannot be null");	
+		assert(testScenario != null) : new PreconditionException("testScenario cannot be null");	
+		assert(privilegedOutboundPortURI != null) : new PreconditionException("privilegedOutboundPortURI cannot be null");
 		if (rc != RegistrationClass.FREE) {
-			assert (!privilegedOutboundPortURI.isEmpty());
+			assert (!privilegedOutboundPortURI.isEmpty()) : new PreconditionException("privilegedOutboundPortURI cannot be empty if the client is privileged");
 			this.privilegedOutboundPortURI = privilegedOutboundPortURI;
 		}
 		
@@ -90,6 +95,20 @@ public class MeteoStationTest extends Client {
 		this.subscriptionPlugin = new ClientSubscriptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
 		this.subscriptionPlugin.setPluginURI("subscription");
 		this.installPlugin(this.subscriptionPlugin);
+		
+		// Invariant checks
+		AbstractComponent.checkImplementationInvariant(this);
+		AbstractComponent.checkInvariant(this);
+		
+		// Postcondition checks
+		assert subscriptionPlugin.isInitialised() : 
+			new PostconditionException("Subscription (+reception) plugin must be initialized");
+		assert	this.isPortExisting(receivingInboundPortURI) : 
+			new PostconditionException("The component must have a port with URI " + receivingInboundPortURI);
+		assert	this.findPortFromURI(receivingInboundPortURI).getImplementedInterface().equals(ReceivingCI.class) : 
+			new PostconditionException("The component must have a port with implemented interface ReceivingCI");
+		assert	this.findPortFromURI(receivingInboundPortURI).isPublished() :
+			new PostconditionException("The component must have a port published with URI " + receivingInboundPortURI);
 		
 		this.getTracer().setTitle("MeteoStation");
 		this.getTracer().setRelativePosition((int)stationPosition.getPosX(), (int)stationPosition.getPosY()) ;
@@ -149,7 +168,7 @@ public class MeteoStationTest extends Client {
 	 */
 	public void publishWindData(double xWind, double yWind, String channel) throws Exception {
 		// Precondition checks
-		assert(channel != null && !channel.isEmpty());
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");	
 		
 		Message msg = new Message();
 		WindData wd = new WindData(stationPosition, xWind, yWind);

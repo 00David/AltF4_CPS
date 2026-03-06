@@ -19,6 +19,34 @@ import java.time.Instant;
  * @author David Vadimon
  */
 public class MessageTest{
+	
+	/**
+	 * Utility class for tests.
+	 * 
+	 * <p>Used by {@link MessageTest} for having a pair of strings : longitude / latitude</p>
+	 * 
+	 * <p><strong>Invariants</strong></p>
+	 * <pre>
+	 * invariant	{@code true} // no more invariant
+	 * </pre>
+	 */
+	private static class LocationData implements Serializable {
+		private static final long serialVersionUID = 6442774187550548688L;
+		@SuppressWarnings("unused")
+		private String longitude;
+		@SuppressWarnings("unused")
+		private String latitude;
+		
+		/**
+		 * Creates a pair of strings : longitude / latitude
+		 * @param longitude The longitude of the pair.
+		 * @param latitude	The latitude of the pair.
+		 */
+		public LocationData(String longitude,String latitude) {
+			this.longitude = longitude;
+			this.latitude = latitude;
+		}
+	}
 
 	@Test
 	public void testRemoveNotExistingProperty() {

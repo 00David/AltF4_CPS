@@ -59,10 +59,9 @@ public class MeteoAlert implements MeteoAlertI {
 		// Precondition checks
 		if (alertType == null) throw new IllegalArgumentException("An alert type cannot be null");
 		if (alertLevel == null) throw new IllegalArgumentException("An alert level cannot be null");
-		if (regions == null) throw new IllegalArgumentException("Regions cannot be null");
+		if (regions == null || regions.isEmpty()) throw new IllegalArgumentException("Regions cannot be null or empty");
 		if (startTime == null) throw new IllegalArgumentException("Start time cannot be null");
 		if (duration == null) throw new IllegalArgumentException("Duration cannot be null");
-		if (regions.isEmpty()) throw new IllegalArgumentException("Regions cannot be empty");
 		
 		this.alertType = alertType;
 		this.alertLevel = alertLevel;
@@ -85,7 +84,8 @@ public class MeteoAlert implements MeteoAlertI {
 
 	@Override
 	public RegionI[] getRegions() {
-		return (RegionI[]) this.regions.toArray();
+		// .toArray(new RegionI[0]) : converts the Collection to a RegionI array
+		return this.regions.toArray(new RegionI[0]);
 	}
 
 	@Override
