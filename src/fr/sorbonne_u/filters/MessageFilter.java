@@ -21,8 +21,13 @@ public class MessageFilter implements MessageFilterI{
 
 	private static final long serialVersionUID = -6067517238603360377L;
 	
+	/** Filters acting on individual message properties */
 	private PropertyFilterI[] propertyFilters;
+	
+	/** Filters acting on grouped message properties */
 	private PropertiesFilterI[] propertiesFilters;
+	
+	/** Filter acting on a message's timestamp */
 	private TimeFilterI timeFilter;
 	
 	/**

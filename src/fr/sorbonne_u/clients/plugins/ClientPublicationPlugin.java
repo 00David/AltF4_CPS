@@ -2,6 +2,7 @@ package fr.sorbonne_u.clients.plugins;
 
 import java.util.ArrayList;
 
+import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.connectors.ClientPublishingServiceConnector;
 import fr.sorbonne_u.clients.ports.ClientPublishingOutboundPort;
@@ -22,6 +23,11 @@ import fr.sorbonne_u.exceptions.PreconditionException;
 /**
  * The {@link Client} plugin having a {@link ClientPublishingOutboundPort}.
  * 
+ * <p>
+ * This plugin needs to be created after registering on the {@link Broker}, in order to pass 
+ * a valid {@code brokerPublishingPortURI} argument to the constructor.
+ * </p>
+ * 
  * <p><strong>Invariants</strong></p>
  * <pre>
  * invariant	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
@@ -37,17 +43,25 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 	
 	private static final long serialVersionUID = 4889836074410437984L;
 	
-	// Reception
+	// RECEPTION
+	
+	/** {@link Client} reception inbound port URI */
 	protected final String receivingInboundPortURI;
 	
-	// Registration
+	// REGISTRATION
+	
+	/** Registration outbound port, owned by {@link ClientRegistrationPlugin} */
 	protected final ClientRegistrationOutboundPort registrationOutboundPort;
 	
-	// Publication
-	protected final String publishingOutboundPortURI;
-	protected ClientPublishingOutboundPort publishingOutboundPort; // Set up after plugin installation + initialization
+	// PUBLICATION
 	
-	// Broker inbound port
+	/** {@link Client} publication outbound port URI */
+	protected final String publishingOutboundPortURI;
+	
+	/** Publication outbound port, set up after plugin installation + initialization */
+	protected ClientPublishingOutboundPort publishingOutboundPort;
+	
+	/** {@link Broker} publication inbound port URI, got via {@link ClientRegistrationPlugin} after registration */
 	protected final String brokerPublishingPortURI;
 	
 	/**
@@ -74,7 +88,6 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 		assert(registrationOutboundPort != null) : new PreconditionException("registrationOutboundPort cannot be null");
 		assert(publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()) : new PreconditionException("publishingOutboundPortURI cannot be null or empty");
 		assert(brokerPublishingPortURI != null && !brokerPublishingPortURI.isEmpty()) : new PreconditionException("brokerPublishingPortURI cannot be null or empty");
-		
 		
 		this.receivingInboundPortURI = receivingInboundPortURI;
 		this.registrationOutboundPort = registrationOutboundPort;

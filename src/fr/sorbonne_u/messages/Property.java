@@ -18,7 +18,11 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI.PropertyI;
 public class Property implements PropertyI{
 
 	private static final long serialVersionUID = -5677422397857856072L;
-	private String name;
+	
+	/** The name of the property */
+	private final String name;
+	
+	/** The value of the property */
 	private Serializable value;
 
 	/**

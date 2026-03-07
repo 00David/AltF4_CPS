@@ -41,13 +41,21 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
  */
 public class ClientBrokerInfos {
 	
-	// Set by the Broker in its constructor
+	/** The maximum number of channels that a standard client can create. Set by the Broker in its constructor */
 	public static int nbMaxChannelsStd = -1;
+	/** The maximum number of channels that a premium client can create. Set by the Broker in its constructor */
 	public static int nbMaxChannelsPrem = -1;
 
+	/** The URI of the client port, defining the client */
 	private final String clientPortURI;
+	
+	/** The registration class of the client */
 	private RegistrationClass rc;
+	
+	/** The outbound port towards this client */
 	private final BrokerReceivingOutboundPort clientOutboundPort;
+	
+	/** The number of remaining channels the client can create */
 	private int nbRemainingChannels;
 	
 	/**

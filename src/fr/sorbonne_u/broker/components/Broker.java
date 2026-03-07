@@ -69,23 +69,42 @@ public class Broker extends AbstractComponent{
 	// Internal datas
 	//--------------------------------------------------------------------------
 	
-	// Broker's inbound registration port, got by static method 'registrationPortURI'
+	// REGISTRATION
+	
+	/** Broker's inbound registration port, got by static method 'registrationPortURI' */
 	private static final String registrationPortURI = "registration-inbound--port-broker";
+	
+	/** Broker's inbound port, implementing {@link RegistrationCI} */
 	private final BrokerRegistrationInboundPort registrationPort;
+	
+	/**
+	 * Public getter for allowing clients to register on the broker.
+	 * @return The URI of Broker's {@link BrokerRegistrationInboundPort}.
+	 */
 	public static String registrationPortURI() { return registrationPortURI;}
 	
-	// Broker's inbound publication port, got by registering an inbound client port
+	// PUBLICATION
+	
+	/** Broker's inbound publication port, got by registering an inbound client port */
 	private static final String publishingPortURI = "publishing-inbound-port-broker";
+	
+	/** Broker's inbound port, implementing {@link PublishingCI} */
 	private final BrokerPublishingInboundPort publishingPort;
 	
-	// Broker's inbound privileged port, got by registering an inbound privileged client port
+	// PRIVILEGED MANAGEMENT
+	
+	/** Broker's inbound privileged port, got by registering an inbound privileged client port */
 	private static final String privilegedPortURI = "privileged-inbound-port-broker";
+	
+	/** Broker's inbound port, implementing {@link PrivilegedClientCI} */
 	private final BrokerPrivilegedInboundPort privilegedPort;
 
-	// Mapping : client inbound port (URI) -> its informations
+	// DATA MAPPINGS
+	
+	/** Mapping : client inbound port (URI) -> its informations */
 	private Map<String, ClientBrokerInfos> clientsInfos = new HashMap<>(); 
 	
-	// Mapping : channel name -> its informations
+	/** Mapping : channel name -> its informations */
 	private Map<String, ChannelBrokerInfos> channelsInfos = new HashMap<>();
 	
 	//--------------------------------------------------------------------------
@@ -121,6 +140,7 @@ public class Broker extends AbstractComponent{
 		ClientBrokerInfos.nbMaxChannelsPrem = nbMaxChannelsPrem;
 		
 		// Creation of N channels
+		// Most of the time, the channel0 will be for wind datas, and the channel1 for meteo alerts
 		for (int i = 0; i < N; i++) {
 			String chan = "channel"+i;
 			channelsInfos.put(chan, new ChannelBrokerInfos(chan, ".*", null, false));
@@ -834,7 +854,7 @@ public class Broker extends AbstractComponent{
 	}
 
 	/**
-	 * Replace the users authorised to use {@code channel}.
+	 * Replace the users authorised to use {@code channel}, only available for the creator of the {@code channel}.
 	 * 
 	 * <p>
 	 * After modyfing the authorized users, unregister users not matching anymore the new regex.
@@ -854,7 +874,7 @@ public class Broker extends AbstractComponent{
 	 * @param autorisedUsers				regular expression that matches the URIs of components that must be authorised to use the new channel.
 	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
-	 * @throws UnauthorisedClientException  If the {@code receptionPortURI} is not allowed to interact with the {@code channel}.
+	 * @throws UnauthorisedClientException  If the {@code receptionPortURI} is not the creator of the {@code channel}.
 	 */
 	public Void modifyAuthorisedUsersService(String receptionPortURI, String channel, String autorisedUsers)
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
@@ -863,10 +883,15 @@ public class Broker extends AbstractComponent{
 		assert(channel != null && !channel.isEmpty());
 		assert(autorisedUsers != null && !autorisedUsers.isEmpty());
 		
-		if (!isAuthorisedUserService(channel, receptionPortURI)) throw new UnauthorisedClientException("Client "+receptionPortURI+" not authorized");
+		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+
+		// If the client is not the creator of the channel, then he cannot modify authorized users.
+		ChannelBrokerInfos chan = channelsInfos.get(receptionPortURI);
+		if (!chan.getCreator().equals(receptionPortURI)) throw new UnauthorisedClientException("Client "+receptionPortURI+" is not the creator of the channel : '"+channel+"'");
 		
 		// Updates the accepted regex and delegates potential unregistrations to the method
-		channelsInfos.get(channel).modifyAuthorizedUsers(autorisedUsers);
+		chan.modifyAuthorizedUsers(autorisedUsers);
 		return null;
 	}
 
@@ -939,6 +964,11 @@ public class Broker extends AbstractComponent{
 			msg = chanInfos.getMessage();
 		}
 		
+		// Dans le cahier des charges il est mentionné que les ports entrants offrant ReceivingCI doivent être déconnectés après 
+		// destruction d'un channel, mais cela semble être trop pénalisant/pas naturel pour un tel système, du coup on fait le choix
+		// de garder les ports connectés, mais via la destruction du mapping du channel d'implicitement unsubscribe les clients du channel, 
+		// sans donc complètement tous les déconnecter du système
+		
 		return null;
 	}
 
@@ -982,6 +1012,11 @@ public class Broker extends AbstractComponent{
 		if (channelCreator != null && clientsInfos.get(channelCreator) != null) {
 			clientsInfos.get(channelCreator).increaseRemainingChannels();
 		}
+		
+		// Dans le cahier des charges il est mentionné que les ports entrants offrant ReceivingCI doivent être déconnectés après 
+		// destruction d'un channel, mais cela semble être trop pénalisant/pas naturel pour un tel système, du coup on fait le choix
+		// de garder les ports connectés, mais via la destruction du mapping du channel d'implicitement unsubscribe les clients du channel, 
+		// sans donc complètement tous les déconnecter du système
 		
 		return null;
 	}

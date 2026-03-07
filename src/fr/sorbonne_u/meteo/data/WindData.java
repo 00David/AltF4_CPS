@@ -18,11 +18,13 @@ public class WindData implements WindDataI {
 
 	private static final long serialVersionUID = 8536953812168770777L;
 
-	private PositionData position;
+	/** Source position of the wind vector */
+	private final PositionData position;
 	
-	// Wind vector
-	private double windX;
-	private double windY;
+	/** X component of the wind vector */
+	private final double windX;
+	/** Y component of the wind vector */
+	private final double windY;
 	
 	/**
 	 * Creates a wind described by a vector and a source position.

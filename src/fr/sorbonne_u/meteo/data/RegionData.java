@@ -18,10 +18,15 @@ import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
 public class RegionData implements RegionI {
 
 	private static final long serialVersionUID = 4505980791444655950L;
-	private double xMin;
-	private double xMax;
-	private double yMin;
-	private double yMax;
+	
+	/** X lower bound of the region limit */
+	private final double xMin;
+	/** X upper bound of the region limit */
+	private final double xMax;
+	/** Y lower bound of the region limit */
+	private final double yMin;
+	/** Y upper bound of the region limit */
+	private final double yMax;
 	
 	/**
 	 * Creates a region described by a rectangle, by giving the rectangle's limits.

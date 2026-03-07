@@ -6,7 +6,6 @@ import java.util.stream.Stream;
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
 import fr.sorbonne_u.clients.ports.ClientReceivingPluginInboundPort;
 import fr.sorbonne_u.clients.ports.ClientRegistrationOutboundPort;
-import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
@@ -64,16 +63,15 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 		windTurbine.logMessage("WindTurbine received message '" + message + "' from the channel : " + channel);
 		Serializable payload = message.getPayload();
 
-		// Handling received wind data
+		// Handling of received wind data delegated to the WindTurbine
 		if (payload instanceof WindData && !windTurbine.inSafeMode()) {
-			windTurbine.calculateNeededDirection((WindData) payload);
+			windTurbine.considerNewWindData((WindData) payload);
 		
-		// Handling received wind data
+		// Handling of received meteo alert delegated to the WindTurbine
 		} else if (payload instanceof MeteoAlert) {
-			MeteoAlertI alert = (MeteoAlertI) payload;
-			windTurbine.react(alert.getLevel());
+			windTurbine.considerNewAlert((MeteoAlert) payload);
 			
-		// Handling received wind data while in safe mode (nothing)
+		// Handling of received wind data while in safe mode (nothing)
 		} else {
 			windTurbine.logMessage("------------------------------");
 		}
@@ -93,16 +91,15 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 		for (MessageI mes : messages) {
 			Serializable payload = mes.getPayload();
 			
-			// Handling received wind data
+			// Handling of received wind data delegated to the WindTurbine
 			if (payload instanceof WindData && !windTurbine.inSafeMode()) {
-				windTurbine.calculateNeededDirection((WindData) payload);
+				windTurbine.considerNewWindData((WindData) payload);
 			
-			// Handling received wind data
+			// Handling of received meteo alert delegated to the WindTurbine
 			} else if (payload instanceof MeteoAlert) {
-				MeteoAlertI alert = (MeteoAlertI) payload;
-				windTurbine.react(alert.getLevel());
+				windTurbine.considerNewAlert((MeteoAlert) payload);
 				
-			// Handling received wind data while in safe mode (nothing)
+			// Handling of received wind data while in safe mode (nothing)
 			} else {
 				windTurbine.logMessage("------------------------------");
 			}

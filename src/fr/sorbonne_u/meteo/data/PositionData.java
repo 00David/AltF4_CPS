@@ -16,8 +16,11 @@ import fr.sorbonne_u.cps.meteo.interfaces.PositionI;
 public class PositionData implements PositionI {
 	
 	private static final long serialVersionUID = -4464305380366957098L;
-	private double posX;
-	private double posY;
+	
+	/** X coordinate */
+	private final double posX;
+	/** Y coordinate */
+	private final double posY;
 	
 	/**
 	 * Creates a (X,Y) coordinate couple.

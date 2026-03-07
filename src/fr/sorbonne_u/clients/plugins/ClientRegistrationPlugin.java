@@ -32,15 +32,21 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 
 	private static final long serialVersionUID = 612748100445996427L;
 	
-	// Reception
+	// RECEPTION
+	
+	/** {@link Client} reception inbound port URI */
 	protected final String receivingInboundPortURI;
 	
-	// Registration
-	protected final String registrationOutboundPortURI;
-	protected ClientRegistrationOutboundPort registrationOutboundPort; // Set up after plugin installation + initialization
+	// REGISTRATION
 	
-	// Broker inbound port
-	protected String brokerPublishingPortURI; // Set up after registration on the Broker
+	/** {@link Client} registration outbound port URI */
+	protected final String registrationOutboundPortURI;
+	
+	/** Registration outbound port, set up after plugin installation + initialization */
+	protected ClientRegistrationOutboundPort registrationOutboundPort;
+	
+	/** {@link Broker} publication inbound port URI, got after registration on the Broker */
+	protected String brokerPublishingPortURI;
 	
 	/**
 	 * Creates a {@link Client} registration plugin.

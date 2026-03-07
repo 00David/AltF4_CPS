@@ -25,11 +25,17 @@ import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
 public class MeteoAlert implements MeteoAlertI {
 	
 	private static final long serialVersionUID = -517623868931917800L;
-	private AlertTypeI alertType;
-	private LevelI alertLevel;
-	private ArrayList<RegionI>regions;
-	private Instant startTime;
-	private Duration duration;
+	
+	/** Alert type */
+	private final AlertTypeI alertType;
+	/** Alert level */
+	private final LevelI alertLevel;
+	/** Regions affected by this alert */
+	private final ArrayList<RegionI>regions;
+	/** Start time of the alert */
+	private final Instant startTime;
+	/** Duration of the alert */
+	private final Duration duration;
 	
 	/**
 	 * Creates a meteo alert. 

@@ -1,6 +1,5 @@
 package fr.sorbonne_u.meteo.tests;
 
-import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.utils.tests.TestScenario;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.LevelI;
 import fr.sorbonne_u.meteo.components.WindTurbine;
@@ -16,14 +15,14 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * 
  * <p>The scenario is described in the {@link CVMTest} class.</p>
  * 
- * <p>The class does extend {@link WindTurbine} because it only listens by default, while here it has also defined actions to make.</p>
+ * <p>The class does extend {@link WindTurbine} because instead of only listening by default, here it has also defined actions to make.</p>
  * 
  * @author Kevin TANG
  * @author David VADIMON
  */
 public class WindTurbineTest extends WindTurbine {
 	
-	// Scenario
+	/** The test scenario followed by the component */
 	protected final TestScenario testScenario;
 
 	//--------------------------------------------------------------------------
@@ -31,45 +30,39 @@ public class WindTurbineTest extends WindTurbine {
 	//--------------------------------------------------------------------------
 	
 	/**
-     * Creates a wind turbine component for the publish/subscribe system.
-     * 
-     * <p>Test version extending {@link WindTurbine}, taking a {@code reflectionInboundPortURI} as a parameter.</p>
+     * Creates a test wind turbine component for the publish/subscribe system.
      * 
      * <p><strong>Contract</strong></p>
      * <pre>
+     * pre  {@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
      * pre  {@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
      * pre  {@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
-     * pre  {@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
      * pre  {@code pos != null}
      * pre  {@code maxWorkingLevel != null}
+	 * pre	{@code reflectionInboundPortURI != null && !reflectionInboundPortURI.isEmpty()}
 	 * pre  {@code testScenario != null}
      * post {@code true} // no postcondition.
      * </pre>
      * 
+     * @param receivingInboundPortURI     URI of the inbound port providing {@link ReceivingCI}.
      * @param registrationOutboundPortURI URI of the outbound port requesting {@link RegistrationCI}.
      * @param publishingOutboundPortURI   URI of the outbound port requesting {@link PublishingCI}.
-     * @param receivingInboundPortURI     URI of the inbound port providing {@link ReceivingCI}.
 	 * @param nbThreads					  Number of threads to be created in the component pool.
 	 * @param nbSchedulableThreads		  Number of threads to be created in the component schedulable pool.
      * @param pos                         The position of the wind turbine.
      * @param maxWorkingLevel             Maximum alert level (inclusive) at which the turbine operates.
-	 * @param testScenario					Test scenario in which this component participate.
-	 * @param reflectionInboundPortURI		URI of the reflection inbound port to be created in this component.
+	 * @param reflectionInboundPortURI	  URI of the reflection inbound port to be created in this component.
+	 * @param testScenario				  Test scenario in which this component participate.
      * @throws Exception                  If a problem occurs during initialization or port publication.
      */
-	protected WindTurbineTest(String registrationOutboundPortURI, String publishingOutboundPortURI, String receivingInboundPortURI, 
-			int nbThreads, int nbSchedulableThreads, PositionData pos,LevelI maxWorkingLevel, TestScenario testScenario, String reflectionInboundPortURI) throws Exception {
-		super(registrationOutboundPortURI, publishingOutboundPortURI, receivingInboundPortURI, 1, 0, pos, maxWorkingLevel,
-				reflectionInboundPortURI);
-		// Some preconditions are checked inside the superconstructor while others are checked here
+	protected WindTurbineTest(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, 
+			int nbThreads, int nbSchedulableThreads, PositionData pos,LevelI maxWorkingLevel, String reflectionInboundPortURI, TestScenario testScenario) throws Exception {
+		super(receivingInboundPortURI, registrationOutboundPortURI, publishingOutboundPortURI, 1, 0, pos, maxWorkingLevel, reflectionInboundPortURI);
+		
+		// Most preconditions are checked inside the superconstructor while the last one is checked here
 		assert(testScenario != null) : new PreconditionException("testScenario cannot be null");	
-		
 		this.testScenario = testScenario;
-		
-		// Invariant checks
-		AbstractComponent.checkImplementationInvariant(this);
-		AbstractComponent.checkInvariant(this);
 	}
 
 	// --------------------------------------------------------------------------

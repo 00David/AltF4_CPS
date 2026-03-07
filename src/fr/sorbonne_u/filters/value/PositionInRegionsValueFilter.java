@@ -22,6 +22,11 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.ValueFilterI;
 public class PositionInRegionsValueFilter implements ValueFilterI {
 	
 	private static final long serialVersionUID = 1041120887376161384L;
+	
+	/** 
+	 * The filter accepts only regions containing this position.<br>
+	 * Only 1 region of the list provided in the {@code match} method containing this position is enough for matching. 
+	 */
 	private PositionI position; 
 
 	/**

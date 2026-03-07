@@ -10,8 +10,6 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 /**
  * The Message class implementing a message for the publication/subscription system.
  * 
- * <p>The timestamp is initialized with the message creation time (not while setting the payload)</p>
- * 
  * <p><strong>Invariants</strong></p>
  * <pre>
  * invariant	{@code timeStamp != null}
@@ -24,9 +22,15 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 public class Message implements MessageI {
 
 	private static final long serialVersionUID = -6675042347367398334L;
-	protected Serializable payload;
-	protected Instant timeStamp;
-	protected HashMap<String, PropertyI> properties;
+	
+	/** The payload of the message */
+	private Serializable payload;
+	
+	/** The timeStamp of the message, initialized with the message creation time (not while setting the payload) */
+	private Instant timeStamp;
+	
+	/** A mapping : name of a message's property -> the corresponding property object */
+	private HashMap<String, PropertyI> properties;
 	
 	/**
 	 * Creates an empty message.

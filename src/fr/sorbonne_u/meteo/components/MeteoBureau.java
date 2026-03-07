@@ -23,18 +23,18 @@ import fr.sorbonne_u.messages.Message;
 import fr.sorbonne_u.meteo.data.MeteoAlert;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.RegionData;
+import fr.sorbonne_u.meteo.tests.MeteoBureauTest;
 
 /**
  * Class representing a meteorological office emitting random alerts periodically.
  * 
  * <p>
- * The office sends alerts at random intervals within the specified range.
+ * The office sends alerts at random intervals within the specified range, if indicated by the constructor used.
  * </p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
  * invariant	{@code bureauPosition != null}
- * invariant	{@code sleepMinTime >= 0}
  * invariant	{@code sleepMaxTime >= sleepMinTime}
  * invariant	{@code publishingOutboundPortURI!= null & !publishingOutboundPortURI.isEmpty()}
  * invariant	if {@code this.rc != FREE} : {@code privilegedOutboundPortURI != null && !privilegedOutboundPortURI.isEmpty()}
@@ -46,25 +46,43 @@ import fr.sorbonne_u.meteo.data.RegionData;
  */
 public class MeteoBureau extends Client {
 	
-	private PositionData bureauPosition;
+	/** The component position */
+	protected final PositionData bureauPosition;
 	
-	// Waiting time between each alert in seconds
-	private int sleepMinTime;
-	private int sleepMaxTime;
+	/** Minimum waiting time between each alert in seconds */
+	protected int sleepMinTime;
+	/** Maximum waiting time between each alert in seconds */
+	protected int sleepMaxTime;
 	
-	// Publication
+	/** 
+	 * Indicates if the component must recursively send alerts while executing.<br>
+	 * Classic constructor sets true, while the constructor used by test sub-classes sets false.
+	 */
+	private final boolean sendAlertsFromExec;
+	
+	// PUBLICATION
+	
+	/** Publication outbound port URI */
 	protected final String publishingOutboundPortURI; 
+	
+	/** Publication plugin */
 	protected ClientPublicationPlugin publicationPlugin;
 	
-	// Subscription + reception
+	// SUBSCRIPTION + RECEPTION
+	
+	/** Subscription + reception plugin (used here only for subscription) */
 	protected final ClientSubscriptionPlugin subscriptionPlugin;
 	
-	// Privileged management
-	protected String privilegedOutboundPortURI = null; // stays null if the client is not privileged
-	protected ClientPrivilegedPlugin privilegedPlugin = null; // stays null if the client is not privileged
+	// PRIVILEGED MANAGEMENT
+	
+	/** Privileged outbound port URI, stays null if the client is not privileged */
+	protected String privilegedOutboundPortURI = null;
+	
+	/** Privileged outbound port, stays null if the client is not privileged */
+	protected ClientPrivilegedPlugin privilegedPlugin = null;
 
 	//--------------------------------------------------------------------------
-	// Constructor
+	// Constructors
 	//--------------------------------------------------------------------------
 
 	/**
@@ -72,9 +90,9 @@ public class MeteoBureau extends Client {
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
+	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
 	 * pre	{@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
 	 * pre	{@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
-	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
 	 * pre	{@code privilegedOutboundPortURI != null}, if {@code rc != FREE : !privilegedOutboundPortURI.isEmpty()}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
 	 * pre	{@code bureauPosition != null}
@@ -82,9 +100,9 @@ public class MeteoBureau extends Client {
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 * 
+	 * @param receivingInboundPortURI       URI of the inbound port offering {@link ReceivingCI}.
 	 * @param registrationOutboundPortURI   URI of the outbound port requiring {@link RegistrationCI}.
 	 * @param publishingOutboundPortURI     URI of the outbound port requiring {@link PublishingCI}.
-	 * @param receivingInboundPortURI       URI of the inbound port offering {@link ReceivingCI}.
 	 * @param privilegedOutboundPortURI	    URI of the outbound port requiring {@link PrivilegedClientCI}. Can be empty if the client if FREE, otherwise it cannot.
 	 * @param rc			   				The registration class of the component.
 	 * @param nbThreads						Number of threads to be created in the component pool.
@@ -94,9 +112,10 @@ public class MeteoBureau extends Client {
 	 * @param sleepMaxTime                  Maximum waiting time between two alerts.
 	 * @throws Exception                    If an error occurs during initialization or port publication.
 	 */
-	protected MeteoBureau(String registrationOutboundPortURI, String publishingOutboundPortURI, String receivingInboundPortURI, String privilegedOutboundPortURI, 
+	protected MeteoBureau(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, String privilegedOutboundPortURI, 
 			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData bureauPosition, int sleepMinTime, int sleepMaxTime) throws Exception {
-		super(receivingInboundPortURI, registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads);
+		super(receivingInboundPortURI, "registration", registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads);
+		
 		// Some preconditions are checked inside the superconstructor while others are checked here
 		assert(bureauPosition != null) : new PreconditionException("bureauPosition cannot be null");
 		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime) : new PreconditionException("sleep times must be coherent");
@@ -110,6 +129,78 @@ public class MeteoBureau extends Client {
 		this.sleepMinTime = sleepMinTime;
 		this.sleepMaxTime = sleepMaxTime;
 		this.publishingOutboundPortURI = publishingOutboundPortURI;
+		this.sendAlertsFromExec = true;
+		
+		// Install the subscription + reception plugin
+		this.subscriptionPlugin = new ClientSubscriptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
+		this.subscriptionPlugin.setPluginURI("subscription");
+		this.installPlugin(this.subscriptionPlugin);
+		
+		// Invariant checks
+		AbstractComponent.checkImplementationInvariant(this);
+		AbstractComponent.checkInvariant(this);
+		
+		// Postcondition checks
+		assert subscriptionPlugin.isInitialised() : 
+			new PostconditionException("Subscription (+reception) plugin must be initialized");
+		assert	this.isPortExisting(receivingInboundPortURI) : 
+			new PostconditionException("The component must have a port with URI " + receivingInboundPortURI);
+		assert	this.findPortFromURI(receivingInboundPortURI).getImplementedInterface().equals(ReceivingCI.class) : 
+			new PostconditionException("The component must have a port with implemented interface ReceivingCI");
+		assert	this.findPortFromURI(receivingInboundPortURI).isPublished() :
+			new PostconditionException("The component must have a port published with URI " + receivingInboundPortURI);
+		
+		this.getTracer().setTitle("MeteoBureau");
+		this.getTracer().setRelativePosition((int)bureauPosition.getPosX(), (int)bureauPosition.getPosY());
+	}
+	
+	/**
+	 * Creates a meteorological office component of the publish/subscribe system, extending {@link Client}, by providing 
+	 * the {@code reflectionInboundPortURI} of the component.
+	 * 
+	 * <p>Constructor used by test sub-class {@link MeteoBureauTest}.<p/>
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
+	 * pre	{@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
+	 * pre	{@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
+	 * pre	{@code privilegedOutboundPortURI != null}, if {@code rc != FREE : !privilegedOutboundPortURI.isEmpty()}
+	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
+	 * pre	{@code bureauPosition != null}
+	 * pre	{@code reflectionInboundPortURI != null && !reflectionInboundPortURI.isEmpty()}
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 * 
+	 * @param receivingInboundPortURI       URI of the inbound port offering {@link ReceivingCI}.
+	 * @param registrationOutboundPortURI   URI of the outbound port requiring {@link RegistrationCI}.
+	 * @param publishingOutboundPortURI     URI of the outbound port requiring {@link PublishingCI}.
+	 * @param privilegedOutboundPortURI	    URI of the outbound port requiring {@link PrivilegedClientCI}. Can be empty if the client if FREE, otherwise it cannot.
+	 * @param rc			   				The registration class of the component.
+	 * @param nbThreads						Number of threads to be created in the component pool.
+	 * @param nbSchedulableThreads			Number of threads to be created in the component schedulable pool.
+	 * @param bureauPosition                The position of the office.
+	 * @param reflectionInboundPortURI		URI of the reflection inbound port to be created in this component.
+	 * @throws Exception                    If an error occurs during initialization or port publication.
+	 */
+	protected MeteoBureau(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, String privilegedOutboundPortURI, 
+			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData bureauPosition, String reflectionInboundPortURI) throws Exception {
+		super(receivingInboundPortURI, "registration", registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
+		
+		// Some preconditions are checked inside the superconstructor while others are checked here
+		assert(bureauPosition != null) : new PreconditionException("bureauPosition cannot be null");
+		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime) : new PreconditionException("sleep times must be coherent");
+		assert(privilegedOutboundPortURI != null) : new PreconditionException("privilegedOutboundPortURI cannot be null");
+		if (rc != RegistrationClass.FREE) {
+			assert (!privilegedOutboundPortURI.isEmpty()) : new PreconditionException("privilegedOutboundPortURI cannot be empty if the client is privileged");
+			this.privilegedOutboundPortURI = privilegedOutboundPortURI;
+		}
+		
+		this.bureauPosition = bureauPosition;
+		this.sleepMinTime = -1;
+		this.sleepMaxTime = -1;
+		this.publishingOutboundPortURI = publishingOutboundPortURI;
+		this.sendAlertsFromExec = false;
 		
 		// Install the subscription + reception plugin
 		this.subscriptionPlugin = new ClientSubscriptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
@@ -163,7 +254,7 @@ public class MeteoBureau extends Client {
 			assert privilegedPlugin.isInitialised();
 		}
 		
-	    sendAlert("channel1");
+		if (sendAlertsFromExec) publishRandomAlert("channel1");
 	}
 	
 	// --------------------------------------------------------------------------
@@ -182,7 +273,7 @@ public class MeteoBureau extends Client {
 	 * @param channel      The name of the channel to send the alert on.
 	 * @throws Exception   If an error occurs during publishing.
 	 */
-	protected void sendAlert(String channel) throws Exception {
+	protected void publishRandomAlert(String channel) throws Exception {
 		// Precondition check
 		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");	
 		
@@ -215,7 +306,7 @@ public class MeteoBureau extends Client {
 		publicationPlugin.publish(channel, msg);
 		
 		// Recursive call
-		sendAlert("channel1");
+		publishRandomAlert("channel1");
 	}
 	
 	// --------------------------------------------------------------------------

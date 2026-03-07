@@ -22,6 +22,8 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.ValueFilterI;
 public class IdenticalValueFilter implements ValueFilterI {
 
 	private static final long serialVersionUID = 8651615691590385567L;
+	
+	/** The filter accepts only values identical to this value (according to the .equals(...) method) */
 	private Serializable filterValue; 
 	
 	/**

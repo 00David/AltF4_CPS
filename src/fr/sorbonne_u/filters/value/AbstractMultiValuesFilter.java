@@ -23,6 +23,8 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.MultiValuesFilterI;
 public abstract class AbstractMultiValuesFilter implements MultiValuesFilterI {
 
 	private static final long serialVersionUID = 1955588007790725754L;
+	
+	/** Propertie names on which the filter applies */
 	protected String[] propertyNames;
 	
 	/**

@@ -36,11 +36,17 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 
 	private static final long serialVersionUID = -1472841763925529259L;
 	
-	// Reception
-	protected final String receivingInboundPortURI;
-	protected ClientReceivingPluginInboundPort receivingInboundPort; // Set up after plugin installation + initialization
+	// RECEPTION
 	
-	// Registration
+	/** {@link Client} reception inbound port URI */
+	protected final String receivingInboundPortURI;
+	
+	/** Reception inbound port, set up after plugin installation + initialization */
+	protected ClientReceivingPluginInboundPort receivingInboundPort;
+	
+	// REGISTRATION
+	
+	/** Registration outbound port, owned by {@link ClientRegistrationPlugin} */
 	protected final ClientRegistrationOutboundPort registrationOutboundPort;
 	
 	/**
