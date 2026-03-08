@@ -13,9 +13,16 @@ import fr.sorbonne_u.components.utils.tests.TestStep;
 import fr.sorbonne_u.components.utils.tests.TestStepI;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
+import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
+import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.PropertyFilterI;
+import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.TimeFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.exceptions.VerboseException;
-import fr.sorbonne_u.meteo.components.WindTurbine;
+import fr.sorbonne_u.filters.MessageFilter;
+import fr.sorbonne_u.filters.property.PropertiesFilter;
+import fr.sorbonne_u.filters.property.PropertyFilter;
+import fr.sorbonne_u.filters.time.GreaterOrEqualTimeFilter;
+import fr.sorbonne_u.filters.value.meteo.PositionInRegionsValueFilter;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.RegionData;
 import fr.sorbonne_u.utils.aclocks.ClocksServer;
@@ -23,18 +30,20 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
 /**
  * Test class to simulate the following scenario from the start of the CVM:
  * <p>
- * <li> - After 30 seconds, {@link MeteoStationTest} n°1 sends wind data to 'channel0'.
- * <li> - After 60 seconds, {@link MeteoStationTest} n°2 sends wind data to 'channel0'.
- * <li> - After 90 seconds, {@link MeteoBureauTest} sends a dangerous alert to 'channel1'.
- * <li> - After 120 seconds, {@link MeteoBureauTest} sends an end-of-danger alert to 'channel1'.
- * <li> - After 150 seconds, {@link MeteoStationTest} n°1 sends wind data again to 'channel0'.
- * <li> - After 180 seconds, {@link MeteoBureauTest} sends a dangerous alert to 'channel1', not affecting the wind turbine region.
+ * <ul>
+ * 	<li> - After 30 seconds, {@link MeteoStationTest} n°1 sends wind data to 'channel0'.
+ * 	<li> - After 60 seconds, {@link MeteoStationTest} n°2 sends wind data to 'channel0'.
+ * 	<li> - After 90 seconds, {@link MeteoBureauTest} sends a dangerous alert to 'channel1'.
+ * 	<li> - After 120 seconds, {@link MeteoBureauTest} sends an end-of-danger alert to 'channel1'.
+ * 	<li> - After 150 seconds, {@link MeteoStationTest} n°1 sends wind data again to 'channel0'.
+ * 	<li> - After 180 seconds, {@link MeteoBureauTest} sends a dangerous alert to 'channel1', not affecting the wind turbine region.
+ * </ul>
  * </p>
  * 
  * @author Kevin TANG
  * @author David VADIMON
  */
-public class CVMTest extends AbstractCVM {
+public class CVMSimpleTest extends AbstractCVM {
 	
 	// -------------------------------------------------------------------------
 	// Test constants and variables
@@ -87,6 +96,14 @@ public class CVMTest extends AbstractCVM {
 	protected final String WindTurbinePublishingOutboundPortURI = "publishing-outbound-port-WindTurbine";
 	protected static final PositionData windTurbinePosition = new PositionData(2, 2);
 	protected static final MeteoAlertI.Level maxWorkingLevelWT = MeteoAlertI.Level.ORANGE; // inclusive
+	
+    // Creation of a filter only accepting messages after the start of the scenario
+    protected TimeFilterI timeFilter = new GreaterOrEqualTimeFilter(Instant.parse(START_INSTANT));
+    // No special constraint on wind data reception
+    protected MessageFilterI windTurbineWindFilter = new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], timeFilter);
+    // On alert reception : creation of a filter accepting alerts with targeted regions containing the wind turbine position
+    protected PropertyFilterI[] propFiltersAlert = {new PropertyFilter("regions", new PositionInRegionsValueFilter(windTurbinePosition))};
+    protected MessageFilterI windTurbineAlertFilter = new MessageFilter(propFiltersAlert, new PropertiesFilter[0], timeFilter);
 	
 	// Component URIs for tests (without the Broker)
 	protected static String MB_URI = "MeteoBureau-URI";
@@ -214,7 +231,7 @@ public class CVMTest extends AbstractCVM {
 				});
 	}
 	
-	public CVMTest() throws Exception{
+	public CVMSimpleTest() throws Exception{
 		super();
 	}
 	
@@ -247,7 +264,7 @@ public class CVMTest extends AbstractCVM {
 		String meteoBureau_URI_verif = AbstractComponent.createComponent(
 				MeteoBureauTest.class.getCanonicalName(),
 				new Object[] { MBReceivingInboundPortURI, MBRegistrationOutboundPortURI, MBPublishingOutboundPortURI, "", // privileged port URI empty
-						RegistrationClass.FREE, 1, 1, bureauPosition, MB_URI, testScenario});
+						RegistrationClass.FREE, 1, 1, bureauPosition, MB_URI, testScenario, 1});
 		assert MB_URI.equals(meteoBureau_URI_verif);
 		assert this.isDeployedComponent(MB_URI);
 		this.toggleTracing(MB_URI);
@@ -257,7 +274,7 @@ public class CVMTest extends AbstractCVM {
 		String meteoStation1_URI_verif = AbstractComponent.createComponent(
 				MeteoStationTest.class.getCanonicalName(),
 				new Object[] { MS1ReceivingInboundPortURI, MS1RegistrationOutboundPortURI, MS1PublishingOutboundPortURI, "", // privileged port URI empty
-						RegistrationClass.FREE, 1, 1, station1Position, MS1_URI, testScenario});
+						RegistrationClass.FREE, 1, 1, station1Position, MS1_URI, testScenario, 1});
 		assert MS1_URI.equals(meteoStation1_URI_verif);
 		assert this.isDeployedComponent(MS1_URI);
 		this.toggleTracing(MS1_URI);
@@ -266,25 +283,17 @@ public class CVMTest extends AbstractCVM {
 		String meteoStation2_URI_verif = AbstractComponent.createComponent(
 				MeteoStationTest.class.getCanonicalName(),
 				new Object[] { MS2ReceivingInboundPortURI, MS2RegistrationOutboundPortURI, MS2PublishingOutboundPortURI, "", // privileged port URI empty
-						RegistrationClass.FREE, 1, 1, station2Position, MS2_URI, testScenario});
+						RegistrationClass.FREE, 1, 1, station2Position, MS2_URI, testScenario, 2});
 		assert MS2_URI.equals(meteoStation2_URI_verif);
 		assert this.isDeployedComponent(MS2_URI);
 		this.toggleTracing(MS2_URI);
 		
 		// Creation of 1 WindTurbine between both MeteoStations
 		
-		String tmp_windTurbine_URI = AbstractComponent.createComponent(WindTurbine.class.getCanonicalName(),
+		String tmp_windTurbine_URI = AbstractComponent.createComponent(WindTurbineTest.class.getCanonicalName(),
 				new Object[] { WindTurbineReceivingInboundPortURI, WindTurbineRegistrationOutboundPortURI, WindTurbinePublishingOutboundPortURI,
-						1, 0, windTurbinePosition, maxWorkingLevelWT});
+						1, 1, windTurbinePosition, maxWorkingLevelWT, WT_URI, 1, windTurbineWindFilter, windTurbineAlertFilter});
 		this.toggleTracing(tmp_windTurbine_URI);
-		
-		// To uncomment if the windturbine participates to the scenario (in a step of it)
-		/*String windTurbine_URI_verif = WT_URI = AbstractComponent.createComponent(WindTurbineTest.class.getCanonicalName(),
-				new Object[] {WindTurbineRegistrationOutboundPortURI,WindTurbinePublishingOutboundPortURI,WindTurbineReceivingInboundPortURI,
-						1, 1, windTurbinePosition, maxWorkingLevelWT, testScenario, WT_URI});
-		assert WT_URI.equals(windTurbine_URI_verif);
-		assert this.isDeployedComponent(WT_URI);
-		this.toggleTracing(WT_URI);*/
 		
 		// Clock server creation
 		String serv = AbstractComponent.createComponent(
@@ -310,7 +319,7 @@ public class CVMTest extends AbstractCVM {
 			VerboseException.VERBOSE = true;
 			VerboseException.PRINT_STACK_TRACE = true;
 			
-			CVMTest cvm = new CVMTest() ;
+			CVMSimpleTest cvm = new CVMSimpleTest() ;
 			cvm.startStandardLifeCycle(EXECUTION_DURATION);
 			Thread.sleep(END_SLEEP_DURATION);
 			System.exit(0) ;

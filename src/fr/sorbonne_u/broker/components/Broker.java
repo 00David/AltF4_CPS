@@ -816,7 +816,7 @@ public class Broker extends AbstractComponent{
 	}
 
 	/**
-	 * Return true if {@code uri} is authorised to use {@code channel}.
+	 * Return true if {@code uri} is authorised to use {@code channel}. The creator is automatically authorized.
 	 * 
 	 * <p>
 	 * Calls the method {@code channelAuthorisedService} before veryfing the regex for the {@code channel}'s authorized users,
@@ -843,6 +843,9 @@ public class Broker extends AbstractComponent{
 		// Precondition checks
 		assert(channel != null && !channel.isEmpty());
 		assert(uri != null && !uri.isEmpty());
+		
+		// If the client is the creator of the channel, he is automatically authorized
+		if (channelsInfos.get(channel).getCreator().equals(uri)) return true;
 
 		// This call checks that the RegistrationClass of the URI is compatible with the channel
 		if (!channelAuthorisedService(uri, channel)) return false;
@@ -887,7 +890,7 @@ public class Broker extends AbstractComponent{
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 
 		// If the client is not the creator of the channel, then he cannot modify authorized users.
-		ChannelBrokerInfos chan = channelsInfos.get(receptionPortURI);
+		ChannelBrokerInfos chan = channelsInfos.get(channel);
 		if (!chan.getCreator().equals(receptionPortURI)) throw new UnauthorisedClientException("Client "+receptionPortURI+" is not the creator of the channel : '"+channel+"'");
 		
 		// Updates the accepted regex and delegates potential unregistrations to the method

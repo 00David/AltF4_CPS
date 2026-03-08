@@ -22,7 +22,7 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
 /**
  * Test class representing a {@link MeteoBureau} following a predefined scenario.
  * 
- * <p>The scenario is described in the {@link CVMTest} class.</p>
+ * <p>The scenario is described in the {@link CVMSimpleTest} class.</p>
  * 
  * <p>The class does extend {@link MeteoBureau} because it keeps the same setup, while adding personalized actions for a test scenario.</p>
  * 
@@ -62,16 +62,20 @@ public class MeteoBureauTest extends MeteoBureau {
 	 * @param bureauPosition                The position of the office.
 	 * @param reflectionInboundPortURI		URI of the reflection inbound port to be created in this component.
 	 * @param testScenario					Test scenario in which this component participate.
+	 * @param id							A number identifying the component, just for tracer window.
 	 * @throws Exception                    If an error occurs during initialization or port publication.
 	 */
 	protected MeteoBureauTest(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, String privilegedOutboundPortURI, 
-			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData bureauPosition, String reflectionInboundPortURI, TestScenario testScenario) throws Exception {
+			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData bureauPosition, String reflectionInboundPortURI, 
+			TestScenario testScenario, int id) throws Exception {
 		super(receivingInboundPortURI, registrationOutboundPortURI , publishingOutboundPortURI, privilegedOutboundPortURI, rc, nbThreads,
 				nbSchedulableThreads, bureauPosition, reflectionInboundPortURI);
 		
 		// Most preconditions are checked inside the superconstructor while the last one is checked here
 		assert(testScenario != null) : new PreconditionException("testScenario cannot be null");	
+		
 		this.testScenario = testScenario;
+		this.getTracer().setTitle("MeteoBureau "+id);
 	}
 
 	// --------------------------------------------------------------------------
@@ -91,12 +95,13 @@ public class MeteoBureauTest extends MeteoBureau {
 	}
 	
 	// --------------------------------------------------------------------------
-	// Sending alerts
+	// Tests actions
 	// --------------------------------------------------------------------------
 	
 	/**
 	 * Publishes an alert on the given {@code channel}, with the given parameters.
 	 * 
+	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre	{@code type != null}
 	 * pre	{@code level != null}
@@ -139,5 +144,89 @@ public class MeteoBureauTest extends MeteoBureau {
 		this.logMessage("------------------------------");
 		
 		publicationPlugin.publish(channel, msg);
+	}
+	
+	/**
+	 * Creates a new channel on the broker.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * pre	{@code authorizedUsers != null && !authorizedUsers.isEmpty()}
+	 * pre	{@code registrationClass == (RegistrationClass.STANDARD || RegistrationClass.PREMIUM)}
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 * 
+	 * @param channel 			The new channel name.
+	 * @param authorizedUsers 	The regex for filtering accepted users.
+	 * @throws Exception		If an error occurs while creating the new channel.
+	 */
+	public void createNewChannel(String channel, String authorizedUsers) throws Exception {
+		// Precondition checks
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
+		assert(authorizedUsers != null && !authorizedUsers.isEmpty()) : 
+			new PreconditionException("authorizedUsers cannot be null or empty");
+		assert(registrationClass == RegistrationClass.STANDARD ||  registrationClass == RegistrationClass.PREMIUM) : 
+			new PreconditionException("client must be privileged");
+		
+		privilegedPlugin.createChannel(channel, authorizedUsers);
+		this.logMessage("Meteo Bureau has created channel : "+channel);
+	}
+	
+	/**
+	 * Modifies authorized users of the {@code channel}.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * pre	{@code authorizedUsers != null && !authorizedUsers.isEmpty()}
+	 * pre	{@code registrationClass == (RegistrationClass.STANDARD || RegistrationClass.PREMIUM)}
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 * 
+	 * @param channel 			The channel name.
+	 * @param authorizedUsers 	The new regex for filtering accepted users.
+	 * @throws Exception		If an error occurs while modifying the authorized users channel.
+	 */
+	public void modifyAuthorizedUsers(String channel, String authorizedUsers) throws Exception {
+		// Precondition checks
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
+		assert(authorizedUsers != null && !authorizedUsers.isEmpty()) : 
+			new PreconditionException("authorizedUsers cannot be null or empty");
+		assert(registrationClass == RegistrationClass.STANDARD ||  registrationClass == RegistrationClass.PREMIUM) : 
+			new PreconditionException("client must be privileged");
+		
+		privilegedPlugin.modifyAuthorisedUsers(channel, authorizedUsers);
+		this.logMessage("Meteo Bureau has modified authorized users on channel : "+channel+", now authorized : "+authorizedUsers);
+	}
+	
+	/**
+	 * Modifies authorized users of the {@code channel}.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * pre	{@code registrationClass == (RegistrationClass.STANDARD || RegistrationClass.PREMIUM)}
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 * 
+	 * @param channel 			The channel to destroy.
+	 * @throws Exception		If an error occurs while destroying the channel, or verifying the deletion.
+	 */
+	public void destroyChannelAndVerifies(String channel) throws Exception {
+		// Precondition checks
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
+		assert(registrationClass == RegistrationClass.STANDARD ||  registrationClass == RegistrationClass.PREMIUM) : 
+			new PreconditionException("client must be privileged");
+		
+		privilegedPlugin.destroyChannel(channel);
+		this.logMessage("Meteo Bureau has destroyed its channel : "+channel);
+		
+		boolean verif = subscriptionPlugin.channelExist(channel);
+		assert (verif == false);
+		this.logMessage("Channel still exists ? "+verif);
 	}
 }

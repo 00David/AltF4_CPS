@@ -16,7 +16,7 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
 /**
  * Class representing a {@link MeteoStation} emitting wind data following a predefined scenario.
  * 
- * <p>The scenario is described in the {@link CVMTest} class.</p>
+ * <p>The scenario is described in the {@link CVMSimpleTest} class.</p>
  * 
  * <p>The class does extend {@link MeteoStation} because it keeps the same setup, while adding personalized actions for a test scenario.</p>
  * 
@@ -55,16 +55,20 @@ public class MeteoStationTest extends MeteoStation {
 	 * @param rc			   				The registration class of the component.
 	 * @param stationPosition               The position of the station.
 	 * @param reflectionInboundPortURI		URI of the reflection inbound port to be created in this component.
+	 * @param id							A number identifying the component, just for tracer window.
 	 * @throws Exception                    If an error occurs during initialization or port publication.
 	 */
 	protected MeteoStationTest(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, String privilegedOutboundPortURI, 
-			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData stationPosition, String reflectionInboundPortURI, TestScenario testScenario) throws Exception {
+			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData stationPosition, String reflectionInboundPortURI, 
+			TestScenario testScenario, int id) throws Exception {
 		super(receivingInboundPortURI, registrationOutboundPortURI , publishingOutboundPortURI, privilegedOutboundPortURI, rc, nbThreads,
 				nbSchedulableThreads, stationPosition, reflectionInboundPortURI);
 		
 		// Most preconditions are checked inside the superconstructor while the last one is checked here
 		assert(testScenario != null) : new PreconditionException("testScenario cannot be null");	
+		
 		this.testScenario = testScenario;
+		this.getTracer().setTitle("MeteoStation "+id);
 	}
 	
 	// --------------------------------------------------------------------------
@@ -84,12 +88,13 @@ public class MeteoStationTest extends MeteoStation {
 	}
 	
 	// --------------------------------------------------------------------------
-	// Sending WindDatas
+	// Tests actions
 	// --------------------------------------------------------------------------
 
 	/**
 	 * Publishes a {@link WindData} with given parameters on the {@code channel}, from the position of the MeteoStation.
 	 * 
+	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre	{@code channel != null && !channel.isEmpty()}
 	 * post	{@code true}	// no postcondition.

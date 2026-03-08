@@ -14,7 +14,7 @@ import fr.sorbonne_u.filters.MessageFilter;
 import fr.sorbonne_u.filters.property.PropertiesFilter;
 import fr.sorbonne_u.filters.property.PropertyFilter;
 import fr.sorbonne_u.filters.time.GreaterOrEqualTimeFilter;
-import fr.sorbonne_u.filters.value.PositionInRegionsValueFilter;
+import fr.sorbonne_u.filters.value.meteo.PositionInRegionsValueFilter;
 import fr.sorbonne_u.meteo.data.MeteoAlert;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.WindData;
@@ -34,7 +34,10 @@ import fr.sorbonne_u.exceptions.PostconditionException;
  * appropriate decisions for its orientation or safety mode.
  * </p>
  * 
- * <p>A classic WindTurbine is necessarily a FREE client in this class</p>
+ * <p>
+ * A classic WindTurbine is necessarily a STANDARD client in this class :
+ * this is mainly explained by the necessity to be able to interact with privileged channels, in addition of default channels.
+ * </p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -72,6 +75,13 @@ public class WindTurbine extends Client {
 	
 	/** Subscription + reception plugin */
 	protected final WindTurbineReceptionPlugin subscriptionPlugin;
+	
+	
+	/** 
+	 * Indicates if the wind turbine must register itself with default filters on channels "channel0" and "channel1".<br>
+	 * Test sub-classes can set this boolean at false, otherwise it is set à true by default.
+	 */
+	protected boolean defaultReceptionOnExec;
 
 	//--------------------------------------------------------------------------
 	// Constructors
@@ -102,7 +112,7 @@ public class WindTurbine extends Client {
      */
 	protected WindTurbine(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, 
 			int nbThreads, int nbSchedulableThreads, PositionData windTurbinePos,LevelI maxWorkingLevel) throws Exception {
-		super(receivingInboundPortURI, "registration", registrationOutboundPortURI, RegistrationClass.FREE, nbThreads, nbSchedulableThreads);
+		super(receivingInboundPortURI, "registration", registrationOutboundPortURI, RegistrationClass.STANDARD, nbThreads, nbSchedulableThreads);
 		
 		// Some preconditions are checked inside the superconstructor while others are checked here
 		assert (windTurbinePos != null) : new PreconditionException("WindTurbine position cannot be null");	
@@ -113,6 +123,7 @@ public class WindTurbine extends Client {
 		this.orientation = new PositionData(0, 0);
 		this.safeMode = false;
 		this.maxWorkingLevel = maxWorkingLevel;
+		this.defaultReceptionOnExec = true;
 		
 		// Install the subscription + reception plugin (Wind turbine version)
 		this.subscriptionPlugin = new WindTurbineReceptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
@@ -167,7 +178,7 @@ public class WindTurbine extends Client {
      */
 	protected WindTurbine(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, 
 			int nbThreads, int nbSchedulableThreads, PositionData windTurbinePos, LevelI maxWorkingLevel, String reflectionInboundPortURI) throws Exception {
-		super(receivingInboundPortURI, "registration", registrationOutboundPortURI, RegistrationClass.FREE, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
+		super(receivingInboundPortURI, "registration", registrationOutboundPortURI, RegistrationClass.STANDARD, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
 		
 		// Some preconditions are checked inside the superconstructor while others are checked here
 		assert (windTurbinePos != null) : new PreconditionException("WindTurbine position cannot be null");	
@@ -178,6 +189,7 @@ public class WindTurbine extends Client {
 		this.orientation = new PositionData(0, 0);
 		this.safeMode = false;
 		this.maxWorkingLevel = maxWorkingLevel;
+		this.defaultReceptionOnExec = true;
 		
 		// Install the subscription + reception plugin (Wind turbine version)
 		this.subscriptionPlugin = new WindTurbineReceptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
@@ -216,7 +228,7 @@ public class WindTurbine extends Client {
 		assert (registrationPlugin.getBrokerPublishingPortURI() != null);
 		this.logMessage("WindTurbine registered");
 
-		startWindTurbine();
+		if (defaultReceptionOnExec) startWindTurbine();
 	}
 
     /**

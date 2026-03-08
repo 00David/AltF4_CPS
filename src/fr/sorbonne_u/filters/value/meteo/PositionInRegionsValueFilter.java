@@ -1,4 +1,4 @@
-package fr.sorbonne_u.filters.value;
+package fr.sorbonne_u.filters.value.meteo;
 
 import java.io.Serializable;
 import java.util.List;
