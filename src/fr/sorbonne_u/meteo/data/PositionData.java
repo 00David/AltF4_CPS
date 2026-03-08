@@ -72,10 +72,10 @@ public class PositionData implements PositionI {
 	/**
 	 * Returns true if {@code p} is equals to {@code this}.
 	 * 
-	 * <p>
-	 * <li>If {@code p} is an instance of PositionData, we can test the equality on (X,Y) components.
-	 * <li>Otherwise, it returns false.
-	 * <p>
+	 * <ul>
+	 * 	<li>If {@code p} is an instance of PositionData, we can test the equality on (X,Y) components.</li>
+	 * 	<li>Otherwise, it returns false.</li>
+	 * </ul>
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>

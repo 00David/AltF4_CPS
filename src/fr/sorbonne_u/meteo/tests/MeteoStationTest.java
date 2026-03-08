@@ -53,8 +53,11 @@ public class MeteoStationTest extends MeteoStation {
 	 * @param publishingOutboundPortURI     URI of the outbound port requiring {@link PublishingCI}.
 	 * @param privilegedOutboundPortURI	    URI of the outbound port requiring {@link PrivilegedClientCI}. Can be empty if the client if FREE, otherwise it cannot.
 	 * @param rc			   				The registration class of the component.
+	 * @param nbThreads					  	Number of threads to be created in the component pool.
+	 * @param nbSchedulableThreads		  	Number of threads to be created in the component schedulable pool.
 	 * @param stationPosition               The position of the station.
 	 * @param reflectionInboundPortURI		URI of the reflection inbound port to be created in this component.
+	 * @param testScenario				  	Test scenario in which this component participate.
 	 * @param id							A number identifying the component, just for tracer window.
 	 * @throws Exception                    If an error occurs during initialization or port publication.
 	 */

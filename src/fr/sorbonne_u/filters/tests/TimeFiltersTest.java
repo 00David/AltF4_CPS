@@ -15,14 +15,12 @@ import fr.sorbonne_u.filters.time.LessOrEqualTimeFilter;
 /**
  * Unit tests for temporal value filters:
  * 
- * <p>
  * <ul>
  * 	<li> {@link GreaterOrEqualTimeFilter} </li>
  * 	<li> {@link LessOrEqualTimeFilter} </li>
  * 	<li> {@link IntervalTimeFilter} </li>
  * 	<li> {@link JokerTimeFilter} </li>
  * </ul>
- * </p>
  * 
  * @author Kevin Tang
  * @author David Vadimon

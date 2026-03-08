@@ -60,6 +60,8 @@ public class MeteoBureauTest extends MeteoBureau {
 	 * @param publishingOutboundPortURI     URI of the outbound port requiring {@link PublishingCI}.
 	 * @param privilegedOutboundPortURI	    URI of the outbound port requiring {@link PrivilegedClientCI}. Can be empty if the client if FREE, otherwise it cannot.
 	 * @param rc			   				The registration class of the component.
+	 * @param nbThreads					  Number of threads to be created in the component pool.
+	 * @param nbSchedulableThreads		  Number of threads to be created in the component schedulable pool.
 	 * @param bureauPosition                The position of the office.
 	 * @param reflectionInboundPortURI		URI of the reflection inbound port to be created in this component.
 	 * @param testScenario					Test scenario in which this component participate.

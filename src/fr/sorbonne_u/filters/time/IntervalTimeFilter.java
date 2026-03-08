@@ -6,7 +6,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.TimeFilterI;
 
 /**
  * Time filter keeping the {@code timestamp} (from the {@code match} method) verifying: <br>
- * {@code minBound} <= {@code timestamp} <= {@code maxBound}, with {@code minBound} and {@code maxBound} set in the constructor.
+ * {@code minBound} &lt;= {@code timestamp} &lt;= {@code maxBound}, with {@code minBound} and {@code maxBound} set in the constructor.
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -41,8 +41,8 @@ public class IntervalTimeFilter implements TimeFilterI{
 	 * 
 	 * @param minBound 						Lower time bound of the filter.
 	 * @param maxBound 						Upper time bound of the filter.
-	 * @throws IllegalArgumentException		if {@code minBound} == {@code null} or {@code maxBound} == {@code null}.
-	 * @throws IllegalArgumentException		if {@code maxBound} < {@code minBound}.
+	 * @throws IllegalArgumentException		if {@code minBound ==  null} or {@code maxBound ==  null}.
+	 * @throws IllegalArgumentException		if {@code maxBound < minBound}.
 	 */
 	public IntervalTimeFilter(Instant minBound, Instant maxBound) {
         if (minBound == null || maxBound == null) throw new IllegalArgumentException("Bounds cannot be null");

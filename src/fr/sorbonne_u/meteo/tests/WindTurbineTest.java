@@ -111,7 +111,6 @@ public class WindTurbineTest extends WindTurbine {
      * @param pos                         The position of the wind turbine.
      * @param maxWorkingLevel             Maximum alert level (inclusive) at which the turbine operates.
 	 * @param reflectionInboundPortURI	  URI of the reflection inbound port to be created in this component.
-	 * @param testScenario				  Test scenario in which this component participate.
 	 * @param id						  A number identifying the component, just for tracer window.
 	 * @param filterChannel0			  Filter used to register during {@code execute} method on the "channel0".
 	 * @param filterChannel1			  Filter used to register during {@code execute} method on the "channel1".

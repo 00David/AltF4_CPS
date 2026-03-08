@@ -22,7 +22,6 @@ import fr.sorbonne_u.filters.value.AbstractMultiValuesFilter;
 /**
  * Test class for simple and multi-value filters, including:
  * 
- * <p>
  * <ul>
  * 	<li> {@link IdenticalValueFilter} </li>
  * 	<li> {@link JokerValueFilter} </li>
@@ -30,7 +29,6 @@ import fr.sorbonne_u.filters.value.AbstractMultiValuesFilter;
  * 	<li> {@link StrongWindMultiValuesFilter} </li>
  * 	<li> {@link IMC}, an example extending {@link AbstractMultiValuesFilter} </li>
  * </ul>
- * </p>
  * 
  * @author Kevin Tang
  * @author David Vadimon

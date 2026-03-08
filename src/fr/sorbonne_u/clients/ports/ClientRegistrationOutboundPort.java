@@ -35,8 +35,9 @@ public class ClientRegistrationOutboundPort extends AbstractOutboundPort impleme
 	 * post {@code  true}	// no postcondition.
 	 * </pre>
 	 * 
-	 * @param uri    the URI of the port.
-	 * @param owner  the component owning this port.
+	 * @param uri    		the URI of the port.
+	 * @param owner  		the component owning this port.
+	 * @throws Exception 	if an error occurs while creating the port
 	 */
 	public ClientRegistrationOutboundPort(String uri,ComponentI owner) throws Exception {
 		super(uri,RegistrationCI.class,owner);

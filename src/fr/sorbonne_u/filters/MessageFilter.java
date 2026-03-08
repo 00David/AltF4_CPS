@@ -41,9 +41,9 @@ public class MessageFilter implements MessageFilterI{
 	 * post	class invariants satisfied
 	 * </pre>
 	 * 
-	 * @param propertyFilters 				The set of {@link PropertyFilterI} to apply to the values of the message properties.
-	 * @param propertiesFilters 			The set of {@link PropertiesFilterI} to apply to the values of the message properties.
-	 * @param timeFilter 					A {@link TimeFilterI} to apply to the message timestamp. Can be {@code null}.
+	 * @param propertyFilters 				The set of individual property filters to apply to the values of the message properties.
+	 * @param propertiesFilters 			The set of grouped property filters to apply to the values of the message properties.
+	 * @param timeFilter 					A time filter to apply to the message timestamp. Can be {@code null}.
 	 * @throws IllegalArgumentException		if a precondition is not satisfied..
 	 */
 	public MessageFilter(PropertyFilterI[] propertyFilters, PropertiesFilterI[] propertiesFilters, TimeFilterI timeFilter) {

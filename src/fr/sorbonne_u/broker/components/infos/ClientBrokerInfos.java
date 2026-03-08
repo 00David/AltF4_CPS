@@ -20,14 +20,14 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
  * </p>
  * 
  * <p>
- * Maintained information includes:
+ * Maintained information includes :
+ * </p>
  * <ul>
  *   <li>The URI of the client port.</li>
  *   <li>The {@link RegistrationClass} of the client.</li>
  *   <li>The {@link BrokerReceivingOutboundPort}, outbound port towards this client.</li>
  *   <li>The number of remaining channels the client can create. When one its channels is destroyed, the number is increased.</li>
  * </ul>
- * </p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>

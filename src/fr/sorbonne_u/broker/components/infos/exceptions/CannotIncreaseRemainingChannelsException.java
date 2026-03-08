@@ -18,10 +18,17 @@ public class CannotIncreaseRemainingChannelsException extends RuntimeException{
 	
 	private static final long serialVersionUID = -4480131682075412158L;
 
+	/**
+	 * Creates a CannotIncreaseRemainingChannelsException with an error message.
+	 * @param msg Error message
+	 */
 	public CannotIncreaseRemainingChannelsException(String msg) {
 		super(msg);
 	}
 	
+	/**
+	 * Creates a CannotIncreaseRemainingChannelsException.
+	 */
 	public CannotIncreaseRemainingChannelsException() {
 		super();
 	}

@@ -39,12 +39,12 @@ import fr.sorbonne_u.exceptions.PreconditionException;
 /**
  * Component implementing the publish/subscribe system.
  * 
- * <p>
- * <li>Manages client component registrations (via the URI of their inbound port implementing {@link ReceivingCI}).
- * <li>Manages transmission channels between these registered client components.
- * <li>Handles message transmissions by applying filters provided by components subscribed to the relevant channel.
- * <li>Handles privileges for non-FREE clients, with [TODO with multi-threading : better performance and] advanced channel management.
- * </p>
+ * <ul>
+ *   <li>Manages client component registrations (via the URI of their inbound port implementing {@link ReceivingCI}).</li>
+ *   <li>Manages transmission channels between these registered client components.</li>
+ *   <li>Handles message transmissions by applying filters provided by components subscribed to the relevant channel.</li>
+ *   <li>Handles privileges for non-FREE clients, with [TODO with multi-threading : better performance and] advanced channel management.</li>
+ * </ul>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -311,11 +311,10 @@ public class Broker extends AbstractComponent{
 	 * @param rc				          the required registration class.
 	 * @return					          an URI of an inbound port offering the component interface {@code PublishingCI}.
 	 * @throws AlreadyRegisteredException If the client has already been registered.
-	 * @throws Exception                  If there is a problem while publishing the component's outbound port associated to the {@code receptionPortURI}.
-	 * @throws Exception                  If there is a problem while connecting the new outbound port and {@code receptionPortURI}.
+	 * @throws UnknownClientException      If the {@code receptionPortURI} is not registered.
 	 */
 	public String registerService(String receptionPortURI, RegistrationClass rc) 
-			throws AlreadyRegisteredException, Exception {
+			throws AlreadyRegisteredException, UnknownClientException {
 		// Precondition checks
 		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
 		assert(rc != null);
@@ -325,15 +324,17 @@ public class Broker extends AbstractComponent{
 		this.logMessage("Broker registering '" + receptionPortURI + "'") ;
 		
 		// Create the Broker outbound port for sending messages to the receptionPortURI
-		// and add the receptionPortURI client infos to the mapping of the client infos
-		BrokerReceivingOutboundPort outboundPort = new BrokerReceivingOutboundPort("BrokerOutboundPort-"+receptionPortURI, this);
-		clientsInfos.put(receptionPortURI, new ClientBrokerInfos(receptionPortURI, rc, outboundPort));
-
-		// New outbound port published
-		outboundPort.localPublishPort() ;
-		
-		// Connect the new outbound port to the client receptionPortURI
-		this.doPortConnection(outboundPort.getPortURI(), receptionPortURI, BrokerReceivingServiceConnector.class.getCanonicalName());
+		// New outbound port published + connected to the client receptionPortURI
+		try {
+			BrokerReceivingOutboundPort outboundPort = new BrokerReceivingOutboundPort("BrokerOutboundPort-"+receptionPortURI, this);
+			outboundPort.localPublishPort() ;
+			this.doPortConnection(outboundPort.getPortURI(), receptionPortURI, BrokerReceivingServiceConnector.class.getCanonicalName());
+			
+			// Add the receptionPortURI client infos to the mapping of the client infos
+			clientsInfos.put(receptionPortURI, new ClientBrokerInfos(receptionPortURI, rc, outboundPort));
+		} catch(Exception e) {
+			e.printStackTrace();
+		}
 		
 		// Postcondition checks
 		assert(registeredService(receptionPortURI));
@@ -415,10 +416,11 @@ public class Broker extends AbstractComponent{
 	 * post	{@code !registeredService(receptionPortURI)}
 	 * </pre>
 	 *
-	 * @param receptionPortURI	               URI of the inbound port offering the component interface {@code ReceivingCI}.
-	 * @throws UnknownClientException          If the {@code receptionPortURI} is not registered.
-	 * @throws Exception                       If there is a problem while unpublishing the component's outbound port associated to the {@code receptionPortURI}.
-	 * @throws Exception                       If there is a problem while disconnecting outbound port and {@code receptionPortURI}.
+	 * @param receptionPortURI	               	URI of the inbound port offering the component interface {@code ReceivingCI}.
+	 * @throws UnknownClientException          	If the {@code receptionPortURI} is not registered.
+	 * @throws Exception                       	If there is a problem while unpublishing the component's outbound port associated to the {@code receptionPortURI}.
+	 * @throws Exception                       	If there is a problem while disconnecting outbound port and {@code receptionPortURI}.
+	 * @return 									Void
 	 */
 	public Void unregisterService(String receptionPortURI) 
 			throws UnknownClientException, Exception {
@@ -550,12 +552,13 @@ public class Broker extends AbstractComponent{
 	 * post	{@code subscribedService(receptionPortURI, channel)}
 	 * </pre>
 	 *
-	 * @param receptionPortURI             URI of the inbound port offering the component interface {@code ReceivingCI}.
-	 * @param channel			           name of an existing channel.
-	 * @param filter			           filter that accepts the message the component wants to receive.
-	 * @throws UnknownClientException      If the {@code receptionPortURI} is not registered.
-	 * @throws UnknownChannelException     If the {@code channel} doesn't exist.
-	 * @throws UnauthorisedClientException If {@code receptionPortURI} is not authorized to interact with the {@code channel}.
+	 * @param receptionPortURI       		URI of the inbound port offering the component interface {@code ReceivingCI}.
+	 * @param channel			      		name of an existing channel.
+	 * @param filter			           	filter that accepts the message the component wants to receive.
+	 * @return 									Void
+	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
+	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
+	 * @throws UnauthorisedClientException 	If {@code receptionPortURI} is not authorized to interact with the {@code channel}.
 	 */
 	public Void subscribeService(String receptionPortURI, String channel, MessageFilterI filter) 
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
@@ -589,14 +592,15 @@ public class Broker extends AbstractComponent{
 	 * post	{@code !subscribedService(receptionPortURI, channel)}
 	 * </pre>
 	 *
-	 * @param receptionPortURI	                 URI of the inbound port offering the component interface {@code ReceivingCI}.
-	 * @param channel			                 name of an existing channel.
-	 * @throws UnknownClientException		     If the {@code receptionPortURI} is not registered.
-	 * @throws UnknownChannelException           If the {@code channel} doesn't exist.
-	 * @throws NotSubscribedChannelException     If {@code receptionPortURI} is not subscribed to the {@code channel}.
+	 * @param receptionPortURI	              	URI of the inbound port offering the component interface {@code ReceivingCI}.
+	 * @param channel			            	name of an existing channel.
+	 * @return 									Void
+	 * @throws UnknownClientException			If the {@code receptionPortURI} is not registered.
+	 * @throws UnknownChannelException      	If the {@code channel} doesn't exist.
+	 * @throws NotSubscribedChannelException 	If {@code receptionPortURI} is not subscribed to the {@code channel}.
 	 */
 	public Void unsubscribeService(String receptionPortURI, String channel) 
-			throws Exception, UnknownChannelException, NotSubscribedChannelException {
+			throws UnknownClientException, UnknownChannelException, NotSubscribedChannelException {
 		// Precondition checks
 		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
 		assert(channel != null && !channel.isEmpty());
@@ -637,7 +641,7 @@ public class Broker extends AbstractComponent{
 	 * @throws NotSubscribedChannelException     If {@code receptionPortURI} is not subscribed to the {@code channel}.
 	 */
 	public boolean modifyFilterService(String receptionPortURI, String channel, MessageFilterI filter) 
-			throws Exception, UnknownChannelException, NotSubscribedChannelException {
+			throws UnknownClientException, UnknownChannelException, NotSubscribedChannelException {
 		// Precondition checks
 		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
 		assert(channel != null && !channel.isEmpty());
@@ -670,12 +674,13 @@ public class Broker extends AbstractComponent{
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 *
-	 * @param receptionPortURI	           URI of the inbound port offering the component interface {@code ReceivingCI}.
-	 * @param channel			           name of the channel on which {@code message} must be published.
-	 * @param messages			           list of messages to be published on {@code channel}. It can contain an only message.
-	 * @throws UnknownClientException      If the {@code receptionPortURI} is not registered.
-	 * @throws UnknownChannelException     If the {@code channel} doesn't exist.
-	 * @throws UnauthorisedClientException If {@code receptionPortURI} is not authorized to interact with the {@code channel}.
+	 * @param receptionPortURI	           	URI of the inbound port offering the component interface {@code ReceivingCI}.
+	 * @param channel			           	name of the channel on which {@code message} must be published.
+	 * @param messages			           	list of messages to be published on {@code channel}. It can contain an only message.
+	 * @return 								Void
+	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
+	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
+	 * @throws UnauthorisedClientException 	If {@code receptionPortURI} is not authorized to interact with the {@code channel}.
 	 */
 	public Void publishService(String receptionPortURI, String channel, ArrayList<MessageI> messages) 
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
@@ -799,6 +804,7 @@ public class Broker extends AbstractComponent{
 	 * @param receptionPortURI						identifier of the requesting component <i>i.e.</i>, URI of its inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel								name of the channel to be created.
 	 * @param autorisedUsers						regular expression that matches the URIs of components that must be authorised to use the new channel.
+	 * @return 										Void
 	 * @throws UnknownClientException   			If the {@code receptionPortURI} is not registered.
 	 * @throws AlreadyExistingChannelException   	If the {@code channel} already exists.
 	 * @throws ChannelQuotaExceededException   		If the {@code receptionPortURI} cannot currently manage more channels.
@@ -881,6 +887,7 @@ public class Broker extends AbstractComponent{
 	 * @param receptionPortURI				identifier of the requesting component <i>i.e.</i>, URI of its inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel						name of the channel.
 	 * @param autorisedUsers				regular expression that matches the URIs of components that must be authorised to use the new channel.
+	 * @return 								Void
 	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
 	 * @throws UnauthorisedClientException  If the {@code receptionPortURI} is not the creator of the {@code channel}.
@@ -924,6 +931,7 @@ public class Broker extends AbstractComponent{
 	 *
 	 * @param receptionPortURI				URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel						name of the channel to be destroyed.
+	 * @return 								Void
 	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
 	 * @throws UnauthorisedClientException  If the {@code receptionPortURI} is not allowed to interact with the {@code channel}.
@@ -1000,6 +1008,7 @@ public class Broker extends AbstractComponent{
 	 *
 	 * @param receptionPortURI				URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel						name of the channel to be destroyed.
+	 * @return 								Void
 	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
 	 * @throws UnauthorisedClientException  If the {@code receptionPortURI} is not allowed to interact with the {@code channel}.

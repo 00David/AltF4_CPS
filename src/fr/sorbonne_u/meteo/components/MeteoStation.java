@@ -162,7 +162,7 @@ public class MeteoStation extends Client {
 	 * Creates a meteorological station component for the publish/subscribe system, extending a {@link Client}, by providing 
 	 * the {@code reflectionInboundPortURI} of the component.
 	 * 
-	 * <p>Constructor used by test sub-class {@link MeteoStationTest}.<p/>
+	 * <p>Constructor used by test sub-class {@link MeteoStationTest}.</p>
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
@@ -277,6 +277,8 @@ public class MeteoStation extends Client {
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 * 
+	 * @param channel 		The channel to which the wind will be sent.
+	 * @throws Exception	if an error occurs wile publishing the wind data.
 	 */
 	protected void sendRandomWindData(String channel) throws Exception {
 		// Precondition check

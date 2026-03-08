@@ -20,14 +20,12 @@ import fr.sorbonne_u.meteo.data.WindData;
 /**
  * Unit tests for data classes of the meteorological application :
  * 
- * <p>
  * <ul>
  * 	<li>{@link PositionData} class.</li>
  * 	<li>{@link RegionData} class.</li>
  * 	<li>{@link PositionData} class.</li>
  * 	<li>{@link MeteoAlert} class.</li>
  * </ul>
- * </p
  * 
  * @author Kevin Tang
  * @author David Vadimon

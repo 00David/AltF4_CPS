@@ -37,9 +37,10 @@ public class ClientReceivingPluginInboundPort extends AbstractInboundPort implem
 	 * post {@code  true}	// no postcondition.
 	 * </pre>
 	 * 
-	 * @param uri    	the URI of the port.
-	 * @param owner  	the component owning the port.
-	 * @param pluginURI	the URI of the {@link ClientSubscriptionPlugin}.
+	 * @param uri    		the URI of the port.
+	 * @param owner  		the component owning the port.
+	 * @param pluginURI		the URI of the {@link ClientSubscriptionPlugin}.
+	 * @throws Exception 	if an error occurs while creating the port
 	 */
 	public ClientReceivingPluginInboundPort(String uri, ComponentI owner, String pluginURI) throws Exception {
 		super(uri, ReceivingCI.class, owner, pluginURI, null);

@@ -19,7 +19,8 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
  * </p>
  * 
  * <p>
- * Maintained information includes:
+ * Maintained information includes :
+ * </p>
  * <ul>
  * 	<li> - The channel name.
  * 	<li> - A set of pairs: (subscriber client port + channel filter).
@@ -28,7 +29,6 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
  * 	<li> - The regular expression defining the accepted client port URIs for this channel.
  * 	<li> - A FIFO queue of {@link MessageI} pending on the channel (to be sent).
  * </ul>
- * </p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -273,6 +273,7 @@ public class ChannelBrokerInfos {
      * post  {@code subscribers.stream().allMatch(sub -> sub.subscriberPortURI.matches(this.authorisedUsers))}
      * </pre>
      * 
+     * @param authorizedUsers 			the new regular expression defining authorized users.
      * @throws IllegalArgumentException if {@code authorizedUsers} is null.
      */
     public void modifyAuthorizedUsers(String authorizedUsers) {
@@ -339,6 +340,7 @@ public class ChannelBrokerInfos {
      * post  {@code this.messages.contains(msg)}
      * </pre>
      * 
+     * @param msg						a message to add to the channel.
      * @throws IllegalArgumentException if the {@code msg} is null.
      */
     public void addMessage(MessageI msg) {
@@ -360,6 +362,7 @@ public class ChannelBrokerInfos {
      * post  {@code this.messages.containsAll(msgs)}
      * </pre>
      * 
+     * @param msgs						a list of message to add to the channel.
      * @throws IllegalArgumentException if {@code msgs} is null or empty.
      */
     public void addMessages(List<MessageI> msgs) {
@@ -398,6 +401,7 @@ public class ChannelBrokerInfos {
      * post  {@code return != null)}
      * </pre>
      * 
+     * @param msg						a message for which we will get users subscribed to the channel accepting it.
      * @return							the list of subscriber URIs that accept the given message.
      * @throws IllegalArgumentException	if the {@code msg} is null.
      */

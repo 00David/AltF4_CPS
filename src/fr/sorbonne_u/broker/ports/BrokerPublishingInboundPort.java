@@ -39,8 +39,9 @@ implements	PublishingCI {
 	 * post {@code  true}	// no postcondition.
 	 * </pre>
 	 * 
-	 * @param uri    the URI of the port.
-	 * @param owner  the component owning the port.
+	 * @param uri    		the URI of the port.
+	 * @param owner  		the component owning the port.
+	 * @throws Exception 	if an error occurs while creating the port
 	 */
 	public BrokerPublishingInboundPort(String uri, ComponentI owner) throws Exception {
 		super(uri, PublishingCI.class, owner) ;

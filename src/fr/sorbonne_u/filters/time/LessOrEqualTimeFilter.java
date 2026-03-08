@@ -5,7 +5,7 @@ import java.time.Instant;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.TimeFilterI;
 
 /**
- * Time filter keeping the {@code timestamp} (from the {@code match} method) <= {@code timestampFilter} (from the constructor).
+ * Time filter keeping the {@code timestamp} (from the {@code match} method) &lt;= {@code timestampFilter} (from the constructor).
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>

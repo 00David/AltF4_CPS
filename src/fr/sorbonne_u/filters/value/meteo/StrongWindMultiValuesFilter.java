@@ -16,10 +16,9 @@ import fr.sorbonne_u.meteo.data.WindData;
  * 		<li>The X component of the wind vector.</li>
  * 		<li>The Y component of the wind vector.</li>
  * 	</ul>
- * </p>
  * 
  * 
- * <p><strong>Invariants</strong></p>
+ * <p><strong>Invariants</strong>
  * <pre>
  * invariant	{@code position != null}
  * invariant	{@code distanceThreshold >= 0}

@@ -3,6 +3,7 @@ package fr.sorbonne_u.clients.connectors;
 import java.util.ArrayList;
 
 import fr.sorbonne_u.broker.components.Broker;
+import fr.sorbonne_u.broker.ports.BrokerPublishingInboundPort;
 import fr.sorbonne_u.components.connectors.AbstractConnector;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;

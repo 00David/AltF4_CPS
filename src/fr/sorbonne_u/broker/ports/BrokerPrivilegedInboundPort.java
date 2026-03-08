@@ -36,8 +36,9 @@ implements	PrivilegedClientCI {
 	 * post true            // no postcondition.
 	 * </pre>
 	 * 
-	 * @param uri    the URI of the port.
-	 * @param owner  the component owning the port.
+	 * @param uri    		the URI of the port.
+	 * @param owner  		the component owning the port.
+	 * @throws Exception 	if an error occurs while creating the port
 	 */
 	public BrokerPrivilegedInboundPort(String uri, ComponentI owner) throws Exception {
 		super(uri, PrivilegedClientCI.class, owner) ;

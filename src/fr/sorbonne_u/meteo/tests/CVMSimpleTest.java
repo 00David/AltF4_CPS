@@ -29,7 +29,7 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
 
 /**
  * Test class to simulate the following scenario from the start of the CVM:
- * <p>
+ * 
  * <ul>
  * 	<li> - After 30 seconds, <strong>MeteoStation n°1</strong> sends wind data to 'channel0'.
  * 	<li> - After 60 seconds, <strong>MeteoStation n°2</strong> sends wind data to 'channel0'.
@@ -38,7 +38,6 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * 	<li> - After 150 seconds, <strong>MeteoStation n°1</strong> sends wind data again to 'channel0'.
  * 	<li> - After 180 seconds, <strong>MeteoBureau</strong> sends a dangerous alert to 'channel1', not affecting the wind turbine region.
  * </ul>
- * </p>
  * 
  * @author Kevin TANG
  * @author David VADIMON

@@ -17,12 +17,12 @@ import fr.sorbonne_u.meteo.data.PositionData;
  * 
  * <p>
  * 	For more complete/useful usages of the system, please see test classes :
+ * </p>
  * 	<ul>
  * 		<li>{@link CVMSimpleTest}, providing a simple prepared scenario of the system usage.</li>
  * 		<li>{@link CVMCompleteTest}, providing a more complex prepared scenario of the system usage, 
  * 			with components using different filters and privileged features.</li>
  * 	</ul>
- * </p>
  * 
  * @author Kevin TANG
  * @author David VADIMON

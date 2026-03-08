@@ -158,7 +158,7 @@ public class MeteoBureau extends Client {
 	 * Creates a meteorological office component of the publish/subscribe system, extending {@link Client}, by providing 
 	 * the {@code reflectionInboundPortURI} of the component.
 	 * 
-	 * <p>Constructor used by test sub-class {@link MeteoBureauTest}.<p/>
+	 * <p>Constructor used by test sub-class {@link MeteoBureauTest}.</p>
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>

@@ -240,15 +240,15 @@ public class WindTurbine extends Client {
     /**
      * Registers the wind turbine to channels for receiving wind data and alerts.
      * 
-     * <p>
-     * <li> Only considers messages created after the turbine registration.
-     * <li> For alerts, only considers alerts where one of the affected regions contains the turbine's position.
-     * </p>
+     * <ul>
+     * 	<li>Only considers messages created after the turbine registration.</li>
+     * 	<li>For alerts, only considers alerts where one of the affected regions contains the turbine's position.</li>
+     * </ul>
      * 
-     * <p>
-     * <li> Wind datas are received from "channel0".
-     * <li> Meteorological alerts are received from "channel1".
-     * </p>
+     * <ul>
+     * 	<li>Wind datas are received from "channel0".</li>
+     * 	<li>Meteorological alerts are received from "channel1".</li>
+     * </ul>
      * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
@@ -303,6 +303,8 @@ public class WindTurbine extends Client {
 	 * pre  {@code true}	// no precondition.
 	 * post	{@code datas.contains(newWindData)}
 	 * </pre>
+	 * 
+	 * @param newWindData New wind data to consider.
      */
 	public void considerNewWindData(WindData newWindData) {
 		if (newWindData != null) datas.add(newWindData);

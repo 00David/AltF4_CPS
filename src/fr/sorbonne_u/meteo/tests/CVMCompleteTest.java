@@ -34,55 +34,62 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * 
  * <p>
  * 	SETUP
- * 	<ul>
- * 		<ul> - 2 {@link MeteoBureauTest} :
- * 			<li><strong>MeteoBureau n°1</strong> : PREMIUM</li>
- *			<li><strong>MeteoBureau n°2</strong> : FREE</li>
- *		</ul>
- * 		<ul> - 2 {@link MeteoStationTest} :
- * 			<li><strong>MeteoStation n°1</strong> : STANDARD</li>
- *			<li><strong>MeteoStation n°2</strong> : FREE</li>
- *		</ul>
- * 		<ul> - 3 {@link WindturbineTest} :
- * 			<li><strong>WindTurbine n°1</strong> : STANDARD, with filters accepting only wind datas with low force, 
- * 						and alerts targeting its region.</li>
- *			<li><strong>WindTurbine n°2</strong> : STANDARD, with filters accepting every wind, and only alerts targeting its region.</li>
- *			<li><strong>WindTurbine n°3</strong> : FREE, with filters accepting every wind, alerts targeting its region,
- *						and accepts messages starting from 80 seconds after the start.</li>
- *		</ul>
- *</p>
+ * </p>
+ * <ul>
+ *     <li>2 {@link MeteoBureauTest} :
+ *         <ul>
+ *             <li><strong>MeteoBureau n°1</strong> : PREMIUM</li>
+ *             <li><strong>MeteoBureau n°2</strong> : FREE</li>
+ *         </ul>
+ *     </li>
+ *     <li>2 {@link MeteoStationTest} :
+ *         <ul>
+ *             <li><strong>MeteoStation n°1</strong> : STANDARD</li>
+ *             <li><strong>MeteoStation n°2</strong> : FREE</li>
+ *         </ul>
+ *     </li>
+ *     <li>3 {@link WindTurbineTest} :
+ *         <ul>
+ *             <li><strong>WindTurbine n°1</strong> : STANDARD, with filters accepting only wind datas with low force, 
+ *                 and alerts targeting its region.</li>
+ *             <li><strong>WindTurbine n°2</strong> : STANDARD, with filters accepting every wind, and only alerts targeting its region.</li>
+ *             <li><strong>WindTurbine n°3</strong> : FREE, with filters accepting every wind, alerts targeting its region,
+ *                 and accepts messages starting from 80 seconds after the start.</li>
+ *         </ul>
+ *     </li>
+ * </ul>
  * 
  * <p>
  * 	FIRST HALF : focus on FILTER TESTS
- * 	<ul>
- * 		<li> - After 20 seconds, <strong>MeteoBureau n°2</strong> sends wind data only on <strong>WindTurbine n°1</strong> exact position.</li>
- * 		<li> - After 40 seconds, <strong>MeteoStation n°2</strong> sends wind data with high force, 
- * 							not being accepted by <strong>WindTurbine n°1</strong>'s filter on wind force
- * 							nor <strong>WindTurbine 3</strong>'s filter on time.</li>
- * 		<li> - After 60 seconds, <strong>MeteoBureau n°2</strong> sends a dangerous alert exactly to <strong>WindTurbine n°3</strong>'s 
- * 							position, not taken into account because its too soon to be accepted by its time filter.</li>
- * 		<li> - After 80 seconds, <strong>MeteoBureau n°2</strong> sends again a dangerous alert exactly to 
- * 							<strong>WindTurbine n°3's</strong> position, taken into account this time</li>
- * 		<li> - After 100 seconds, <strong>WindTurbine n°3</strong> unregisters itself from the system.</li>
- *	</ul>
- *</p>	
- *
- *<p>
- *	SECOND HALF : focus on PRIVILEGED SERVICES TESTS
- *	<ul>
- * 		<li> - After 120 seconds, <strong>MeteoBureau n°1</strong> creates a new channel : "testChannel".</li>
- * 		<li> - After 140 seconds, <strong>WindTurbine n°1</strong> unsubscribes from channels "channel0" and "channel1", 
- * 							subscribes to channel "testChannel" + <strong>WindTurbine n°2</strong> subscribes to channel "testChannel".<br>
- * 							Both with filters accepting everything.</li>
- * 		<li> - After 160 seconds, <strong>MeteoStation n°1</strong> sends wind on "channel0".</li>
- * 		<li> - After 180 seconds, <strong>MeteoStation n°1</strong> sends wind on "testChannel".</li>
- * 		<li> - After 200 seconds, <strong>MeteoBureau n°1</strong> changes authorized users 
- * 							for exactly <strong>WindTurbine n°1</strong> URI.</li>
- * 		<li> - After 220 seconds, <strong>MeteoBureau n°1</strong> sends a GREEN alert on the "testChannel", 
- * 							received only by <strong>WindTurbine n°1</strong>.</li>
- * 		<li> - After 240 seconds, <strong>MeteoBureau n°1</strong> destroys its "testChannel" and verifies that it is has been deleted.</li>
- * 	</ul>
  * </p>
+ * <ul>
+ *     <li>After 20 seconds, <strong>MeteoBureau n°2</strong> sends wind data only on <strong>WindTurbine n°1</strong> exact position.</li>
+ *     <li>After 40 seconds, <strong>MeteoStation n°2</strong> sends wind data with high force, 
+ *         not being accepted by <strong>WindTurbine n°1</strong>'s filter on wind force
+ *         nor <strong>WindTurbine 3</strong>'s filter on time.</li>
+ *     <li>After 60 seconds, <strong>MeteoBureau n°2</strong> sends a dangerous alert exactly to <strong>WindTurbine n°3</strong>'s 
+ *         position, not taken into account because its too soon to be accepted by its time filter.</li>
+ *     <li>After 80 seconds, <strong>MeteoBureau n°2</strong> sends again a dangerous alert exactly to 
+ *         <strong>WindTurbine n°3's</strong> position, taken into account this time.</li>
+ *     <li>After 100 seconds, <strong>WindTurbine n°3</strong> unregisters itself from the system.</li>
+ * </ul>
+ *
+ * <p>
+ * 	SECOND HALF : focus on PRIVILEGED SERVICES TESTS
+ * </p>
+ * <ul>
+ *     <li>After 120 seconds, <strong>MeteoBureau n°1</strong> creates a new channel : "testChannel".</li>
+ *     <li>After 140 seconds, <strong>WindTurbine n°1</strong> unsubscribes from channels "channel0" and "channel1", 
+ *         subscribes to channel "testChannel" + <strong>WindTurbine n°2</strong> subscribes to channel "testChannel".<br>
+ *         Both with filters accepting everything.</li>
+ *     <li>After 160 seconds, <strong>MeteoStation n°1</strong> sends wind on "channel0".</li>
+ *     <li>After 180 seconds, <strong>MeteoStation n°1</strong> sends wind on "testChannel".</li>
+ *     <li>After 200 seconds, <strong>MeteoBureau n°1</strong> changes authorized users 
+ *         for exactly <strong>WindTurbine n°1</strong> URI.</li>
+ *     <li>After 220 seconds, <strong>MeteoBureau n°1</strong> sends a GREEN alert on the "testChannel", 
+ *         received only by <strong>WindTurbine n°1</strong>.</li>
+ *     <li>After 240 seconds, <strong>MeteoBureau n°1</strong> destroys its "testChannel" and verifies that it is has been deleted.</li>
+ * </ul>
  * 
  * @author Kevin TANG
  * @author David VADIMON

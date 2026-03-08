@@ -17,10 +17,17 @@ import fr.sorbonne_u.broker.components.infos.ClientBrokerInfos;
 public class NegativeRemainingChannelsException extends RuntimeException{
 	private static final long serialVersionUID = -6291686257911217022L;
 	
+	/**
+	 * Creates a NegativeRemainingChannelsException with an error message.
+	 * @param msg Error message
+	 */
 	public NegativeRemainingChannelsException(String msg) {
 		super(msg);
 	}
 	
+	/**
+	 * Creates a NegativeRemainingChannelsException.
+	 */
 	public NegativeRemainingChannelsException() {
 		super();
 	}
