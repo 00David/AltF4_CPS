@@ -30,33 +30,58 @@ import fr.sorbonne_u.meteo.data.RegionData;
 import fr.sorbonne_u.utils.aclocks.ClocksServer;
 
 /**
- * Test class to simulate the following scenario from the start of the CVM:
+ * Test class to simulate the following scenario from the start of the CVM.
+ * 
  * <p>
- * <ul>
- * 							<p> FIRST HALF : focus on FILTERS TESTS </p>
- * 	<li> - After 20 seconds, {@link MeteoBureauTest} n°2 sends wind data only on {@link WindTurbineTest} n°1 exact position.
- * 	<li> - After 40 seconds, {@link MeteoStationTest} n°2 sends wind data with high force, 
- * 									not being accepted by {@link WindTurbineTest} 1's filter on wind force
- * 									nor {@link WindTurbineTest} 3's filter on time.
- * 	<li> - After 60 seconds, {@link MeteoBureauTest} n°2 sends a dangerous alert exactly to {@link WindTurbineTest} n°3's position, 
- * 									not taken into account because its too soon to be accepted by its time filter
- * 	<li> - After 80 seconds, {@link MeteoBureauTest} n°2 sends again a dangerous alert exactly to WindTurbine3's position, 
- *								taken into account this time
- * 	<li> - After 100 seconds, {@link WindTurbineTest} n°3 unregisters itself from the system.
- *</ul>
+ * 	SETUP
+ * 	<ul>
+ * 		<ul> - 2 {@link MeteoBureauTest} :
+ * 			<li><strong>MeteoBureau n°1</strong> : PREMIUM</li>
+ *			<li><strong>MeteoBureau n°2</strong> : FREE</li>
+ *		</ul>
+ * 		<ul> - 2 {@link MeteoStationTest} :
+ * 			<li><strong>MeteoStation n°1</strong> : STANDARD</li>
+ *			<li><strong>MeteoStation n°2</strong> : FREE</li>
+ *		</ul>
+ * 		<ul> - 3 {@link WindturbineTest} :
+ * 			<li><strong>WindTurbine n°1</strong> : STANDARD, with filters accepting only wind datas with low force, 
+ * 						and alerts targeting its region.</li>
+ *			<li><strong>WindTurbine n°2</strong> : STANDARD, with filters accepting every wind, and only alerts targeting its region.</li>
+ *			<li><strong>WindTurbine n°3</strong> : FREE, with filters accepting every wind, alerts targeting its region,
+ *						and accepts messages starting from 80 seconds after the start.</li>
+ *		</ul>
+ *</p>
+ * 
+ * <p>
+ * 	FIRST HALF : focus on FILTER TESTS
+ * 	<ul>
+ * 		<li> - After 20 seconds, <strong>MeteoBureau n°2</strong> sends wind data only on <strong>WindTurbine n°1</strong> exact position.</li>
+ * 		<li> - After 40 seconds, <strong>MeteoStation n°2</strong> sends wind data with high force, 
+ * 							not being accepted by <strong>WindTurbine n°1</strong>'s filter on wind force
+ * 							nor <strong>WindTurbine 3</strong>'s filter on time.</li>
+ * 		<li> - After 60 seconds, <strong>MeteoBureau n°2</strong> sends a dangerous alert exactly to <strong>WindTurbine n°3</strong>'s 
+ * 							position, not taken into account because its too soon to be accepted by its time filter.</li>
+ * 		<li> - After 80 seconds, <strong>MeteoBureau n°2</strong> sends again a dangerous alert exactly to 
+ * 							<strong>WindTurbine n°3's</strong> position, taken into account this time</li>
+ * 		<li> - After 100 seconds, <strong>WindTurbine n°3</strong> unregisters itself from the system.</li>
+ *	</ul>
  *</p>	
- *						<p> SECOND HALF : focus on PRIVILEGED SERVICES TESTS </p>
+ *
  *<p>
- *<ul>
- * 	<li> - After 120 seconds, {@link MeteoBureauTest} n°1 creates a new channel : "testChannel".
- * 	<li> - After 140 seconds, {@link WindTurbineTest} n°1 unsubscribes from channels "channel0" and "channel1", 
- * 			subscribes to channel "testChannel" + {@link WindTurbineTest} n°2 subscribing to channel "testChannel".
- * 	<li> - After 160 seconds, {@link MeteoStationTest} n°1 sends wind on "channel0".
- * 	<li> - After 180 seconds, {@link MeteoStationTest} n°1 sends wind on "testChannel".
- * 	<li> - After 200 seconds, {@link MeteoBureauTest} n°1 changes authorized users for exactly {@link WindTurbineTest} n°1 URI.
- * 	<li> - After 220 seconds, {@link MeteoBureauTest} n°1 sends a GREEN alert on the "testChannel", received only by {@link WindTurbineTest} n°1.
- * 	<li> - After 240 seconds, {@link MeteoBureauTest} n°1 destroys its "testChannel" and verifies that it is has been deleted
- * </ul>
+ *	SECOND HALF : focus on PRIVILEGED SERVICES TESTS
+ *	<ul>
+ * 		<li> - After 120 seconds, <strong>MeteoBureau n°1</strong> creates a new channel : "testChannel".</li>
+ * 		<li> - After 140 seconds, <strong>WindTurbine n°1</strong> unsubscribes from channels "channel0" and "channel1", 
+ * 							subscribes to channel "testChannel" + <strong>WindTurbine n°2</strong> subscribes to channel "testChannel".<br>
+ * 							Both with filters accepting everything.</li>
+ * 		<li> - After 160 seconds, <strong>MeteoStation n°1</strong> sends wind on "channel0".</li>
+ * 		<li> - After 180 seconds, <strong>MeteoStation n°1</strong> sends wind on "testChannel".</li>
+ * 		<li> - After 200 seconds, <strong>MeteoBureau n°1</strong> changes authorized users 
+ * 							for exactly <strong>WindTurbine n°1</strong> URI.</li>
+ * 		<li> - After 220 seconds, <strong>MeteoBureau n°1</strong> sends a GREEN alert on the "testChannel", 
+ * 							received only by <strong>WindTurbine n°1</strong>.</li>
+ * 		<li> - After 240 seconds, <strong>MeteoBureau n°1</strong> destroys its "testChannel" and verifies that it is has been deleted.</li>
+ * 	</ul>
  * </p>
  * 
  * @author Kevin TANG
@@ -135,6 +160,7 @@ public class CVMCompleteTest extends AbstractCVM {
 	protected final String WT1RegistrationOutboundPortURI = "registration-outbound-port-WT1";
 	protected final String WT1PublishingOutboundPortURI = "publishing-outbound-port-WT1";
 	protected static final PositionData windTurbine1Position = new PositionData(1, 0);
+	protected static final RegistrationClass WT1rc = RegistrationClass.STANDARD;
 	protected static final MeteoAlertI.Level maxWorkingLevelWT1 = MeteoAlertI.Level.ORANGE; // inclusive
 	
 	// On winds received, filter keeps only close winds (distance <= 10) && with a force not exceeding 10.
@@ -149,6 +175,7 @@ public class CVMCompleteTest extends AbstractCVM {
 	protected final String WT2RegistrationOutboundPortURI = "registration-outbound-port-WT2";
 	protected final String WT2PublishingOutboundPortURI = "publishing-outbound-port-WT2";
 	protected static final PositionData windTurbine2Position = new PositionData(2, 0);
+	protected static final RegistrationClass WT2rc = RegistrationClass.STANDARD;
 	protected static final MeteoAlertI.Level maxWorkingLevelWT2 = MeteoAlertI.Level.ORANGE; // inclusive
 	
 	// Accepts every wind data
@@ -162,6 +189,7 @@ public class CVMCompleteTest extends AbstractCVM {
 	protected final String WT3RegistrationOutboundPortURI = "registration-outbound-port-WT3";
 	protected final String WT3PublishingOutboundPortURI = "publishing-outbound-port-WT3";
 	protected static final PositionData windTurbine3Position = new PositionData(3, 0);
+	protected static final RegistrationClass WT3rc = RegistrationClass.FREE;
 	protected static final MeteoAlertI.Level maxWorkingLevelWT3 = MeteoAlertI.Level.ORANGE; // inclusive
 	
 	// Time constraint, filters accepts messages 80 (=STEP3) seconds after the start of the scenario
@@ -243,6 +271,7 @@ public class CVMCompleteTest extends AbstractCVM {
 						step0_Instant,
 						owner -> {
 							try {
+								System.out.println("STEP 0/11 (20s)");
 								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.FLOODING, MeteoAlertI.Level.ORANGE, 
 										WT1_region, step0_Instant, Duration.ofSeconds(5), "channel1");
 							} catch (Exception e) {
@@ -256,6 +285,7 @@ public class CVMCompleteTest extends AbstractCVM {
 					step1_Instant,
 					owner -> {
 						try {
+							System.out.println("STEP 1/11 (40s)");
 							((MeteoStationTest)owner).publishWindData(10.0, 10.0, "channel0");
 						} catch (Exception e) {
 							System.err.println("Step 1 wind data publication failed with exception " + e);
@@ -269,6 +299,7 @@ public class CVMCompleteTest extends AbstractCVM {
 						step2_Instant,
 						owner -> {
 							try {
+								System.out.println("STEP 2/11 (60s)");
 								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.RED, 
 										WT3_region, step2_Instant, Duration.ofSeconds(5), "channel1");
 							} catch (Exception e) {
@@ -283,6 +314,7 @@ public class CVMCompleteTest extends AbstractCVM {
 						step3_Instant,
 						owner -> {
 							try {
+								System.out.println("STEP 3/11 (80s)");
 								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.ICY_STORM, MeteoAlertI.Level.SCARLET, 
 										WT3_region, step3_Instant, Duration.ofSeconds(5), "channel1");
 							} catch (Exception e) {
@@ -296,6 +328,7 @@ public class CVMCompleteTest extends AbstractCVM {
 					step4_Instant,
 					owner -> {
 						try {
+							System.out.println("STEP 4/11 (100s)");
 							((WindTurbineTest)owner).unregisterFromSystem();
 						} catch (Exception e) {
 							System.err.println("Step 4 unregistration failed with exception " + e);
@@ -308,6 +341,7 @@ public class CVMCompleteTest extends AbstractCVM {
 						step5_Instant,
 						owner -> {
 							try {
+								System.out.println("STEP 5/11 (120s)");
 								((MeteoBureauTest)owner).createNewChannel("testChannel", ".*");
 							} catch (Exception e) {
 								System.err.println("Step 5 new channel creation failed with exception " + e);
@@ -320,6 +354,7 @@ public class CVMCompleteTest extends AbstractCVM {
 						step6_Instant,
 						owner -> {
 							try {
+								System.out.println("STEP 6/11 (140s)");
 								((WindTurbineTest)owner).unsubscibeFromChannel("channel0");
 								((WindTurbineTest)owner).unsubscibeFromChannel("channel1");
 								((WindTurbineTest)owner).subscibeToChannel("testChannel", accept_all_filter);
@@ -346,6 +381,7 @@ public class CVMCompleteTest extends AbstractCVM {
 						step7_Instant,
 						owner -> {
 							try {
+								System.out.println("STEP 7/11 (160s)");
 								((MeteoStationTest)owner).publishWindData(1.0, 1.0, "channel0");
 							} catch (Exception e) {
 								System.err.println("Step 7 wind data publication failed with exception " + e);
@@ -358,6 +394,7 @@ public class CVMCompleteTest extends AbstractCVM {
 						step8_Instant,
 						owner -> {
 							try {
+								System.out.println("STEP 8/11 (180s)");
 								((MeteoStationTest)owner).publishWindData(2.0, 2.0, "testChannel");
 							} catch (Exception e) {
 								System.err.println("Step 8 wind data publication failed with exception " + e);
@@ -370,6 +407,7 @@ public class CVMCompleteTest extends AbstractCVM {
 						step9_Instant,
 						owner -> {
 							try {
+								System.out.println("STEP 9/11 (200s)");
 								((MeteoBureauTest)owner).modifyAuthorizedUsers("testChannel", "^"+WT1ReceivingInboundPortURI+"$"); // inbound receiving port used on the broker
 							} catch (Exception e) {
 								System.err.println("Step 9 authorized users modification failed with exception " + e);
@@ -382,6 +420,7 @@ public class CVMCompleteTest extends AbstractCVM {
 						step10_Instant,
 						owner -> {
 							try {
+								System.out.println("STEP 10/11 (220s)");
 								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.GREEN, 
 										all_regions, step10_Instant, Duration.ofSeconds(5), "testChannel");
 							} catch (Exception e) {
@@ -395,6 +434,7 @@ public class CVMCompleteTest extends AbstractCVM {
 						step11_Instant,
 						owner -> {
 							try {
+								System.out.println("STEP 11/11 (240s)");
 								((MeteoBureauTest)owner).destroyChannelAndVerifies("testChannel");
 							} catch (Exception e) {
 								System.err.println("Step 11 \"testChannel\" destruction + verification failed with exception " + e);
@@ -472,17 +512,17 @@ public class CVMCompleteTest extends AbstractCVM {
 		
 		String windTurbine1_URI_verif = AbstractComponent.createComponent(WindTurbineTest.class.getCanonicalName(),
 				new Object[] { WT1ReceivingInboundPortURI, WT1RegistrationOutboundPortURI, WT1PublishingOutboundPortURI,
-						1, 1, windTurbine1Position, maxWorkingLevelWT1, WT1_URI, testScenario, 1, WT1Windfilters, WT1Alertfilters});
+						WT1rc, 1, 1, windTurbine1Position, maxWorkingLevelWT1, WT1_URI, testScenario, 1, WT1Windfilters, WT1Alertfilters});
 		this.toggleTracing(windTurbine1_URI_verif);
 		
 		String windTurbine2_URI_verif = AbstractComponent.createComponent(WindTurbineTest.class.getCanonicalName(),
 				new Object[] { WT2ReceivingInboundPortURI, WT2RegistrationOutboundPortURI, WT2PublishingOutboundPortURI,
-						1, 1, windTurbine2Position, maxWorkingLevelWT2, WT2_URI, testScenario, 2, WT2Windfilters, WT2Alertfilters});
+						WT2rc, 1, 1, windTurbine2Position, maxWorkingLevelWT2, WT2_URI, testScenario, 2, WT2Windfilters, WT2Alertfilters});
 		this.toggleTracing(windTurbine2_URI_verif);
 		
 		String windTurbine3_URI_verif = AbstractComponent.createComponent(WindTurbineTest.class.getCanonicalName(),
 				new Object[] { WT3ReceivingInboundPortURI, WT3RegistrationOutboundPortURI, WT3PublishingOutboundPortURI,
-						1, 1, windTurbine3Position, maxWorkingLevelWT3, WT3_URI, testScenario, 3, WT3Windfilters, WT3Alertfilters});
+						WT3rc, 1, 1, windTurbine3Position, maxWorkingLevelWT3, WT3_URI, testScenario, 3, WT3Windfilters, WT3Alertfilters});
 		this.toggleTracing(windTurbine3_URI_verif);
 		
 		// Clock server creation

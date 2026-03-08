@@ -3,6 +3,7 @@ package fr.sorbonne_u.meteo.components;
 import java.time.Instant;
 import java.util.ArrayList;
 
+import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
@@ -35,8 +36,9 @@ import fr.sorbonne_u.exceptions.PostconditionException;
  * </p>
  * 
  * <p>
- * A classic WindTurbine is necessarily a STANDARD client in this class :
- * this is mainly explained by the necessity to be able to interact with privileged channels, in addition of default channels.
+ * A Wind Turbine can have a privileged registration class, allowing it to interact with privileged channels on the {@link Broker},
+ * however instead of {@link MeteoBureau} and {@link MeteoStation} components, it does not automatically creates the
+ * privileged plugin on creation.
  * </p>
  * 
  * <p><strong>Invariants</strong></p>
@@ -95,6 +97,7 @@ public class WindTurbine extends Client {
      * pre  {@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
      * pre  {@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
      * pre  {@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
+     * pre	{@code rc != null}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
      * pre  {@code pos != null}
      * pre  {@code maxWorkingLevel != null}
@@ -104,6 +107,7 @@ public class WindTurbine extends Client {
      * @param receivingInboundPortURI     URI of the inbound port providing {@link ReceivingCI}.
      * @param registrationOutboundPortURI URI of the outbound port requesting {@link RegistrationCI}.
      * @param publishingOutboundPortURI   URI of the outbound port requesting {@link PublishingCI}.
+	 * @param rc			  		 	  The registration class of the component.
 	 * @param nbThreads					  Number of threads to be created in the component pool.
 	 * @param nbSchedulableThreads		  Number of threads to be created in the component schedulable pool.
      * @param windTurbinePos              The position of the wind turbine.
@@ -111,8 +115,8 @@ public class WindTurbine extends Client {
      * @throws Exception                  If a problem occurs during initialization or port publication.
      */
 	protected WindTurbine(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, 
-			int nbThreads, int nbSchedulableThreads, PositionData windTurbinePos,LevelI maxWorkingLevel) throws Exception {
-		super(receivingInboundPortURI, "registration", registrationOutboundPortURI, RegistrationClass.STANDARD, nbThreads, nbSchedulableThreads);
+			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData windTurbinePos,LevelI maxWorkingLevel) throws Exception {
+		super(receivingInboundPortURI, "registration", registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads);
 		
 		// Some preconditions are checked inside the superconstructor while others are checked here
 		assert (windTurbinePos != null) : new PreconditionException("WindTurbine position cannot be null");	
@@ -159,6 +163,7 @@ public class WindTurbine extends Client {
      * pre  {@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
      * pre  {@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
      * pre  {@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
+     * pre	{@code rc != null}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
      * pre  {@code pos != null}
      * pre  {@code maxWorkingLevel != null}
@@ -169,6 +174,7 @@ public class WindTurbine extends Client {
      * @param receivingInboundPortURI     URI of the inbound port providing {@link ReceivingCI}.
      * @param registrationOutboundPortURI URI of the outbound port requesting {@link RegistrationCI}.
      * @param publishingOutboundPortURI   URI of the outbound port requesting {@link PublishingCI}.
+	 * @param rc			  		 	  	The registration class of the component.
 	 * @param nbThreads					  Number of threads to be created in the component pool.
 	 * @param nbSchedulableThreads		  Number of threads to be created in the component schedulable pool.
      * @param windTurbinePos              The position of the wind turbine.
@@ -177,8 +183,8 @@ public class WindTurbine extends Client {
      * @throws Exception                  If a problem occurs during initialization or port publication.
      */
 	protected WindTurbine(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, 
-			int nbThreads, int nbSchedulableThreads, PositionData windTurbinePos, LevelI maxWorkingLevel, String reflectionInboundPortURI) throws Exception {
-		super(receivingInboundPortURI, "registration", registrationOutboundPortURI, RegistrationClass.STANDARD, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
+			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData windTurbinePos, LevelI maxWorkingLevel, String reflectionInboundPortURI) throws Exception {
+		super(receivingInboundPortURI, "registration", registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
 		
 		// Some preconditions are checked inside the superconstructor while others are checked here
 		assert (windTurbinePos != null) : new PreconditionException("WindTurbine position cannot be null");	

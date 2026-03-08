@@ -9,6 +9,8 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
+import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
+import fr.sorbonne_u.exceptions.PostconditionException;
 import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
@@ -44,6 +46,7 @@ public class WindTurbineTest extends WindTurbine {
      * pre  {@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
      * pre  {@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
      * pre  {@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
+     * pre	{@code rc != null}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
      * pre  {@code pos != null}
      * pre  {@code maxWorkingLevel != null}
@@ -56,6 +59,7 @@ public class WindTurbineTest extends WindTurbine {
      * @param receivingInboundPortURI     URI of the inbound port providing {@link ReceivingCI}.
      * @param registrationOutboundPortURI URI of the outbound port requesting {@link RegistrationCI}.
      * @param publishingOutboundPortURI   URI of the outbound port requesting {@link PublishingCI}.
+	 * @param rc			  		 	  The registration class of the component.
 	 * @param nbThreads					  Number of threads to be created in the component pool.
 	 * @param nbSchedulableThreads		  Number of threads to be created in the component schedulable pool.
      * @param pos                         The position of the wind turbine.
@@ -68,9 +72,9 @@ public class WindTurbineTest extends WindTurbine {
      * @throws Exception                  If a problem occurs during initialization or port publication.
      */
 	protected WindTurbineTest(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, 
-			int nbThreads, int nbSchedulableThreads, PositionData pos,LevelI maxWorkingLevel, String reflectionInboundPortURI, 
-			TestScenario testScenario, int id, MessageFilterI filterChannel0, MessageFilterI filterChannel1) throws Exception {
-		super(receivingInboundPortURI, registrationOutboundPortURI, publishingOutboundPortURI, nbThreads, nbSchedulableThreads, pos, maxWorkingLevel, reflectionInboundPortURI);
+			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData pos,LevelI maxWorkingLevel, 
+			String reflectionInboundPortURI, TestScenario testScenario, int id, MessageFilterI filterChannel0, MessageFilterI filterChannel1) throws Exception {
+		super(receivingInboundPortURI, registrationOutboundPortURI, publishingOutboundPortURI, rc, nbThreads, nbSchedulableThreads, pos, maxWorkingLevel, reflectionInboundPortURI);
 		
 		// Preconditions are checked inside the superconstructor
 		
@@ -89,6 +93,7 @@ public class WindTurbineTest extends WindTurbine {
      * pre  {@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
      * pre  {@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
      * pre  {@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
+     * pre	{@code rc != null}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
      * pre  {@code pos != null}
      * pre  {@code maxWorkingLevel != null}
@@ -100,6 +105,7 @@ public class WindTurbineTest extends WindTurbine {
      * @param receivingInboundPortURI     URI of the inbound port providing {@link ReceivingCI}.
      * @param registrationOutboundPortURI URI of the outbound port requesting {@link RegistrationCI}.
      * @param publishingOutboundPortURI   URI of the outbound port requesting {@link PublishingCI}.
+	 * @param rc			  		 	  The registration class of the component.
 	 * @param nbThreads					  Number of threads to be created in the component pool.
 	 * @param nbSchedulableThreads		  Number of threads to be created in the component schedulable pool.
      * @param pos                         The position of the wind turbine.
@@ -112,9 +118,9 @@ public class WindTurbineTest extends WindTurbine {
      * @throws Exception                  If a problem occurs during initialization or port publication.
      */
 	protected WindTurbineTest(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, 
-			int nbThreads, int nbSchedulableThreads, PositionData pos,LevelI maxWorkingLevel, String reflectionInboundPortURI, 
-			int id, MessageFilterI filterChannel0, MessageFilterI filterChannel1) throws Exception {
-		super(receivingInboundPortURI, registrationOutboundPortURI, publishingOutboundPortURI, nbThreads, nbSchedulableThreads, pos, maxWorkingLevel, reflectionInboundPortURI);
+			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData pos,LevelI maxWorkingLevel, 
+			String reflectionInboundPortURI, int id, MessageFilterI filterChannel0, MessageFilterI filterChannel1) throws Exception {
+		super(receivingInboundPortURI, registrationOutboundPortURI, publishingOutboundPortURI, rc, nbThreads, nbSchedulableThreads, pos, maxWorkingLevel, reflectionInboundPortURI);
 		
 		// Preconditions are checked inside the superconstructor
 		
@@ -161,7 +167,7 @@ public class WindTurbineTest extends WindTurbine {
 	 * <p><strong>Contract</strong></p>
      * <pre>
      * pre  {@code true} // no precondition.
-     * post {@code true} // no postcondition.
+     * post {@code !registrationPlugin.registered()}
      * </pre>
      * 
      * @throws Exception If an error occurs while unregistering.
@@ -169,6 +175,9 @@ public class WindTurbineTest extends WindTurbine {
 	public void unregisterFromSystem()  throws Exception  {
 		registrationPlugin.unregister();
 		this.logMessage("WindTurbine unregistered from system");
+		
+		// Postcondition check
+		assert(!registrationPlugin.registered()) : new PostconditionException("should be unregistered from system");
 	}
 	
 	/**
@@ -177,7 +186,7 @@ public class WindTurbineTest extends WindTurbine {
 	 * <p><strong>Contract</strong></p>
      * <pre>
 	 * pre	{@code channel != null && !channel.isEmpty()}
-     * post {@code true} // no postcondition.
+     * post {@code !subscriptionPlugin.subscribed(channel)}
      * </pre>
 	 * 
 	 * @param channel		The channel from which the turbine must unsubscribe.
@@ -189,6 +198,9 @@ public class WindTurbineTest extends WindTurbine {
 		
 		subscriptionPlugin.unsubscribe(channel);
 		this.logMessage("WindTurbine unsubscribed from channel : "+channel);
+		
+		// Postcondition check
+		assert(!subscriptionPlugin.subscribed(channel)) : new PostconditionException("should be unsubscribed from channel : "+channel);
 	}
 	
 	/**
@@ -198,7 +210,7 @@ public class WindTurbineTest extends WindTurbine {
      * <pre>
 	 * pre	{@code channel != null && !channel.isEmpty()}
 	 * pre	{@code filter != null}
-     * post {@code true} // no postcondition.
+     * post {@code subscriptionPlugin.subscribed(channel)}
      * </pre>
 	 * 
 	 * @param channel		The channel to subscribe to.
@@ -212,6 +224,9 @@ public class WindTurbineTest extends WindTurbine {
 		
 		subscriptionPlugin.subscribe(channel, filter);
 		this.logMessage("WindTurbine subscribed to channel : "+channel);
+		
+		// Postcondition check
+		assert(subscriptionPlugin.subscribed(channel)) : new PostconditionException("should be subscribed to channel : "+channel);
 	}
 	
 	

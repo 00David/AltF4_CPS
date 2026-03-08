@@ -31,12 +31,12 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * Test class to simulate the following scenario from the start of the CVM:
  * <p>
  * <ul>
- * 	<li> - After 30 seconds, {@link MeteoStationTest} n°1 sends wind data to 'channel0'.
- * 	<li> - After 60 seconds, {@link MeteoStationTest} n°2 sends wind data to 'channel0'.
- * 	<li> - After 90 seconds, {@link MeteoBureauTest} sends a dangerous alert to 'channel1'.
- * 	<li> - After 120 seconds, {@link MeteoBureauTest} sends an end-of-danger alert to 'channel1'.
- * 	<li> - After 150 seconds, {@link MeteoStationTest} n°1 sends wind data again to 'channel0'.
- * 	<li> - After 180 seconds, {@link MeteoBureauTest} sends a dangerous alert to 'channel1', not affecting the wind turbine region.
+ * 	<li> - After 30 seconds, <strong>MeteoStation n°1</strong> sends wind data to 'channel0'.
+ * 	<li> - After 60 seconds, <strong>MeteoStation n°2</strong> sends wind data to 'channel0'.
+ * 	<li> - After 90 seconds, <strong>MeteoBureau</strong> sends a dangerous alert to 'channel1'.
+ * 	<li> - After 120 seconds, <strong>MeteoBureau</strong> sends an end-of-danger alert to 'channel1'.
+ * 	<li> - After 150 seconds, <strong>MeteoStation n°1</strong> sends wind data again to 'channel0'.
+ * 	<li> - After 180 seconds, <strong>MeteoBureau</strong> sends a dangerous alert to 'channel1', not affecting the wind turbine region.
  * </ul>
  * </p>
  * 
@@ -55,7 +55,7 @@ public class CVMSimpleTest extends AbstractCVM {
 
 	public static long DELAY_TO_START = 1000L;
 	public static long END_SLEEP_DURATION = 10000L;
-	public static double ACCELERATION_FACTOR = 1.0;
+	public static double ACCELERATION_FACTOR = 3.0;
 	public static long EXECUTION_DURATION =
 		(long) (DELAY_TO_START + 1000L + ((Instant.parse(END_INSTANT).toEpochMilli() - Instant.parse(START_INSTANT).toEpochMilli())
 														/ACCELERATION_FACTOR));
@@ -160,6 +160,7 @@ public class CVMSimpleTest extends AbstractCVM {
 					step0_Instant,
 					owner -> {
 						try {
+							System.out.println("STEP 0/5 (30s)");
 							((MeteoStationTest)owner).publishWindData(2.0, 2.0, "channel0");
 						} catch (Exception e) {
 							System.err.println("Step 0 wind data publication failed with exception " + e);
@@ -172,6 +173,7 @@ public class CVMSimpleTest extends AbstractCVM {
 					step1_Instant,
 					owner -> {
 						try {
+							System.out.println("STEP 1/5 (60s)");
 							((MeteoStationTest)owner).publishWindData(1.0, 1.0, "channel0");
 						} catch (Exception e) {
 							System.err.println("Step 1 wind data publication failed with exception " + e);
@@ -184,6 +186,7 @@ public class CVMSimpleTest extends AbstractCVM {
 						step2_Instant,
 						owner -> {
 							try {
+								System.out.println("STEP 2/5 (90s)");
 								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.RED, 
 										step2_3_regions, step2_Instant, Duration.ofSeconds((long)((STEP3-STEP2)/ACCELERATION_FACTOR)), "channel1");
 							} catch (Exception e) {
@@ -197,6 +200,7 @@ public class CVMSimpleTest extends AbstractCVM {
 						step3_Instant,
 						owner -> {
 							try {
+								System.out.println("STEP 3/5 (120s)");
 								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.GREEN, 
 										step2_3_regions, step3_Instant, Duration.ofSeconds((long)((STEP3-STEP2)/ACCELERATION_FACTOR)), "channel1");
 							} catch (Exception e) {
@@ -210,6 +214,7 @@ public class CVMSimpleTest extends AbstractCVM {
 					step4_Instant,
 					owner -> {
 						try {
+							System.out.println("STEP 4/5 (150s)");
 							((MeteoStationTest)owner).publishWindData(2.0, 2.0, "channel0");
 						} catch (Exception e) {
 							System.err.println("Step 4 wind data publication failed with exception " + e);
@@ -222,6 +227,7 @@ public class CVMSimpleTest extends AbstractCVM {
 						step5_Instant,
 						owner -> {
 							try {
+								System.out.println("STEP 5/5 (180s)");
 								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.RED, 
 										step5_regions, step5_Instant, Duration.ofSeconds((long)((STEP3-STEP2)/ACCELERATION_FACTOR)), "channel1");
 							} catch (Exception e) {
@@ -292,7 +298,7 @@ public class CVMSimpleTest extends AbstractCVM {
 		
 		String tmp_windTurbine_URI = AbstractComponent.createComponent(WindTurbineTest.class.getCanonicalName(),
 				new Object[] { WindTurbineReceivingInboundPortURI, WindTurbineRegistrationOutboundPortURI, WindTurbinePublishingOutboundPortURI,
-						1, 1, windTurbinePosition, maxWorkingLevelWT, WT_URI, 1, windTurbineWindFilter, windTurbineAlertFilter});
+						RegistrationClass.FREE, 1, 1, windTurbinePosition, maxWorkingLevelWT, WT_URI, 1, windTurbineWindFilter, windTurbineAlertFilter});
 		this.toggleTracing(tmp_windTurbine_URI);
 		
 		// Clock server creation

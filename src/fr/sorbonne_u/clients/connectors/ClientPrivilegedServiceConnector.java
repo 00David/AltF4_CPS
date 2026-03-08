@@ -58,12 +58,8 @@ public class ClientPrivilegedServiceConnector extends ClientPublishingServiceCon
 	public void modifyAuthorisedUsers(String receptionPortURI, String channel, String autorisedUsers) throws Exception {
 		((PrivilegedClientCI)this.offering).modifyAuthorisedUsers(receptionPortURI, channel, autorisedUsers);
 	}
-
-	@Override
-	public void removeAuthorisedUsers(String receptionPortURI, String channel, String regularExpression)
-			throws Exception {
-		((PrivilegedClientCI)this.offering).removeAuthorisedUsers(receptionPortURI, channel, regularExpression);
-	}
+	
+	// 'removeAuthorisedUsers' removed from source interface
 
 	@Override
 	public void destroyChannel(String receptionPortURI, String channel) throws Exception {

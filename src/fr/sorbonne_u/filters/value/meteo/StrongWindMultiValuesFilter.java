@@ -9,12 +9,14 @@ import fr.sorbonne_u.meteo.data.WindData;
 /**
  * Filter accepting a given {@link WindData} values, when its informations are NOT above given thresholds.
  * 
- * <p>Values received by the {@code match} method define a {@link WindData} :
- * <ul>
- * 	<li>The source {@link PositionData} of the wind vector.</li>
- * <li>The X component of the wind vector.</li>
- * <li>The Y component of the wind vector.</li>
- * </ul>
+ * <p>
+ * 	Values received by the {@code match} method define a {@link WindData} :
+ * 	<ul>
+ * 		<li>The source {@link PositionData} of the wind vector.</li>
+ * 		<li>The X component of the wind vector.</li>
+ * 		<li>The Y component of the wind vector.</li>
+ * 	</ul>
+ * </p>
  * 
  * 
  * <p><strong>Invariants</strong></p>
@@ -34,10 +36,10 @@ public class StrongWindMultiValuesFilter extends AbstractMultiValuesFilter{
 	/** The initial position from where distances will be computed */
 	private final PositionData position;
 	
-	/** The distance between {@code position} and the position of the {@link WindData} value must not be above this threshold */
+	/** The distance between {@code position} and the received {@link PositionData} value must not be above this threshold */
 	private final double distanceThreshold;
 	
-	/** The force of the X and Y wind component values must not be above this threshold */
+	/** The force of the X and Y received wind component values must not be above this threshold */
 	private final double forceThreshold;
 	
 	/**
@@ -53,7 +55,7 @@ public class StrongWindMultiValuesFilter extends AbstractMultiValuesFilter{
 	 * </pre>
 	 * 
 	 * @param position				The position from where the distance will be computed.
-	 * @param distanceThreshold		The maximum accepted distance between {@code position} and the wind source position.
+	 * @param distanceThreshold		The maximum accepted distance between {@code position} and the wind source {@link PositionData}.
 	 * @param forceThreshold 		The maximum accepted wind's force.
 	 */
 	public StrongWindMultiValuesFilter(PositionData position, double distanceThreshold, double forceThreshold) {

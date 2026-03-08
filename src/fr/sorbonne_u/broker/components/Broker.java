@@ -372,6 +372,7 @@ public class Broker extends AbstractComponent{
 		// 'registeredService' can throw an UnknownClientException if the client is not already registered
 		if (registeredService(receptionPortURI, rc) == true) throw new AlreadyRegisteredException("Client "+receptionPortURI+" already registered.");
 		
+		this.logMessage("Broker modifying service class for client : '"+receptionPortURI+"', now : "+rc);
 		// Modify the client registration class
 		clientsInfos.get(receptionPortURI).setRegistrationClass(rc);
 		
@@ -387,6 +388,7 @@ public class Broker extends AbstractComponent{
 					// If it is not the case, we remove him as a subscriber of the channel
 					if (!channelAuthorisedService(receptionPortURI, channel)) {
 						chanInfos.removeSubscriber(receptionPortURI);
+						this.logMessage("client '"+receptionPortURI+"' unsubscribed from '"+chanInfos+"' because of new service class");
 					}
 				} catch (UnknownChannelException e) {
 					System.err.println("Impossible, channel necessarily exists here");
@@ -566,7 +568,7 @@ public class Broker extends AbstractComponent{
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 		if (!channelAuthorisedService(receptionPortURI, channel)) throw new UnauthorisedClientException("Client "+receptionPortURI+" is not authorized.");
 		
-		this.logMessage("Broker subscribing '" + receptionPortURI + "' to "+ channel) ;
+		this.logMessage("Broker subscribing '" + receptionPortURI + "' to '"+ channel + "'") ;
 		
 		// Subscibe the client to the channel, with the associated filter
 		channelsInfos.get(channel).addOrReplaceSubscriber(receptionPortURI, filter);
@@ -603,7 +605,7 @@ public class Broker extends AbstractComponent{
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 		if (!subscribedService(receptionPortURI, channel)) throw new NotSubscribedChannelException("Not subscribed to '"+channel+"' channel.");
 		
-		this.logMessage("Broker unsubscribing '" + receptionPortURI + "' from "+ channel) ;
+		this.logMessage("Broker unsubscribing '" + receptionPortURI + "' from '"+ channel + "'") ;
 		
 		// Unsubscribe the client of the channel
 		channelsInfos.get(channel).removeSubscriber(receptionPortURI);
@@ -645,6 +647,8 @@ public class Broker extends AbstractComponent{
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 		if (!subscribedService(receptionPortURI, channel)) throw new NotSubscribedChannelException("Not subscribed to '"+channel+"' channel.");
 		
+		this.logMessage("'"+receptionPortURI+"' modifies its filter on channel '"+channel+"'");
+		
 		// Overrides the existing filter with a new one
 		channelsInfos.get(channel).addOrReplaceSubscriber(receptionPortURI, filter);
 		
@@ -685,7 +689,7 @@ public class Broker extends AbstractComponent{
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 		if (!channelAuthorisedService(receptionPortURI, channel)) throw new UnauthorisedClientException("Client "+receptionPortURI+" is not authorized.");
 		
-		this.logMessage("Broker received message(s) from '" + receptionPortURI + "' on " + channel) ;
+		this.logMessage("Broker received message(s) from '" + receptionPortURI + "' on '" + channel + "'") ;
 		
 		ChannelBrokerInfos chanInfos = channelsInfos.get(channel);
 		
@@ -810,6 +814,8 @@ public class Broker extends AbstractComponent{
 		if (channelsInfos.containsKey(channel)) throw new AlreadyExistingChannelException("Channel " + channel + " already exists.");
 		if (!channelQuotaReachedService(receptionPortURI)) throw new ChannelQuotaExceededException("No remaining channels to manage for "+receptionPortURI);
 		
+		this.logMessage("Broker creating new channel '" + channel + "', owned by '" + receptionPortURI + "'") ;
+		
 		channelsInfos.put(channel, new ChannelBrokerInfos(channel, autorisedUsers, receptionPortURI, true));
 		clientsInfos.get(receptionPortURI).decreaseRemainingChannels();
 		return null;
@@ -892,6 +898,8 @@ public class Broker extends AbstractComponent{
 		// If the client is not the creator of the channel, then he cannot modify authorized users.
 		ChannelBrokerInfos chan = channelsInfos.get(channel);
 		if (!chan.getCreator().equals(receptionPortURI)) throw new UnauthorisedClientException("Client "+receptionPortURI+" is not the creator of the channel : '"+channel+"'");
+		
+		this.logMessage("Broker modifying authorized users for channel '" + channel + "', now authorized : '" + autorisedUsers + "'") ;
 		
 		// Updates the accepted regex and delegates potential unregistrations to the method
 		chan.modifyAuthorizedUsers(autorisedUsers);

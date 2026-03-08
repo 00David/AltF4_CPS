@@ -60,7 +60,7 @@ public class ClientRegistrationServiceConnector extends AbstractConnector implem
 
 	@Override
 	public boolean subscribed(String receptionPortURI, String channel) throws Exception {
-		return ((RegistrationCI)this.offering).channelExist(channel);
+		return ((RegistrationCI)this.offering).subscribed(receptionPortURI, channel);
 	}
 
 	@Override

@@ -103,15 +103,15 @@ public class MeteoStation extends Client {
 	 * @param registrationOutboundPortURI   URI of the outbound port requiring {@link RegistrationCI}.
 	 * @param publishingOutboundPortURI     URI of the outbound port requiring {@link PublishingCI}.
 	 * @param privilegedOutboundPortURI	    URI of the outbound port requiring {@link PrivilegedClientCI}. Can be empty if the client if FREE, otherwise it cannot.
-	 * @param rc			  		 	  The registration class of the component.
-	 * @param nbThreads					  Number of threads to be created in the component pool.
-	 * @param nbSchedulableThreads		  Number of threads to be created in the component schedulable pool.
-	 * @param stationPosition             The position of the station.
-	 * @param sleepMinTime                Minimum wait time between each new {@link WindData} sending.
-	 * @param sleepMaxTime                Maximum wait time between each new {@link WindData} sending.
-	 * @param windMinXY                   Minimum X value for a new {@link WindData}.
-	 * @param windMaxXY                   Maximum X value for a new {@link WindData}.
-	 * @throws Exception                  If a problem occurs during initialization or port publication.
+	 * @param rc			  		 	  	The registration class of the component.
+	 * @param nbThreads					  	Number of threads to be created in the component pool.
+	 * @param nbSchedulableThreads		  	Number of threads to be created in the component schedulable pool.
+	 * @param stationPosition             	The position of the station.
+	 * @param sleepMinTime                	Minimum wait time between each new {@link WindData} sending.
+	 * @param sleepMaxTime                	Maximum wait time between each new {@link WindData} sending.
+	 * @param windMinXY                   	Minimum X value for a new {@link WindData}.
+	 * @param windMaxXY                   	Maximum X value for a new {@link WindData}.
+	 * @throws Exception                  	If a problem occurs during initialization or port publication.
 	 */
 	protected MeteoStation(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, String privilegedOutboundPortURI, 
 			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData stationPosition, int sleepMinTime, int sleepMaxTime, double windMinXY, double windMaxXY) throws Exception {
@@ -180,12 +180,12 @@ public class MeteoStation extends Client {
 	 * @param registrationOutboundPortURI   URI of the outbound port requiring {@link RegistrationCI}.
 	 * @param publishingOutboundPortURI     URI of the outbound port requiring {@link PublishingCI}.
 	 * @param privilegedOutboundPortURI	    URI of the outbound port requiring {@link PrivilegedClientCI}. Can be empty if the client if FREE, otherwise it cannot.
-	 * @param rc			  		 	  The registration class of the component.
-	 * @param nbThreads					  Number of threads to be created in the component pool.
-	 * @param nbSchedulableThreads		  Number of threads to be created in the component schedulable pool.
-	 * @param stationPosition             The position of the station.
+	 * @param rc			  		 	  	The registration class of the component.
+	 * @param nbThreads					  	Number of threads to be created in the component pool.
+	 * @param nbSchedulableThreads		  	Number of threads to be created in the component schedulable pool.
+	 * @param stationPosition             	The position of the station.
 	 * @param reflectionInboundPortURI		URI of the reflection inbound port to be created in this component.
-	 * @throws Exception                  If a problem occurs during initialization or port publication.
+	 * @throws Exception                  	If a problem occurs during initialization or port publication.
 	 */
 	protected MeteoStation(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, String privilegedOutboundPortURI, 
 			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData stationPosition, String reflectionInboundPortURI) throws Exception {

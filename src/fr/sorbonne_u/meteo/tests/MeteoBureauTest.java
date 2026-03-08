@@ -12,6 +12,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
+import fr.sorbonne_u.exceptions.PostconditionException;
 import fr.sorbonne_u.exceptions.PreconditionException;
 import fr.sorbonne_u.messages.Message;
 import fr.sorbonne_u.meteo.components.MeteoBureau;
@@ -154,7 +155,7 @@ public class MeteoBureauTest extends MeteoBureau {
 	 * pre	{@code channel != null && !channel.isEmpty()}
 	 * pre	{@code authorizedUsers != null && !authorizedUsers.isEmpty()}
 	 * pre	{@code registrationClass == (RegistrationClass.STANDARD || RegistrationClass.PREMIUM)}
-	 * post	{@code true}	// no postcondition.
+	 * post	{@code publicationPlugin.channelExist(channel)}
 	 * </pre>
 	 * 
 	 * @param channel 			The new channel name.
@@ -172,6 +173,9 @@ public class MeteoBureauTest extends MeteoBureau {
 		
 		privilegedPlugin.createChannel(channel, authorizedUsers);
 		this.logMessage("Meteo Bureau has created channel : "+channel);
+		
+		// Postcondition check
+		assert(publicationPlugin.channelExist(channel)) : new PostconditionException("new channel '"+channel+"' should exist");
 	}
 	
 	/**
@@ -209,7 +213,7 @@ public class MeteoBureauTest extends MeteoBureau {
 	 * <pre>
 	 * pre	{@code channel != null && !channel.isEmpty()}
 	 * pre	{@code registrationClass == (RegistrationClass.STANDARD || RegistrationClass.PREMIUM)}
-	 * post	{@code true}	// no postcondition.
+	 * post	{@code !publicationPlugin.channelExist(channel)}
 	 * </pre>
 	 * 
 	 * @param channel 			The channel to destroy.
@@ -226,7 +230,9 @@ public class MeteoBureauTest extends MeteoBureau {
 		this.logMessage("Meteo Bureau has destroyed its channel : "+channel);
 		
 		boolean verif = subscriptionPlugin.channelExist(channel);
-		assert (verif == false);
 		this.logMessage("Channel still exists ? "+verif);
+		
+		// Postcondition check
+		assert(!verif) : new PostconditionException("channel '"+channel+"' should not exist anymore");
 	}
 }

@@ -4,6 +4,7 @@ import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.cvm.AbstractCVM;
 import fr.sorbonne_u.meteo.tests.CVMSimpleTest;
+import fr.sorbonne_u.meteo.tests.CVMCompleteTest;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.meteo.components.MeteoBureau;
@@ -12,9 +13,16 @@ import fr.sorbonne_u.meteo.components.WindTurbine;
 import fr.sorbonne_u.meteo.data.PositionData;
 
 /**
- * Main entry point for launching the program with client components publishing random messages on the broker.
+ * CVM for launching the program with client components publishing random messages on the broker.
  * 
- * <p>Executing test class {@link CVMSimpleTest} provides a prepared scenario for a better understanding of the system.</p>
+ * <p>
+ * 	For more complete/useful usages of the system, please see test classes :
+ * 	<ul>
+ * 		<li>{@link CVMSimpleTest}, providing a simple prepared scenario of the system usage.</li>
+ * 		<li>{@link CVMCompleteTest}, providing a more complex prepared scenario of the system usage, 
+ * 			with components using different filters and privileged features.</li>
+ * 	</ul>
+ * </p>
  * 
  * @author Kevin TANG
  * @author David VADIMON
