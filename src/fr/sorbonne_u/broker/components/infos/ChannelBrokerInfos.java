@@ -24,8 +24,8 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
  * 	<li> - The channel name.
  * 	<li> - A set of pairs: (subscriber client port + channel filter).
  * 	<li> - Whether the channel is accessible only to privileged clients or to everyone (default channel).
- * 	<li> - The regular expression defining the accepted client port URIs for this channel.
  * 	<li> - The client port that created the channel, or {@code null} if it was created by the {@link Broker}.
+ * 	<li> - The regular expression defining the accepted client port URIs for this channel.
  * 	<li> - A FIFO queue of {@link MessageI} pending on the channel (to be sent).
  * </ul>
  * </p>
@@ -98,11 +98,22 @@ public class ChannelBrokerInfos {
         }
     }
 
+    /** The name of the channel */
     private final String channel;
+    
+    /** A set of pairs: (subscriber client port + channel filter) */
     private final Set<SubsciberFilter> subscribers;
+    
+    /** Whether the channel is accessible only to privileged clients or to everyone */
     private final boolean onlyPrivileged;
+    
+    /** Whether the channel is accessible only to privileged clients or to everyone */
     private String authorisedUsers;
+    
+    /** The client port that created the channel, or {@code null} if it was created by the {@link Broker} */
     private final String clientCreator;
+    
+    /** A FIFO queue of messages pending on the channel (to be sent) */
     private final Queue<MessageI> messages;
 
     /**

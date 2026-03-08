@@ -1,5 +1,7 @@
 package fr.sorbonne_u.clients.plugins;
 
+import fr.sorbonne_u.broker.components.Broker;
+import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.connectors.ClientPrivilegedServiceConnector;
 import fr.sorbonne_u.clients.ports.ClientPrivilegedOutboundPort;
 import fr.sorbonne_u.components.AbstractPlugin;
@@ -12,9 +14,15 @@ import fr.sorbonne_u.cps.pubsub.exceptions.UnknownClientException;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
+import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
  * The {@link Client} plugin having a {@link ClientPrivilegedOutboundPort}.
+ * 
+ * <p>
+ * This plugin needs to be created after registering on the {@link Broker}, in order to pass 
+ * a valid {@code brokerPublishingPortURI} argument to the constructor.
+ * </p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -29,14 +37,22 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 
 	private static final long serialVersionUID = -1472841763925529259L;
 	
-	// Reception
+	// RECEPTION
+	
+	/** {@link Client} reception inbound port URI */
 	protected final String receivingInboundPortURI;
 	
-	// Privileged management
-	protected final String privilegedOutboundPortURI;
-	protected ClientPrivilegedOutboundPort privilegedOutboundPort; // Set up after plugin installation + initialization
+	// PRIVILEGED MANAGEMENT
 	
-	// Broker inbound port
+	/** {@link Client} privileged outbound port URI */
+	protected final String privilegedOutboundPortURI;
+
+	/** Privileged outbound port, set up after plugin installation + initialization */
+	protected ClientPrivilegedOutboundPort privilegedOutboundPort;
+	
+	// PUBLICATION
+	
+	/** {@link Broker} publication inbound port URI, got via {@link ClientRegistrationPlugin} after registration */
 	protected final String brokerPublishingPortURI;
 	
 	/**
@@ -46,6 +62,7 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 	 * <pre>
 	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
 	 * pre	{@code privilegedOutboundPortURI != null && !privilegedOutboundPortURI.isEmpty()}
+	 * pre  {@code brokerPublishingPortURI != null && !brokerPublishingPortURI.isEmpty()}
 	 * post	class invariants satisfied
 	 * </pre>
 	 * 
@@ -53,11 +70,11 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 	 * @param privilegedOutboundPortURI		the client outbound port URI requiring {@link PrivilegedClientCI} interface, used for creating the {@link ClientPrivilegedOutboundPort}.
 	 * @param brokerPublishingPortURI		the {@link Broker} inbound port URI offering {@link PrivilegedClientCI} interface.
 	 */
-	public ClientPrivilegedPlugin(String receivingInboundPortURI, String privilegedOutboundPortURI, 
-			String brokerPublishingPortURI){
+	public ClientPrivilegedPlugin(String receivingInboundPortURI, String privilegedOutboundPortURI, String brokerPublishingPortURI){
 		// Precondition checks
-		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty());
-		assert(privilegedOutboundPortURI != null && !privilegedOutboundPortURI.isEmpty());
+		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : new PreconditionException("receivingInboundPortURI cannot be null or empty");
+		assert(privilegedOutboundPortURI != null && !privilegedOutboundPortURI.isEmpty()) : new PreconditionException("privilegedOutboundPortURI cannot be null or empty");
+		assert(brokerPublishingPortURI != null && !brokerPublishingPortURI.isEmpty()) : new PreconditionException("brokerPublishingPortURI cannot be null or empty");
 		
 		this.receivingInboundPortURI = receivingInboundPortURI;
 		this.privilegedOutboundPortURI = privilegedOutboundPortURI;

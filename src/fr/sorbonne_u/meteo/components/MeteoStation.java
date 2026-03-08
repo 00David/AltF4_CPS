@@ -6,14 +6,18 @@ import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.plugins.ClientPrivilegedPlugin;
 import fr.sorbonne_u.clients.plugins.ClientPublicationPlugin;
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
+import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
+import fr.sorbonne_u.exceptions.PostconditionException;
+import fr.sorbonne_u.exceptions.PreconditionException;
 import fr.sorbonne_u.messages.Message;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.WindData;
+import fr.sorbonne_u.meteo.tests.MeteoStationTest;
 
 /**
  * Class representing a meteorological station emitting random wind data periodically.
@@ -24,11 +28,10 @@ import fr.sorbonne_u.meteo.data.WindData;
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
- * invariant	{@code sleepMinTime >= 0}
  * invariant	{@code sleepMaxTime >= sleepMinTime}
  * invariant	{@code publishingOutboundPortURI!= null & !publishingOutboundPortURI.isEmpty()}
  * invariant	if {@code this.rc != FREE} : {@code privilegedOutboundPortURI != null && !privilegedOutboundPortURI.isEmpty()}
- * invariant	{@code subscriptionPlugin != null}
+ * invariant	{@code subscriptionPlugin != null && subscriptionPlugin.isInitialised()}
  * </pre>
  * 
  * @author Kevin TANG
@@ -36,26 +39,45 @@ import fr.sorbonne_u.meteo.data.WindData;
  */
 public class MeteoStation extends Client {
 	
-	private PositionData stationPosition;
+	/** The component position */
+	protected final PositionData stationPosition;
 
-	// Waiting time between each WindData in seconds
-	private int sleepMinTime;
-	private int sleepMaxTime;
+	/** Minimum waiting time between each wind data sending in seconds */
+	protected int sleepMinTime;
+	/** Maximum waiting time between each wind data sending in seconds */
+	protected int sleepMaxTime;
 	
-	// Bounds for generating X and Y components of wind vectors
-	private double windMinXY;
-	private double windMaxXY;
+	/** Lower bound for generating X and Y components of wind vectors */
+	protected double windMinXY;
+	/** Upper bound for generating X and Y components of wind vectors */
+	protected double windMaxXY;
 	
-	// Publication
+	/** 
+	 * Indicates if the component must recursively send wind datas while executing.<br>
+	 * Classic constructor sets true, while the constructor used by test sub-classes sets false.
+	 */
+	private final boolean sendWDFromExec;
+	
+	// PUBLICATION
+	
+	/** Publication outbound port URI */
 	protected final String publishingOutboundPortURI;
+	
+	/** Publication plugin */
 	protected ClientPublicationPlugin publicationPlugin;
 	
-	// Subscription + reception
+	// SUBSCRIPTION + RECEPTION
+	
+	/** Subscription + reception plugin (used here only for subscription) */
 	protected final ClientSubscriptionPlugin subscriptionPlugin;
 	
-	// Privileged management
-	protected String privilegedOutboundPortURI = null; // stays null if the client is not privileged
-	protected ClientPrivilegedPlugin privilegedPlugin = null; // stays null if the client is not privileged
+	// PRIVILEGED MANAGEMENT
+	
+	/** Privileged outbound port URI, stays null if the client is not privileged */
+	protected String privilegedOutboundPortURI = null;
+	
+	/** Privileged outbound port, stays null if the client is not privileged */
+	protected ClientPrivilegedPlugin privilegedPlugin = null;
 	
 	// --------------------------------------------------------------------------
 	// Constructor
@@ -66,9 +88,9 @@ public class MeteoStation extends Client {
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
+	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
 	 * pre  {@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
 	 * pre  {@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
-	 * pre  {@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
 	 * pre	{@code privilegedOutboundPortURI != null}, if {@code rc != FREE : !privilegedOutboundPortURI.isEmpty()}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
 	 * pre  {@code stationPosition != null}
@@ -77,30 +99,31 @@ public class MeteoStation extends Client {
 	 * post {@code true} // no postcondition.
 	 * </pre>
 	 * 
-	 * @param registrationOutboundPortURI URI of the outbound port requesting {@link RegistrationCI}.
-	 * @param publishingOutboundPortURI   URI of the outbound port requesting {@link PublishingCI}.
-	 * @param receivingInboundPortURI     URI of the inbound port providing {@link ReceivingCI}.
-	 * @param privilegedOutboundPortURI	  URI of the outbound port requiring {@link PrivilegedClientCI}. Can be empty if the client if FREE, otherwise it cannot.
+	 * @param receivingInboundPortURI       URI of the inbound port offering {@link ReceivingCI}.
+	 * @param registrationOutboundPortURI   URI of the outbound port requiring {@link RegistrationCI}.
+	 * @param publishingOutboundPortURI     URI of the outbound port requiring {@link PublishingCI}.
+	 * @param privilegedOutboundPortURI	    URI of the outbound port requiring {@link PrivilegedClientCI}. Can be empty if the client if FREE, otherwise it cannot.
 	 * @param rc			  		 	  The registration class of the component.
 	 * @param nbThreads					  Number of threads to be created in the component pool.
 	 * @param nbSchedulableThreads		  Number of threads to be created in the component schedulable pool.
 	 * @param stationPosition             The position of the station.
 	 * @param sleepMinTime                Minimum wait time between each new {@link WindData} sending.
 	 * @param sleepMaxTime                Maximum wait time between each new {@link WindData} sending.
-	 * @param windMinXY                   Minimum X value for a new wind vector {@link WindData}.
-	 * @param windMaxXY                   Maximum X value for a new wind vector {@link WindData}.
+	 * @param windMinXY                   Minimum X value for a new {@link WindData}.
+	 * @param windMaxXY                   Maximum X value for a new {@link WindData}.
 	 * @throws Exception                  If a problem occurs during initialization or port publication.
 	 */
-	protected MeteoStation(String registrationOutboundPortURI, String publishingOutboundPortURI, String receivingInboundPortURI, String privilegedOutboundPortURI, 
+	protected MeteoStation(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, String privilegedOutboundPortURI, 
 			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData stationPosition, int sleepMinTime, int sleepMaxTime, double windMinXY, double windMaxXY) throws Exception {
-		super(receivingInboundPortURI, registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads);
+		super(receivingInboundPortURI, "registration", registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads);
+		
 		// Some preconditions are checked inside the superconstructor while others are checked here
-		assert(stationPosition != null);
-		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime);
-		assert(windMaxXY >= windMinXY);
-		assert(privilegedOutboundPortURI != null);
+		assert(stationPosition != null) : new PreconditionException("stationPosition cannot be null");	
+		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime): new PreconditionException("sleep times must be coherent");
+		assert(windMaxXY >= windMinXY): new PreconditionException("wind range must be coherent");
+		assert(privilegedOutboundPortURI != null) : new PreconditionException("privilegedOutboundPortURI cannot be null");
 		if (rc != RegistrationClass.FREE) {
-			assert (!privilegedOutboundPortURI.isEmpty());
+			assert (!privilegedOutboundPortURI.isEmpty()) : new PreconditionException("privilegedOutboundPortURI cannot be empty if the client is privileged");
 			this.privilegedOutboundPortURI = privilegedOutboundPortURI;
 		}
 
@@ -110,11 +133,100 @@ public class MeteoStation extends Client {
 		this.windMinXY = windMinXY;
 		this.windMaxXY = windMaxXY;
 		this.publishingOutboundPortURI = publishingOutboundPortURI;
+		this.sendWDFromExec = true;
 		
 		// Install the subscription + reception plugin
 		this.subscriptionPlugin = new ClientSubscriptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
 		this.subscriptionPlugin.setPluginURI("subscription");
 		this.installPlugin(this.subscriptionPlugin);
+		
+		// Invariant checks
+		AbstractComponent.checkImplementationInvariant(this);
+		AbstractComponent.checkInvariant(this);
+		
+		// Postcondition checks
+		assert subscriptionPlugin.isInitialised() : 
+			new PostconditionException("Subscription (+reception) plugin must be initialized");
+		assert	this.isPortExisting(receivingInboundPortURI) : 
+			new PostconditionException("The component must have a port with URI " + receivingInboundPortURI);
+		assert	this.findPortFromURI(receivingInboundPortURI).getImplementedInterface().equals(ReceivingCI.class) : 
+			new PostconditionException("The component must have a port with implemented interface ReceivingCI");
+		assert	this.findPortFromURI(receivingInboundPortURI).isPublished() :
+			new PostconditionException("The component must have a port published with URI " + receivingInboundPortURI);
+		
+		this.getTracer().setTitle("MeteoStation");
+		this.getTracer().setRelativePosition((int)stationPosition.getPosX(), (int)stationPosition.getPosY());
+	}
+	
+	/**
+	 * Creates a meteorological station component for the publish/subscribe system, extending a {@link Client}, by providing 
+	 * the {@code reflectionInboundPortURI} of the component.
+	 * 
+	 * <p>Constructor used by test sub-class {@link MeteoStationTest}.<p/>
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
+	 * pre  {@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
+	 * pre  {@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
+	 * pre	{@code privilegedOutboundPortURI != null}, if {@code rc != FREE : !privilegedOutboundPortURI.isEmpty()}
+	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
+	 * pre  {@code stationPosition != null}
+	 * pre	{@code reflectionInboundPortURI != null && !reflectionInboundPortURI.isEmpty()}
+	 * post {@code true} // no postcondition.
+	 * </pre>
+	 * 
+	 * @param receivingInboundPortURI       URI of the inbound port offering {@link ReceivingCI}.
+	 * @param registrationOutboundPortURI   URI of the outbound port requiring {@link RegistrationCI}.
+	 * @param publishingOutboundPortURI     URI of the outbound port requiring {@link PublishingCI}.
+	 * @param privilegedOutboundPortURI	    URI of the outbound port requiring {@link PrivilegedClientCI}. Can be empty if the client if FREE, otherwise it cannot.
+	 * @param rc			  		 	  The registration class of the component.
+	 * @param nbThreads					  Number of threads to be created in the component pool.
+	 * @param nbSchedulableThreads		  Number of threads to be created in the component schedulable pool.
+	 * @param stationPosition             The position of the station.
+	 * @param reflectionInboundPortURI		URI of the reflection inbound port to be created in this component.
+	 * @throws Exception                  If a problem occurs during initialization or port publication.
+	 */
+	protected MeteoStation(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, String privilegedOutboundPortURI, 
+			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData stationPosition, String reflectionInboundPortURI) throws Exception {
+		super(receivingInboundPortURI, "registration", registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
+		
+		// Some preconditions are checked inside the superconstructor while others are checked here
+		assert(stationPosition != null) : new PreconditionException("stationPosition cannot be null");	
+		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime): new PreconditionException("sleep times must be coherent");
+		assert(windMaxXY >= windMinXY): new PreconditionException("wind range must be coherent");
+		assert(privilegedOutboundPortURI != null) : new PreconditionException("privilegedOutboundPortURI cannot be null");
+		if (rc != RegistrationClass.FREE) {
+			assert (!privilegedOutboundPortURI.isEmpty()) : new PreconditionException("privilegedOutboundPortURI cannot be empty if the client is privileged");
+			this.privilegedOutboundPortURI = privilegedOutboundPortURI;
+		}
+
+		this.stationPosition = stationPosition;
+		this.sleepMinTime = -1;
+		this.sleepMaxTime = -1;
+		this.windMinXY = 0;
+		this.windMaxXY = 0;
+		this.publishingOutboundPortURI = publishingOutboundPortURI;
+		this.sendWDFromExec = false;
+		
+		// Install the subscription + reception plugin
+		this.subscriptionPlugin = new ClientSubscriptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
+		this.subscriptionPlugin.setPluginURI("subscription");
+		this.installPlugin(this.subscriptionPlugin);
+		
+		// Invariant checks
+		AbstractComponent.checkImplementationInvariant(this);
+		AbstractComponent.checkInvariant(this);
+		
+		// Postcondition checks
+		assert subscriptionPlugin.isInitialised() : 
+			new PostconditionException("Subscription (+reception) plugin must be initialized");
+		assert	this.isPortExisting(receivingInboundPortURI) : 
+			new PostconditionException("The component must have a port with URI " + receivingInboundPortURI);
+		assert	this.findPortFromURI(receivingInboundPortURI).getImplementedInterface().equals(ReceivingCI.class) : 
+			new PostconditionException("The component must have a port with implemented interface ReceivingCI");
+		assert	this.findPortFromURI(receivingInboundPortURI).isPublished() :
+			new PostconditionException("The component must have a port published with URI " + receivingInboundPortURI);
 		
 		this.getTracer().setTitle("MeteoStation");
 		this.getTracer().setRelativePosition((int)stationPosition.getPosX(), (int)stationPosition.getPosY());
@@ -139,15 +251,17 @@ public class MeteoStation extends Client {
 				publishingOutboundPortURI, registrationPlugin.getBrokerPublishingPortURI());
 		this.publicationPlugin.setPluginURI("publication");
 		this.installPlugin(this.publicationPlugin);
+		assert publicationPlugin.isInitialised();
 		
 		// Install the privileged plug-in if it is allowed.
 		if (this.registrationClass == RegistrationClass.STANDARD || this.registrationClass == RegistrationClass.PREMIUM) {
 			this.privilegedPlugin = new ClientPrivilegedPlugin(receivingInboundPortURI, privilegedOutboundPortURI, registrationPlugin.getBrokerPublishingPortURI());
 			this.privilegedPlugin.setPluginURI("privileged");
 			this.installPlugin(this.privilegedPlugin);
+			assert privilegedPlugin.isInitialised();
 		}
 		
-		sendWindData("channel0");
+		if (sendWDFromExec) sendRandomWindData("channel0");
 	}
 	
 	// --------------------------------------------------------------------------
@@ -164,8 +278,9 @@ public class MeteoStation extends Client {
 	 * </pre>
 	 * 
 	 */
-	protected void sendWindData(String channel) throws Exception {
-		assert(channel != null && !channel.isEmpty());
+	protected void sendRandomWindData(String channel) throws Exception {
+		// Precondition check
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");	
 		
 		int seconds = ThreadLocalRandom.current().nextInt(sleepMinTime, sleepMaxTime); 
 		this.logMessage("MeteoStation sleeps "+seconds+" seconds..."); 
@@ -188,6 +303,6 @@ public class MeteoStation extends Client {
 		publicationPlugin.publish(channel, msg);
 		
 		// Recursive call
-		sendWindData("channel0");
+		sendRandomWindData("channel0");
 	}
 }

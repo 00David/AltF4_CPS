@@ -21,7 +21,11 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.TimeFilterI;
 public class IntervalTimeFilter implements TimeFilterI{
 
 	private static final long serialVersionUID = -1021372401821067437L;
+	
+	/** The lower bound of timestamps accepted by this filter */
 	private Instant minBound;
+	
+	/** The upper bound of timestamps accepted by this filter */
 	private Instant maxBound;
 	
 	/**

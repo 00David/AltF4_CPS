@@ -2,13 +2,14 @@ package fr.sorbonne_u.filters.value;
 
 import java.io.Serializable;
 
+import fr.sorbonne_u.filters.tests.utils.IMC;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.MultiValuesFilterI;
 
 /**
  * Abstract class representing a filter that takes multiple values in its {@code match} method.
  * 
  * <p>
- * For a concrete filter, a class extending this one must be created. Example with: {@link fr.sorbonne_u.filters.tests.utils.IMC}.
+ * For a concrete filter, a class extending this one must be created. Example with: {@link IMC}.
  * </p>
  * 
  * <p><strong>Invariants</strong></p>
@@ -22,6 +23,8 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.MultiValuesFilterI;
 public abstract class AbstractMultiValuesFilter implements MultiValuesFilterI {
 
 	private static final long serialVersionUID = 1955588007790725754L;
+	
+	/** Propertie names on which the filter applies */
 	protected String[] propertyNames;
 	
 	/**

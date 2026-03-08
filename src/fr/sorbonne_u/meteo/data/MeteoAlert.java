@@ -25,11 +25,17 @@ import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
 public class MeteoAlert implements MeteoAlertI {
 	
 	private static final long serialVersionUID = -517623868931917800L;
-	private AlertTypeI alertType;
-	private LevelI alertLevel;
-	private ArrayList<RegionI>regions;
-	private Instant startTime;
-	private Duration duration;
+	
+	/** Alert type */
+	private final AlertTypeI alertType;
+	/** Alert level */
+	private final LevelI alertLevel;
+	/** Regions affected by this alert */
+	private final ArrayList<RegionI>regions;
+	/** Start time of the alert */
+	private final Instant startTime;
+	/** Duration of the alert */
+	private final Duration duration;
 	
 	/**
 	 * Creates a meteo alert. 
@@ -59,10 +65,9 @@ public class MeteoAlert implements MeteoAlertI {
 		// Precondition checks
 		if (alertType == null) throw new IllegalArgumentException("An alert type cannot be null");
 		if (alertLevel == null) throw new IllegalArgumentException("An alert level cannot be null");
-		if (regions == null) throw new IllegalArgumentException("Regions cannot be null");
+		if (regions == null || regions.isEmpty()) throw new IllegalArgumentException("Regions cannot be null or empty");
 		if (startTime == null) throw new IllegalArgumentException("Start time cannot be null");
 		if (duration == null) throw new IllegalArgumentException("Duration cannot be null");
-		if (regions.isEmpty()) throw new IllegalArgumentException("Regions cannot be empty");
 		
 		this.alertType = alertType;
 		this.alertLevel = alertLevel;
@@ -85,7 +90,8 @@ public class MeteoAlert implements MeteoAlertI {
 
 	@Override
 	public RegionI[] getRegions() {
-		return (RegionI[]) this.regions.toArray();
+		// .toArray(new RegionI[0]) : converts the Collection to a RegionI array
+		return this.regions.toArray(new RegionI[0]);
 	}
 
 	@Override

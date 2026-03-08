@@ -1,16 +1,14 @@
 package fr.sorbonne_u.meteo.tests;
 
-import fr.sorbonne_u.clients.components.Client;
-import fr.sorbonne_u.clients.plugins.ClientPrivilegedPlugin;
-import fr.sorbonne_u.clients.plugins.ClientPublicationPlugin;
-import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
 import fr.sorbonne_u.components.utils.tests.TestScenario;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
+import fr.sorbonne_u.exceptions.PreconditionException;
 import fr.sorbonne_u.messages.Message;
+import fr.sorbonne_u.meteo.components.MeteoStation;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.WindData;
 import fr.sorbonne_u.utils.aclocks.ClocksServer;
@@ -18,29 +16,16 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
 /**
  * Class representing a {@link MeteoStation} emitting wind data following a predefined scenario.
  * 
- * <p>The scenario is described in the {@link CVMTest} class.</p>
+ * <p>The scenario is described in the {@link CVMSimpleTest} class.</p>
  * 
- * <p>The class does not extend {@link MeteoStation} because it has already a defined random behavior on launch, here it is not the case.</p>
+ * <p>The class does extend {@link MeteoStation} because it keeps the same setup, while adding personalized actions for a test scenario.</p>
  * 
  * @author Kevin TANG
  * @author David VADIMON
  */
-public class MeteoStationTest extends Client {
-	
-	protected final PositionData stationPosition;
-	
-	// Publication
-	protected final String publishingOutboundPortURI;
-	protected ClientPublicationPlugin publicationPlugin;
-	
-	// Subscription + reception
-	protected final ClientSubscriptionPlugin subscriptionPlugin;
-	
-	// Privileged management
-	protected String privilegedOutboundPortURI = null; // stays null if the client is not privileged
-	protected ClientPrivilegedPlugin privilegedPlugin = null; // stays null if the client is not privileged
-	
-	// Scenario
+public class MeteoStationTest extends MeteoStation {
+
+	/** The test scenario followed by the component */
 	protected final TestScenario testScenario;
 	
 	// --------------------------------------------------------------------------
@@ -48,51 +33,42 @@ public class MeteoStationTest extends Client {
 	// --------------------------------------------------------------------------
 
 	/**
-	 * Creates a meteorological station component of the publish/subscribe system, extending {@link Client}.
+	 * Creates a test meteorological station component of the publish/subscribe system, extending {@link MeteoStation}.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
+	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
 	 * pre	{@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
 	 * pre	{@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
-	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
 	 * pre	{@code privilegedOutboundPortURI != null}, if {@code rc != FREE : !privilegedOutboundPortURI.isEmpty()}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
 	 * pre	{@code stationPosition != null}
+	 * pre	{@code reflectionInboundPortURI != null && !reflectionInboundPortURI.isEmpty()}
 	 * pre  {@code testScenario != null}
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 * 
+	 * @param receivingInboundPortURI       URI of the inbound port offering {@link ReceivingCI}.
 	 * @param registrationOutboundPortURI   URI of the outbound port requiring {@link RegistrationCI}.
 	 * @param publishingOutboundPortURI     URI of the outbound port requiring {@link PublishingCI}.
-	 * @param receivingInboundPortURI       URI of the inbound port offering {@link ReceivingCI}.
 	 * @param privilegedOutboundPortURI	    URI of the outbound port requiring {@link PrivilegedClientCI}. Can be empty if the client if FREE, otherwise it cannot.
 	 * @param rc			   				The registration class of the component.
 	 * @param stationPosition               The position of the station.
 	 * @param reflectionInboundPortURI		URI of the reflection inbound port to be created in this component.
+	 * @param id							A number identifying the component, just for tracer window.
 	 * @throws Exception                    If an error occurs during initialization or port publication.
 	 */
-	protected MeteoStationTest(String registrationOutboundPortURI, String publishingOutboundPortURI, String receivingInboundPortURI, String privilegedOutboundPortURI, 
-			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData stationPosition, TestScenario testScenario, String reflectionInboundPortURI) throws Exception {
-		super(receivingInboundPortURI, registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
-		// Some preconditions are checked inside the superconstructor while others are checked here
-		assert(stationPosition != null);
-		assert(testScenario != null);
-		if (rc != RegistrationClass.FREE) {
-			assert (!privilegedOutboundPortURI.isEmpty());
-			this.privilegedOutboundPortURI = privilegedOutboundPortURI;
-		}
+	protected MeteoStationTest(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, String privilegedOutboundPortURI, 
+			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData stationPosition, String reflectionInboundPortURI, 
+			TestScenario testScenario, int id) throws Exception {
+		super(receivingInboundPortURI, registrationOutboundPortURI , publishingOutboundPortURI, privilegedOutboundPortURI, rc, nbThreads,
+				nbSchedulableThreads, stationPosition, reflectionInboundPortURI);
 		
-		this.stationPosition = stationPosition;
-		this.publishingOutboundPortURI = publishingOutboundPortURI;
+		// Most preconditions are checked inside the superconstructor while the last one is checked here
+		assert(testScenario != null) : new PreconditionException("testScenario cannot be null");	
+		
 		this.testScenario = testScenario;
-		
-		// Install the subscription + reception plugin
-		this.subscriptionPlugin = new ClientSubscriptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
-		this.subscriptionPlugin.setPluginURI("subscription");
-		this.installPlugin(this.subscriptionPlugin);
-		
-		this.getTracer().setTitle("MeteoStation");
-		this.getTracer().setRelativePosition((int)stationPosition.getPosX(), (int)stationPosition.getPosY()) ;
+		this.getTracer().setTitle("MeteoStation "+id);
 	}
 	
 	// --------------------------------------------------------------------------
@@ -102,25 +78,6 @@ public class MeteoStationTest extends Client {
 	@Override
 	public void execute() throws Exception {
 		super.execute();
-		this.logMessage("executing MeteoStation component");
-		
-		// Register on the Broker
-		registrationPlugin.register(registrationClass);
-		assert (registrationPlugin.getBrokerPublishingPortURI() != null);
-		this.logMessage("MeteoStation registered");
-		
-		// Install the publication plug-in.
-		this.publicationPlugin = new ClientPublicationPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort(),
-				publishingOutboundPortURI, registrationPlugin.getBrokerPublishingPortURI());
-		this.publicationPlugin.setPluginURI("publication");
-		this.installPlugin(this.publicationPlugin);
-		
-		// Install the privileged plug-in if it is allowed.
-		if (this.registrationClass == RegistrationClass.STANDARD || this.registrationClass == RegistrationClass.PREMIUM) {
-			this.privilegedPlugin = new ClientPrivilegedPlugin(receivingInboundPortURI, privilegedOutboundPortURI, registrationPlugin.getBrokerPublishingPortURI());
-			this.privilegedPlugin.setPluginURI("privileged");
-			this.installPlugin(this.privilegedPlugin);
-		}
 
 		// Initialization of the clock
 		this.initialiseClock(
@@ -131,12 +88,13 @@ public class MeteoStationTest extends Client {
 	}
 	
 	// --------------------------------------------------------------------------
-	// Sending WindDatas
+	// Tests actions
 	// --------------------------------------------------------------------------
 
 	/**
 	 * Publishes a {@link WindData} with given parameters on the {@code channel}, from the position of the MeteoStation.
 	 * 
+	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre	{@code channel != null && !channel.isEmpty()}
 	 * post	{@code true}	// no postcondition.
@@ -149,7 +107,7 @@ public class MeteoStationTest extends Client {
 	 */
 	public void publishWindData(double xWind, double yWind, String channel) throws Exception {
 		// Precondition checks
-		assert(channel != null && !channel.isEmpty());
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");	
 		
 		Message msg = new Message();
 		WindData wd = new WindData(stationPosition, xWind, yWind);

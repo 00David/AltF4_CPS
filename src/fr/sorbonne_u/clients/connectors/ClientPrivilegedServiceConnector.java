@@ -3,8 +3,10 @@ package fr.sorbonne_u.clients.connectors;
 import java.util.ArrayList;
 
 import fr.sorbonne_u.broker.components.Broker;
+import fr.sorbonne_u.broker.ports.BrokerPrivilegedInboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
+import fr.sorbonne_u.clients.components.Client;
 
 /**
  * Connector between an outbound port of the {@link Client} component and an inbound port of a {@link Broker}.<br>

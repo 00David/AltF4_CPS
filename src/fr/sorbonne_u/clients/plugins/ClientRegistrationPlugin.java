@@ -1,6 +1,7 @@
 package fr.sorbonne_u.clients.plugins;
 
 import fr.sorbonne_u.broker.components.Broker;
+import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.connectors.ClientRegistrationServiceConnector;
 import fr.sorbonne_u.clients.ports.ClientRegistrationOutboundPort;
 import fr.sorbonne_u.components.AbstractPlugin;
@@ -13,6 +14,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.cps.pubsub.plugins.interfaces.ClientRegistrationI;
+import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
  * The {@link Client} plugin having a {@link ClientRegistrationOutboundPort}.
@@ -30,15 +32,21 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 
 	private static final long serialVersionUID = 612748100445996427L;
 	
-	// Reception
+	// RECEPTION
+	
+	/** {@link Client} reception inbound port URI */
 	protected final String receivingInboundPortURI;
 	
-	// Registration
-	protected final String registrationOutboundPortURI;
-	protected ClientRegistrationOutboundPort registrationOutboundPort; // Set up after plugin installation + initialization
+	// REGISTRATION
 	
-	// Broker inbound port
-	protected String brokerPublishingPortURI; // Set up after registration on the Broker
+	/** {@link Client} registration outbound port URI */
+	protected final String registrationOutboundPortURI;
+	
+	/** Registration outbound port, set up after plugin installation + initialization */
+	protected ClientRegistrationOutboundPort registrationOutboundPort;
+	
+	/** {@link Broker} publication inbound port URI, got after registration on the Broker */
+	protected String brokerPublishingPortURI;
 	
 	/**
 	 * Creates a {@link Client} registration plugin.
@@ -55,8 +63,8 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	 */
 	public ClientRegistrationPlugin(String receivingInboundPortURI, String registrationOutboundPortURI){
 		// Precondition checks
-		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty());
-		assert(registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty());
+		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : new PreconditionException("receivingInboundPortURI cannot be null or empty");
+		assert(registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()) : new PreconditionException("registrationOutboundPortURI cannot be null or empty");
 		
 		this.receivingInboundPortURI = receivingInboundPortURI;
 		this.registrationOutboundPortURI = registrationOutboundPortURI;

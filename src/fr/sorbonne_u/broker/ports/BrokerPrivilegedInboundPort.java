@@ -3,6 +3,7 @@ package fr.sorbonne_u.broker.ports;
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
+import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
  * Inbound port of a {@link Broker}, allowing the handling of message publications from a privileged client, 
@@ -41,9 +42,9 @@ implements	PrivilegedClientCI {
 	public BrokerPrivilegedInboundPort(String uri, ComponentI owner) throws Exception {
 		super(uri, PrivilegedClientCI.class, owner) ;
 		// Precondition checks
-		assert(uri != null && !uri.isEmpty());
-		assert(owner != null);
-		assert(owner instanceof Broker);
+		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
+		assert(owner != null) : new PreconditionException("owner cannot be null");
+		assert(owner instanceof Broker) : new PreconditionException("owner must be a Broker");
 	}
 	
 	// Precondition and postcondition verifications are delegated to the Broker

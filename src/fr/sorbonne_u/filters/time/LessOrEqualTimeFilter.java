@@ -18,6 +18,8 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.TimeFilterI;
 public class LessOrEqualTimeFilter implements TimeFilterI{
 
 	private static final long serialVersionUID = 577294073745272893L;
+	
+	/** The filter accepts only timestamps smaller or equal to this time */
 	private Instant timestampFilter;
 	
 	/**

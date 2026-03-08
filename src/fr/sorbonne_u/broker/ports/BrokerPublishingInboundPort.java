@@ -8,6 +8,7 @@ import fr.sorbonne_u.components.interfaces.OfferedCI;
 import fr.sorbonne_u.components.ports.AbstractInboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
+import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
  * Inbound port of a {@link Broker}, allowing the handling of client registration.<br>
@@ -44,9 +45,9 @@ implements	PublishingCI {
 	public BrokerPublishingInboundPort(String uri, ComponentI owner) throws Exception {
 		super(uri, PublishingCI.class, owner) ;
 		// Precondition checks
-		assert(uri != null && !uri.isEmpty());
-		assert(owner != null);
-		assert(owner instanceof Broker);
+		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
+		assert(owner != null) : new PreconditionException("owner cannot be null");
+		assert(owner instanceof Broker) : new PreconditionException("owner must be a Broker");
 	}
 	
 	// Used for BrokerPrivilegedInboundPort constructor

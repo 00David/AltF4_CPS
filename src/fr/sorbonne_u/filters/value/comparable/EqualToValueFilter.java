@@ -25,6 +25,8 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.ValueFilterI;
 public class EqualToValueFilter<T extends Comparable<T>> implements ValueFilterI {
 
 	private static final long serialVersionUID = 8637244812712629733L;
+	
+	/** The filter accepts only values equal to this value */
 	private T filterValue; 
 	
 	/**

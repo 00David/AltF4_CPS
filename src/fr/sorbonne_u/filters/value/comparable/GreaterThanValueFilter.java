@@ -25,6 +25,8 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.ValueFilterI;
 public class GreaterThanValueFilter<T extends Comparable<T>> implements ValueFilterI {
 
 	private static final long serialVersionUID = -7377931202662396565L;
+	
+	/** The filter accepts only values greater than this value */
 	private T filterValue; 
 	
 	/**

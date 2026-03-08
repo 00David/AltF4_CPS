@@ -3,7 +3,7 @@ package fr.sorbonne_u;
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.cvm.AbstractCVM;
-import fr.sorbonne_u.meteo.tests.CVMTest;
+import fr.sorbonne_u.meteo.tests.CVMSimpleTest;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.meteo.components.MeteoBureau;
@@ -14,8 +14,7 @@ import fr.sorbonne_u.meteo.data.PositionData;
 /**
  * Main entry point for launching the program with client components publishing random messages on the broker.
  * 
- * 
- * <p>Executing test class {@link CVMTest} provides a prepared scenario for a better understanding of the system.</p>
+ * <p>Executing test class {@link CVMSimpleTest} provides a prepared scenario for a better understanding of the system.</p>
  * 
  * @author Kevin TANG
  * @author David VADIMON
@@ -102,7 +101,7 @@ public class CVM extends AbstractCVM {
 		int sleepMaxTimeMB = 30;
 		this.uriMB = AbstractComponent.createComponent(
 				MeteoBureau.class.getCanonicalName(),
-				new Object[] { MBRegistrationOutboundPortURI, MBPublishingOutboundPortURI, MBReceivingInboundPortURI, "", // privileged port URI empty
+				new Object[] { MBReceivingInboundPortURI, MBRegistrationOutboundPortURI, MBPublishingOutboundPortURI, "", // privileged port URI empty
 						RegistrationClass.FREE, 1, 0, bureauPosition, sleepMinTimeMB, sleepMaxTimeMB});
 		assert this.isDeployedComponent(this.uriMB);
 		this.toggleTracing(this.uriMB);
@@ -116,7 +115,7 @@ public class CVM extends AbstractCVM {
 		PositionData station1Position = new PositionData(1, 2);
 		this.uriMS1 = AbstractComponent.createComponent(
 				MeteoStation.class.getCanonicalName(),
-				new Object[] { MS1RegistrationOutboundPortURI, MS1PublishingOutboundPortURI, MS1ReceivingInboundPortURI, "", // privileged port URI empty
+				new Object[] { MS1ReceivingInboundPortURI, MS1RegistrationOutboundPortURI, MS1PublishingOutboundPortURI, "", // privileged port URI empty
 						RegistrationClass.FREE, 1, 0, station1Position, sleepMinTimeMS, sleepMaxTimeMS, windMinXY, windMaxXY});
 		assert this.isDeployedComponent(this.uriMS1);
 		this.toggleTracing(this.uriMS1);
@@ -124,7 +123,7 @@ public class CVM extends AbstractCVM {
 		PositionData station2Position = new PositionData(3, 2);
 		this.uriMS2 = AbstractComponent.createComponent(
 				MeteoStation.class.getCanonicalName(),
-				new Object[] { MS2RegistrationOutboundPortURI, MS2PublishingOutboundPortURI, MS2ReceivingInboundPortURI, "", // privileged port URI empty
+				new Object[] { MS2ReceivingInboundPortURI, MS2RegistrationOutboundPortURI, MS2PublishingOutboundPortURI, "", // privileged port URI empty
 						RegistrationClass.FREE, 1, 0, station2Position, sleepMinTimeMS, sleepMaxTimeMS, windMinXY, windMaxXY});
 		assert this.isDeployedComponent(this.uriMS2);
 		this.toggleTracing(this.uriMS2);
@@ -132,7 +131,7 @@ public class CVM extends AbstractCVM {
 		// Creation of 1 WindTurbine between both MeteoStations
 		PositionData windTurbinePosition = new PositionData(2, 2);
 		this.uriWindTurbine = AbstractComponent.createComponent(WindTurbine.class.getCanonicalName(),
-				new Object[] {WindTurbineRegistrationOutboundPortURI,WindTurbinePublishingOutboundPortURI,WindTurbineReceivingInboundPortURI,
+				new Object[] { WindTurbineReceivingInboundPortURI, WindTurbineRegistrationOutboundPortURI, WindTurbinePublishingOutboundPortURI,
 						1, 0, windTurbinePosition, MeteoAlertI.Level.ORANGE});
 		assert this.isDeployedComponent(this.uriWindTurbine);
 		this.toggleTracing(this.uriWindTurbine);

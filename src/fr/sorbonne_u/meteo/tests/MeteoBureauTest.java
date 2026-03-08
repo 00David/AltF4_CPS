@@ -4,10 +4,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 
-import fr.sorbonne_u.clients.components.Client;
-import fr.sorbonne_u.clients.plugins.ClientPrivilegedPlugin;
-import fr.sorbonne_u.clients.plugins.ClientPublicationPlugin;
-import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
 import fr.sorbonne_u.components.utils.tests.TestScenario;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
@@ -16,7 +12,9 @@ import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
+import fr.sorbonne_u.exceptions.PreconditionException;
 import fr.sorbonne_u.messages.Message;
+import fr.sorbonne_u.meteo.components.MeteoBureau;
 import fr.sorbonne_u.meteo.data.MeteoAlert;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.utils.aclocks.ClocksServer;
@@ -24,29 +22,16 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
 /**
  * Test class representing a {@link MeteoBureau} following a predefined scenario.
  * 
- * <p>The scenario is described in the {@link CVMTest} class.</p>
+ * <p>The scenario is described in the {@link CVMSimpleTest} class.</p>
  * 
- * <p>The class does not extend {@link MeteoBureau} because it has already a defined random behavior on launch, here it is not the case.</p>
+ * <p>The class does extend {@link MeteoBureau} because it keeps the same setup, while adding personalized actions for a test scenario.</p>
  * 
  * @author Kevin TANG
  * @author David VADIMON
  */
-public class MeteoBureauTest extends Client{
+public class MeteoBureauTest extends MeteoBureau {
 	
-	protected final PositionData bureauPosition;
-	
-	// Publication
-	protected final String publishingOutboundPortURI; 
-	protected ClientPublicationPlugin publicationPlugin;
-	
-	// Subscription + reception
-	protected final ClientSubscriptionPlugin subscriptionPlugin;
-	
-	// Privileged management
-	protected String privilegedOutboundPortURI = null; // stays null if the client is not privileged
-	protected ClientPrivilegedPlugin privilegedPlugin = null; // stays null if the client is not privileged
-	
-	// Scenario
+	/** The test scenario followed by the component */
 	protected final TestScenario testScenario;
 
 	//---------------------------------------------------------------------------
@@ -54,53 +39,43 @@ public class MeteoBureauTest extends Client{
 	//---------------------------------------------------------------------------
 	
 	/**
-	 * Creates a meteorological office component for the publish/subscribe system, extending {@link Client}.
+	 * Creates a test meteorological office component for the publish/subscribe system, extending {@link MeteoBureau}.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
+	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
 	 * pre	{@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
 	 * pre	{@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
-	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
 	 * pre	{@code privilegedOutboundPortURI != null}, if {@code rc != FREE : !privilegedOutboundPortURI.isEmpty()}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
 	 * pre	{@code bureauPosition != null}
+	 * pre	{@code reflectionInboundPortURI != null && !reflectionInboundPortURI.isEmpty()}
 	 * pre  {@code testScenario != null}
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 * 
+	 * @param receivingInboundPortURI       URI of the inbound port offering {@link ReceivingCI}.
 	 * @param registrationOutboundPortURI   URI of the outbound port requiring {@link RegistrationCI}.
 	 * @param publishingOutboundPortURI     URI of the outbound port requiring {@link PublishingCI}.
-	 * @param receivingInboundPortURI       URI of the inbound port offering {@link ReceivingCI}.
 	 * @param privilegedOutboundPortURI	    URI of the outbound port requiring {@link PrivilegedClientCI}. Can be empty if the client if FREE, otherwise it cannot.
 	 * @param rc			   				The registration class of the component.
 	 * @param bureauPosition                The position of the office.
-	 * @param testScenario					Test scenario in which this component participate.
 	 * @param reflectionInboundPortURI		URI of the reflection inbound port to be created in this component.
+	 * @param testScenario					Test scenario in which this component participate.
+	 * @param id							A number identifying the component, just for tracer window.
 	 * @throws Exception                    If an error occurs during initialization or port publication.
 	 */
-	protected MeteoBureauTest(String registrationOutboundPortURI, String publishingOutboundPortURI, String receivingInboundPortURI, String privilegedOutboundPortURI, 
-			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData bureauPosition, TestScenario testScenario, String reflectionInboundPortURI) throws Exception {
-		super(receivingInboundPortURI, registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
-		// Some preconditions are checked inside the superconstructor while others are checked here
-		assert(bureauPosition != null);
-		assert(testScenario != null);
-		assert(privilegedOutboundPortURI != null);
-		if (rc != RegistrationClass.FREE) {
-			assert (!privilegedOutboundPortURI.isEmpty());
-			this.privilegedOutboundPortURI = privilegedOutboundPortURI;
-		}
+	protected MeteoBureauTest(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, String privilegedOutboundPortURI, 
+			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData bureauPosition, String reflectionInboundPortURI, 
+			TestScenario testScenario, int id) throws Exception {
+		super(receivingInboundPortURI, registrationOutboundPortURI , publishingOutboundPortURI, privilegedOutboundPortURI, rc, nbThreads,
+				nbSchedulableThreads, bureauPosition, reflectionInboundPortURI);
 		
-		this.bureauPosition = bureauPosition;
-		this.publishingOutboundPortURI = publishingOutboundPortURI;
+		// Most preconditions are checked inside the superconstructor while the last one is checked here
+		assert(testScenario != null) : new PreconditionException("testScenario cannot be null");	
+		
 		this.testScenario = testScenario;
-		
-		// Install the subscription + reception plugin
-		this.subscriptionPlugin = new ClientSubscriptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
-		this.subscriptionPlugin.setPluginURI("subscription");
-		this.installPlugin(this.subscriptionPlugin);
-		
-		this.getTracer().setTitle("MeteoBureau") ;
-		this.getTracer().setRelativePosition((int)bureauPosition.getPosX(), (int)bureauPosition.getPosY()) ;
+		this.getTracer().setTitle("MeteoBureau "+id);
 	}
 
 	// --------------------------------------------------------------------------
@@ -110,25 +85,6 @@ public class MeteoBureauTest extends Client{
 	@Override
 	public void execute() throws Exception {
 		super.execute();
-		this.logMessage("executing MeteoBureau component");
-		
-		// Register on the Broker
-		registrationPlugin.register(registrationClass);
-		assert (registrationPlugin.getBrokerPublishingPortURI() != null);
-		this.logMessage("MeteoBureau registered");
-		
-		// Install the publication plug-in.
-		this.publicationPlugin = new ClientPublicationPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort(),
-				publishingOutboundPortURI, registrationPlugin.getBrokerPublishingPortURI());
-		this.publicationPlugin.setPluginURI("publication");
-		this.installPlugin(this.publicationPlugin);
-		
-		// Install the privileged plug-in if it is allowed.
-		if (this.registrationClass == RegistrationClass.STANDARD || this.registrationClass == RegistrationClass.PREMIUM) {
-			this.privilegedPlugin = new ClientPrivilegedPlugin(receivingInboundPortURI, privilegedOutboundPortURI, registrationPlugin.getBrokerPublishingPortURI());
-			this.privilegedPlugin.setPluginURI("privileged");
-			this.installPlugin(this.privilegedPlugin);
-		}
 		
 		// Initialization of the clock
 		this.initialiseClock(
@@ -139,12 +95,13 @@ public class MeteoBureauTest extends Client{
 	}
 	
 	// --------------------------------------------------------------------------
-	// Sending alerts
+	// Tests actions
 	// --------------------------------------------------------------------------
 	
 	/**
 	 * Publishes an alert on the given {@code channel}, with the given parameters.
 	 * 
+	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre	{@code type != null}
 	 * pre	{@code level != null}
@@ -166,12 +123,12 @@ public class MeteoBureauTest extends Client{
 	public void publishAlert(MeteoAlertI.AlertType type, MeteoAlertI.Level level, ArrayList<RegionI> regions, 
 			Instant instant, Duration duration, String channel) throws Exception {
 		// Precondition checks
-		assert(type != null);
-		assert(level != null);
-		assert(regions != null);
-		assert(instant != null);
-		assert(duration != null);
-		assert(channel != null && !channel.isEmpty());
+		assert(type != null) : new PreconditionException("type cannot be null");
+		assert(level != null) : new PreconditionException("level cannot be null");
+		assert(regions != null) : new PreconditionException("regions cannot be null");
+		assert(instant != null) : new PreconditionException("instant cannot be null");
+		assert(duration != null) : new PreconditionException("duration cannot be null");
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
 		
 		Message msg = new Message();
 		MeteoAlert ma = new MeteoAlert(type, level, regions, instant, duration);
@@ -187,5 +144,89 @@ public class MeteoBureauTest extends Client{
 		this.logMessage("------------------------------");
 		
 		publicationPlugin.publish(channel, msg);
+	}
+	
+	/**
+	 * Creates a new channel on the broker.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * pre	{@code authorizedUsers != null && !authorizedUsers.isEmpty()}
+	 * pre	{@code registrationClass == (RegistrationClass.STANDARD || RegistrationClass.PREMIUM)}
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 * 
+	 * @param channel 			The new channel name.
+	 * @param authorizedUsers 	The regex for filtering accepted users.
+	 * @throws Exception		If an error occurs while creating the new channel.
+	 */
+	public void createNewChannel(String channel, String authorizedUsers) throws Exception {
+		// Precondition checks
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
+		assert(authorizedUsers != null && !authorizedUsers.isEmpty()) : 
+			new PreconditionException("authorizedUsers cannot be null or empty");
+		assert(registrationClass == RegistrationClass.STANDARD ||  registrationClass == RegistrationClass.PREMIUM) : 
+			new PreconditionException("client must be privileged");
+		
+		privilegedPlugin.createChannel(channel, authorizedUsers);
+		this.logMessage("Meteo Bureau has created channel : "+channel);
+	}
+	
+	/**
+	 * Modifies authorized users of the {@code channel}.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * pre	{@code authorizedUsers != null && !authorizedUsers.isEmpty()}
+	 * pre	{@code registrationClass == (RegistrationClass.STANDARD || RegistrationClass.PREMIUM)}
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 * 
+	 * @param channel 			The channel name.
+	 * @param authorizedUsers 	The new regex for filtering accepted users.
+	 * @throws Exception		If an error occurs while modifying the authorized users channel.
+	 */
+	public void modifyAuthorizedUsers(String channel, String authorizedUsers) throws Exception {
+		// Precondition checks
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
+		assert(authorizedUsers != null && !authorizedUsers.isEmpty()) : 
+			new PreconditionException("authorizedUsers cannot be null or empty");
+		assert(registrationClass == RegistrationClass.STANDARD ||  registrationClass == RegistrationClass.PREMIUM) : 
+			new PreconditionException("client must be privileged");
+		
+		privilegedPlugin.modifyAuthorisedUsers(channel, authorizedUsers);
+		this.logMessage("Meteo Bureau has modified authorized users on channel : "+channel+", now authorized : "+authorizedUsers);
+	}
+	
+	/**
+	 * Modifies authorized users of the {@code channel}.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * pre	{@code registrationClass == (RegistrationClass.STANDARD || RegistrationClass.PREMIUM)}
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 * 
+	 * @param channel 			The channel to destroy.
+	 * @throws Exception		If an error occurs while destroying the channel, or verifying the deletion.
+	 */
+	public void destroyChannelAndVerifies(String channel) throws Exception {
+		// Precondition checks
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
+		assert(registrationClass == RegistrationClass.STANDARD ||  registrationClass == RegistrationClass.PREMIUM) : 
+			new PreconditionException("client must be privileged");
+		
+		privilegedPlugin.destroyChannel(channel);
+		this.logMessage("Meteo Bureau has destroyed its channel : "+channel);
+		
+		boolean verif = subscriptionPlugin.channelExist(channel);
+		assert (verif == false);
+		this.logMessage("Channel still exists ? "+verif);
 	}
 }

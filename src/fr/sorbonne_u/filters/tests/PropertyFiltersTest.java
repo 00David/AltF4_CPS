@@ -15,8 +15,13 @@ import fr.sorbonne_u.messages.Property;
 
 /**
  * Test class for filters on one or multiple properties, including:
- * <li> {@link PropertyFilter} </li>
- * <li> {@link PropertiesFilter} with a {@link MultiValuesFilterI}, e.g. {@link IMC} </li>
+ * 
+ * <p>
+ * <ul>
+ * 	<li> {@link PropertyFilter} </li>
+ * 	<li> {@link PropertiesFilter} with a {@link MultiValuesFilterI}, e.g. {@link IMC} </li>
+ * </ul>
+ * </p>
  * 
  * @author Kevin Tang
  * @author David Vadimon

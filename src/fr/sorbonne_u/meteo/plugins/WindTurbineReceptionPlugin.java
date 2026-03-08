@@ -6,10 +6,10 @@ import java.util.stream.Stream;
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
 import fr.sorbonne_u.clients.ports.ClientReceivingPluginInboundPort;
 import fr.sorbonne_u.clients.ports.ClientRegistrationOutboundPort;
-import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
+import fr.sorbonne_u.exceptions.PreconditionException;
 import fr.sorbonne_u.meteo.components.WindTurbine;
 import fr.sorbonne_u.meteo.data.MeteoAlert;
 import fr.sorbonne_u.meteo.data.WindData;
@@ -48,15 +48,14 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 	}
 	
 	// -------------------------------------------------------------------------
-	// Overrides default reception services
+	// Overrides default Client reception services
 	// -------------------------------------------------------------------------
 
 	@Override
 	public void receive(String channel, MessageI message) {
 		// Precondition checks
-		assert(channel != null);
-		assert(!channel.isEmpty());
-		assert(message != null);
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
+		assert(message != null) : new PreconditionException("message cannot be null");
 		
 		WindTurbine windTurbine = (WindTurbine)this.getOwner();
 		
@@ -64,16 +63,15 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 		windTurbine.logMessage("WindTurbine received message '" + message + "' from the channel : " + channel);
 		Serializable payload = message.getPayload();
 
-		// Handling received wind data
+		// Handling of received wind data delegated to the WindTurbine
 		if (payload instanceof WindData && !windTurbine.inSafeMode()) {
-			windTurbine.calculateNeededDirection((WindData) payload);
+			windTurbine.considerNewWindData((WindData) payload);
 		
-		// Handling received wind data
+		// Handling of received meteo alert delegated to the WindTurbine
 		} else if (payload instanceof MeteoAlert) {
-			MeteoAlertI alert = (MeteoAlertI) payload;
-			windTurbine.react(alert.getLevel());
+			windTurbine.considerNewAlert((MeteoAlert) payload);
 			
-		// Handling received wind data while in safe mode (nothing)
+		// Handling of received wind data while in safe mode (nothing)
 		} else {
 			windTurbine.logMessage("------------------------------");
 		}
@@ -82,11 +80,9 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 	@Override
 	public void receive(String channel, MessageI[] messages) {
 		// Precondition checks
-		assert(channel != null);
-		assert(!channel.isEmpty());
-		assert(messages != null);
-		assert(messages.length > 0);
-		assert(Stream.of(messages).allMatch(m -> m != null));
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
+		assert(messages != null && messages.length > 0) : new PreconditionException("messages container cannot be null or empty");
+		assert(Stream.of(messages).allMatch(m -> m != null)) : new PreconditionException("a message received cannot be null");
 		
 		WindTurbine windTurbine = (WindTurbine)this.getOwner();
 		
@@ -95,16 +91,15 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 		for (MessageI mes : messages) {
 			Serializable payload = mes.getPayload();
 			
-			// Handling received wind data
+			// Handling of received wind data delegated to the WindTurbine
 			if (payload instanceof WindData && !windTurbine.inSafeMode()) {
-				windTurbine.calculateNeededDirection((WindData) payload);
+				windTurbine.considerNewWindData((WindData) payload);
 			
-			// Handling received wind data
+			// Handling of received meteo alert delegated to the WindTurbine
 			} else if (payload instanceof MeteoAlert) {
-				MeteoAlertI alert = (MeteoAlertI) payload;
-				windTurbine.react(alert.getLevel());
+				windTurbine.considerNewAlert((MeteoAlert) payload);
 				
-			// Handling received wind data while in safe mode (nothing)
+			// Handling of received wind data while in safe mode (nothing)
 			} else {
 				windTurbine.logMessage("------------------------------");
 			}

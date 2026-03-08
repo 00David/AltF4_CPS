@@ -26,6 +26,8 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI.PropertyI;
 public class PropertiesFilter implements PropertiesFilterI {
 
     private static final long serialVersionUID = 6231862455176712802L;
+    
+	/** The filter acting on grouped properties */
     private MultiValuesFilterI multiValuesFilter;
     
     /**
