@@ -140,7 +140,7 @@ public class CVM extends AbstractCVM {
 		PositionData windTurbinePosition = new PositionData(2, 2);
 		this.uriWindTurbine = AbstractComponent.createComponent(WindTurbine.class.getCanonicalName(),
 				new Object[] { WindTurbineReceivingInboundPortURI, WindTurbineRegistrationOutboundPortURI, WindTurbinePublishingOutboundPortURI,
-						1, 0, windTurbinePosition, MeteoAlertI.Level.ORANGE});
+						RegistrationClass.FREE, 1, 0, windTurbinePosition, MeteoAlertI.Level.ORANGE});
 		assert this.isDeployedComponent(this.uriWindTurbine);
 		this.toggleTracing(this.uriWindTurbine);
 
