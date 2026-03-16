@@ -60,6 +60,12 @@ public class ClientPrivilegedServiceConnector extends ClientPublishingServiceCon
 	}
 	
 	// 'removeAuthorisedUsers' removed from source interface
+	@Override
+	public void removeAuthorisedUsers(String receptionPortURI, String channel, String regularExpression)
+			throws Exception {
+		// TODO Auto-generated method stub
+		
+	}
 
 	@Override
 	public void destroyChannel(String receptionPortURI, String channel) throws Exception {

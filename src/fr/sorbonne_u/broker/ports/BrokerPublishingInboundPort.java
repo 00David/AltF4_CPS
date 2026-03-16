@@ -62,14 +62,52 @@ implements	PublishingCI {
 	public void publish(String receptionPortURI, String channel, MessageI message) throws Exception {
 		ArrayList<MessageI> messages =  new ArrayList<MessageI>();
 		messages.add(message);
-		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).publishService(receptionPortURI, channel, messages));
+		this.getOwner().runTask(
+				owner -> {
+					try {
+						((Broker)owner).publishService(receptionPortURI, channel, messages);
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				});
 	}
 
 	@Override
 	public void publish(String receptionPortURI, String channel, ArrayList<MessageI> messages) throws Exception {
-		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).publishService(receptionPortURI, channel, messages));
+		this.getOwner().runTask(
+				owner -> {
+					try {
+						((Broker)owner).publishService(receptionPortURI, channel, messages);
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				});
+	}
+
+	@Override
+	public void asyncPublishAndNotify(String receptionPortURI, String channel, MessageI message, String notificationInbounhdPortURI) throws Exception {
+		ArrayList<MessageI> messages =  new ArrayList<MessageI>();
+		messages.add(message);
+		this.getOwner().runTask(
+				owner -> {
+					try {
+						((Broker)owner).asyncPublishAndNotifyService(receptionPortURI, channel, messages, notificationInbounhdPortURI);
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				});
+	}
+
+	@Override
+	public void asyncPublishAndNotify(String receptionPortURI, String channel, ArrayList<MessageI> messages, String notificationInbounhdPortURI) throws Exception {
+		this.getOwner().runTask(
+				owner -> {
+					try {
+						((Broker)owner).asyncPublishAndNotifyService(receptionPortURI, channel, messages, notificationInbounhdPortURI);
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				});
 	}
 	
 }

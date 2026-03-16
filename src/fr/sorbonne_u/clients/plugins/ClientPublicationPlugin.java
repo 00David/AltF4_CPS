@@ -178,4 +178,17 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 			e.printStackTrace();
 		}
 	}
+
+	@Override
+	public void asyncPublishAndNotify(String channel, MessageI message) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void asyncPublishAndNotify(String channel, ArrayList<MessageI> messages) {
+		// TODO Auto-generated method stub
+		
+	}
+
 }

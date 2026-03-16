@@ -1,9 +1,9 @@
 package fr.sorbonne_u.broker.components;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 import fr.sorbonne_u.broker.components.infos.ChannelBrokerInfos;
@@ -102,10 +102,10 @@ public class Broker extends AbstractComponent{
 	// DATA MAPPINGS
 	
 	/** Mapping : client inbound port (URI) -> its informations */
-	private Map<String, ClientBrokerInfos> clientsInfos = new HashMap<>(); 
+	private Map<String, ClientBrokerInfos> clientsInfos = new ConcurrentHashMap<>(); 
 	
 	/** Mapping : channel name -> its informations */
-	private Map<String, ChannelBrokerInfos> channelsInfos = new HashMap<>();
+	private Map<String, ChannelBrokerInfos> channelsInfos = new ConcurrentHashMap<>();
 	
 	//--------------------------------------------------------------------------
 	// Constructor
@@ -693,6 +693,80 @@ public class Broker extends AbstractComponent{
 		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 		if (!channelAuthorisedService(receptionPortURI, channel)) throw new UnauthorisedClientException("Client "+receptionPortURI+" is not authorized.");
+		
+		this.logMessage("Broker received message(s) from '" + receptionPortURI + "' on '" + channel + "'") ;
+		
+		ChannelBrokerInfos chanInfos = channelsInfos.get(channel);
+		
+		// Puts messages into the channel
+		chanInfos.addMessages(messages);
+		
+		// Sends remaining messages
+		MessageI msg = chanInfos.getMessage();
+		while (msg != null) {
+			
+			final MessageI currentMsg = msg;
+			
+			// Gets the channel clients targeted by this message
+			List<String> targetClientsPortURI = chanInfos.targetSubscribers(currentMsg);
+			
+			// Sends them the message
+			for (String targetPortURI : targetClientsPortURI) {
+				
+				// Normally, impossible that the targeted client is not registered, just a check
+				assert(registeredService(targetPortURI));
+				
+				this.logMessage("Broker sending message to '" + targetPortURI + "'") ;
+				BrokerReceivingOutboundPort outboundPort = clientsInfos.get(targetPortURI).getOutboundPort();
+				try {
+					outboundPort.receive(channel, currentMsg); // 1 message per send for now
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+			
+			// If the channel has been destroyed (with destroyChannel for instance), throws an UnknownChannelException
+			if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist anymore (destroyed).");
+			msg = chanInfos.getMessage();
+		}
+		
+		return null;
+	}
+	
+	/**
+	 * Asynchronously publish all of the {@code messages} on {@code channel} and notify the client component if an 
+	 * abnormal termination condition occurred.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code receptionPortURI != null && !receptionPortURI.isEmpty()}
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * pre	{@code messages != null && messages.size() > 0}
+	 * pre	{@code Stream.of(messages).allMatch(m -> m != null)}
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 *
+	 * @param receptionPortURI				URI of the inbound port offering the component interface {@code ReceivingCI}.
+	 * @param channel						name of the channel on which {@code message} must be published.
+	 * @param messages						list of messages to be published on {@code channel}.
+	 * @param notificationInbounhdPortURI	URI of an inbound port offering {@code AbnormalTerminationNotificationCI}.
+	 * @return 								Void
+	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
+	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
+	 * @throws UnauthorisedClientException 	If {@code receptionPortURI} is not authorized to interact with the {@code channel}.
+	 */
+	public Void asyncPublishAndNotifyService(String receptionPortURI, String channel, ArrayList<MessageI> messages, String notificationInbounhdPortURI) 
+			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
+		// Precondition checks
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
+		assert(channel != null && !channel.isEmpty());
+		assert(messages != null && messages.size() > 0);
+		assert(Stream.of(messages).allMatch(m -> m != null));
+		
+		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+		if (!channelAuthorisedService(receptionPortURI, channel)) throw new UnauthorisedClientException("Client "+receptionPortURI+" is not authorized.");
+		// TODO : send exceptions via notificationInbounhdPortURI
 		
 		this.logMessage("Broker received message(s) from '" + receptionPortURI + "' on '" + channel + "'") ;
 		

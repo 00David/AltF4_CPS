@@ -34,6 +34,8 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
  * invariant	{@code clientPortURI != null && !clientPortURI.isEmpty()}
  * invariant	{@code rc != null}
  * invariant	{@code nbChannelsRemaining >= 0}
+ * invariant	{@code rcLock != null}
+ * invariant	{@code nbChannelsRemainingLock != null}
  * </pre>
  * 
  * @author Kevin Tang
@@ -57,6 +59,20 @@ public class ClientBrokerInfos {
 	
 	/** The number of remaining channels the client can create */
 	private int nbRemainingChannels;
+	
+	// Concurrency management
+	
+	/** 
+	 * Lock for {@code rc}.
+	 * Cannot 'synchronised' on it because on an enumreration (static), it would lock the enumeration as a whole (not only here).
+	 */
+	private final Object rcLock = new Object();
+	
+	/** 
+	 * Lock for {@code nbRemainingChannels}.
+	 * Cannot 'synchronised' on it because on an enumreration (static), it would lock the enumeration as a whole (not only here).
+	 */
+	private final Object nbRemainingChannelsLock = new Object();
 	
 	/**
 	 * Creates the information structure for a {@link Client} registered on the {@link Broker}.
@@ -118,7 +134,9 @@ public class ClientBrokerInfos {
 	 * @return the client's {@link RegistrationClass}.
 	 */
 	public RegistrationClass getRegistrationClass() {
-		return rc;
+		synchronized(rcLock) {
+			return rc;
+		}
 	}
 	
 	/**
@@ -137,7 +155,9 @@ public class ClientBrokerInfos {
 		// Precondition check
 		if (rc == null) throw new IllegalArgumentException("A registration class cannot be null");
 		
-		this.rc = rc;
+		synchronized(rcLock) {
+			this.rc = rc;
+		}
 		// Postcondition verified by construction
 	}
 	
@@ -157,7 +177,9 @@ public class ClientBrokerInfos {
 	 * @return the client's {@link BrokerReceivingOutboundPort}.
 	 */
 	public BrokerReceivingOutboundPort getOutboundPort() {
-		return clientOutboundPort;
+		synchronized (clientOutboundPort) {
+			return clientOutboundPort;
+		}
 	}
 	
 	// -------------------------------------------------------------------------
@@ -176,7 +198,9 @@ public class ClientBrokerInfos {
 	 * @return true if at least one channel can be created by the client, false otherwise.
 	 */
 	public boolean canCreateChannel() {
-		return nbRemainingChannels > 0;
+		synchronized(nbRemainingChannelsLock) {
+			return nbRemainingChannels > 0;
+		}
 	}
 	
 	/**
@@ -190,14 +214,16 @@ public class ClientBrokerInfos {
 	 * 
 	 * @throws NegativeRemainingChannelsException	if {@code this.nbChannelsRemaining} would become negative.
 	 */
-	public void decreaseRemainingChannels() {
-		// Precondition check
-		if (nbRemainingChannels == 0) throw new NegativeRemainingChannelsException("The number of remaining channels cannot become negative");
-		
-		nbRemainingChannels--;
-		
-		// Postcondition check
-		assert(nbRemainingChannels >= 0);
+	public synchronized void decreaseRemainingChannels() {
+		synchronized(nbRemainingChannelsLock) {
+			// Precondition check
+			if (nbRemainingChannels == 0) throw new NegativeRemainingChannelsException("The number of remaining channels cannot become negative");
+			
+			nbRemainingChannels--;
+			
+			// Postcondition check
+			assert(nbRemainingChannels >= 0);
+		}
 	}
 	
 	/**
@@ -211,11 +237,15 @@ public class ClientBrokerInfos {
 	 * 
 	 * @throws CannotIncreaseRemainingChannelsException	if {@code this.nbChannelsRemaining} would become strictly positive for a FREE client.
 	 */
-	public void increaseRemainingChannels() {
-		// Precondition check
-		if (rc == RegistrationClass.FREE) throw new CannotIncreaseRemainingChannelsException("A free client cannot have more than 0 channels to create");
+	public synchronized void increaseRemainingChannels() {
+		synchronized (rcLock) {
+			// Precondition check
+			if (rc == RegistrationClass.FREE) throw new CannotIncreaseRemainingChannelsException("A free client cannot have more than 0 channels to create");
+		}
 		
-		nbRemainingChannels++;
+		synchronized (nbRemainingChannelsLock) {
+			nbRemainingChannels++;
+		}
 	}
 	
 	// A ClientBrokerInfos is uniquely identified by the client's port URI

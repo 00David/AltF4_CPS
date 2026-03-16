@@ -34,7 +34,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
  * <pre>
  * invariant	{@code channel != null && !channel.isEmpty()}
  * invariant	{@code subscribers != null}
- * invariant	{@code authorisedUsers != null}
+ * invariant	{@code authorizedUsers != null}
  * invariant	{@code messages != null}
  * </pre>
  * 
@@ -108,7 +108,7 @@ public class ChannelBrokerInfos {
     private final boolean onlyPrivileged;
     
     /** Whether the channel is accessible only to privileged clients or to everyone */
-    private String authorisedUsers;
+    private String authorizedUsers;
     
     /** The client port that created the channel, or {@code null} if it was created by the {@link Broker} */
     private final String clientCreator;
@@ -127,24 +127,24 @@ public class ChannelBrokerInfos {
      * </pre>
      * 
      * @param channel         the channel name.
-     * @param authorisedUsers the regular expression defining accepted client port URIs.
+     * @param authorizedUsers the regular expression defining accepted client port URIs.
      * @param clientCreator   the URI of the client port that created the {@code channel},
      *                        or {@code null} if created by the {@link Broker}.
      * @param onlyPrivileged  true if accessible only to privileged clients, false otherwise.
      */
     public ChannelBrokerInfos(String channel,
-                              String authorisedUsers,
+                              String authorizedUsers,
                               String clientCreator,
                               boolean onlyPrivileged) {
     	
     	if (channel == null || channel.isEmpty()) 
     		throw new IllegalArgumentException("A channel name cannot be null or empty");
-        if (authorisedUsers == null) throw new IllegalArgumentException("The regex for authorised users cannot be null");
+        if (authorizedUsers == null) throw new IllegalArgumentException("The regex for authorised users cannot be null");
 
         this.channel = channel;
         this.subscribers = new HashSet<>();
         this.onlyPrivileged = onlyPrivileged;
-        this.authorisedUsers = authorisedUsers;
+        this.authorizedUsers = authorizedUsers;
         this.clientCreator = clientCreator;
         this.messages = new LinkedList<>();
     }
@@ -172,9 +172,12 @@ public class ChannelBrokerInfos {
     	if (clientPortURI == null || clientPortURI.isEmpty()) throw new IllegalArgumentException("A client port URI cannot be null or empty");
     	if (filter == null) throw new IllegalArgumentException("A filter cannot be null");
 
-        subscribers.add(new SubsciberFilter(clientPortURI, filter));
-        // Postcondition check
-        assert isSubscribed(clientPortURI);
+    	synchronized(subscribers) {
+    		subscribers.add(new SubsciberFilter(clientPortURI, filter));
+    		
+	        // Postcondition check
+	        assert isSubscribed(clientPortURI);
+    	}
     }
 
     /**
@@ -194,7 +197,9 @@ public class ChannelBrokerInfos {
     	// Precondition checks
     	if (clientPortURI == null || clientPortURI.isEmpty()) throw new IllegalArgumentException("A client port URI cannot be null or empty");
     	
-        return subscribers.contains(new SubsciberFilter(clientPortURI, null));
+    	synchronized(subscribers) {
+    		return subscribers.contains(new SubsciberFilter(clientPortURI, null));
+    	}
     }
 
     /**
@@ -216,10 +221,12 @@ public class ChannelBrokerInfos {
     	if (clientPortURI == null || clientPortURI.isEmpty()) throw new IllegalArgumentException("A client port URI cannot be null or empty");
     	if (!isSubscribed(clientPortURI)) throw new IllegalArgumentException("Client not already subscribed");
 
-        subscribers.remove(new SubsciberFilter(clientPortURI, null));
-        
-        // Postcondition check
-        assert !isSubscribed(clientPortURI);
+    	synchronized(subscribers) {
+    		subscribers.remove(new SubsciberFilter(clientPortURI, null));
+	        
+	        // Postcondition check
+	        assert !isSubscribed(clientPortURI);
+    	}
     }
 
     /**
@@ -235,8 +242,10 @@ public class ChannelBrokerInfos {
      */
     public List<String> getSubscribers() {
         List<String> subs = new ArrayList<>();
-        for (SubsciberFilter sub : subscribers) {
-            subs.add(sub.subscriberPortURI);
+        synchronized(subscribers) {
+	        for (SubsciberFilter sub : subscribers) {
+	            subs.add(sub.subscriberPortURI);
+	        }
         }
         return subs;
         // Postcondition verified by construction
@@ -268,8 +277,8 @@ public class ChannelBrokerInfos {
      * 
      * <p><strong>Contract</strong></p>
      * <pre>
-     * pre  {@code authorizedUsers != null}
-     * post  {@code this.authorizedUsers == authorizedUsers)}
+     * pre  {@code authorisedUsers != null}
+     * post  {@code this.authorisedUsers == authorisedUsers)}
      * post  {@code subscribers.stream().allMatch(sub -> sub.subscriberPortURI.matches(this.authorisedUsers))}
      * </pre>
      * 
@@ -278,9 +287,9 @@ public class ChannelBrokerInfos {
      */
     public void modifyAuthorizedUsers(String authorizedUsers) {
     	// Precondition check
-    	if (authorisedUsers == null) throw new IllegalArgumentException("Authorized users cannot be null");
+    	if (authorizedUsers == null) throw new IllegalArgumentException("Authorized users cannot be null");
     	
-        this.authorisedUsers = authorizedUsers;
+        this.authorizedUsers = authorizedUsers;
 
         List<String> currentSubs = getSubscribers();
         for (String sub : currentSubs) {
@@ -290,7 +299,7 @@ public class ChannelBrokerInfos {
         }
         
         // Postcondition check
-        assert subscribers.stream().allMatch(sub -> sub.subscriberPortURI.matches(this.authorisedUsers));
+        assert subscribers.stream().allMatch(sub -> sub.subscriberPortURI.matches(this.authorizedUsers));
     }
 
     /**
@@ -305,7 +314,7 @@ public class ChannelBrokerInfos {
      * @return the regular expression filtering authorized client URIs.
      */
     public String getAuthorizedUsers() {
-        return authorisedUsers;
+        return authorizedUsers;
     }
 
     // -------------------------------------------------------------------------
