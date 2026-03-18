@@ -88,8 +88,10 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 		
 		windTurbine.logMessage("------------------------------");
 		windTurbine.logMessage("WindTurbine received multiple messages from the channel : " + channel);
-		for (MessageI mes : messages) {
-			Serializable payload = mes.getPayload();
+		for (int i=0; i<messages.length; i++) {
+			MessageI message = messages[i];
+			windTurbine.logMessage("Message " + i + " '" + message + "'");
+			Serializable payload = message.getPayload();
 			
 			// Handling of received wind data delegated to the WindTurbine
 			if (payload instanceof WindData && !windTurbine.inSafeMode()) {

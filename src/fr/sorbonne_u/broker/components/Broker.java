@@ -8,6 +8,7 @@ import java.util.stream.Stream;
 
 import fr.sorbonne_u.broker.components.infos.ChannelBrokerInfos;
 import fr.sorbonne_u.broker.components.infos.ClientBrokerInfos;
+import fr.sorbonne_u.broker.components.tasks.LoaderTask;
 import fr.sorbonne_u.broker.connectors.BrokerReceivingServiceConnector;
 import fr.sorbonne_u.broker.ports.BrokerReceivingOutboundPort;
 import fr.sorbonne_u.broker.ports.BrokerPrivilegedInboundPort;
@@ -54,8 +55,15 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * invariant	{@code publishingPort != null}
  * invariant	{@code privilegedPortURI != null && !privilegedPortURI.isEmpty()}
  * invariant	{@code privilegedPort != null}
+ * 
  * invariant	{@code clientsInfos != null}
  * invariant	{@code channelsInfos != null}
+ * 
+ * invariant	{@code LOADERS_POOL_URI != null && !LOADERS_POOL_URI.isEmpty() && nbLoadersThreads > 0}
+ * invariant	{@code UNLOADERS_POOL_URI != null && !UNLOADERS_POOL_URI.isEmpty() && nbUnloadersThreads > 0}
+ * invariant	{@code FREE_SENDERS_POOL_URI != null && !FREE_SENDERS_POOL_URI.isEmpty() && nbFreeSendersThreads > 0}
+ * invariant	{@code STD_SENDERS_POOL_URI != null && !STD_SENDERS_POOL_URI.isEmpty() && nbStdSendersThreads > 0}
+ * invariant	{@code PREM_SENDERS_POOL_URI != null && !PREM_SENDERS_POOL_URI.isEmpty() && nbPremSendersThreads > 0}
  * </pre>
  * 
  * @author Kevin Tang
@@ -101,11 +109,55 @@ public class Broker extends AbstractComponent{
 
 	// DATA MAPPINGS
 	
-	/** Mapping : client inbound port (URI) -> its informations */
+	/** 
+	 * Mapping : client inbound port (URI) -> its informations.<br>
+	 * Multi-thread safe : implemented by a {@link ConcurrentHashMap}. An operation on it does not lock the whole map.
+	 */
 	private Map<String, ClientBrokerInfos> clientsInfos = new ConcurrentHashMap<>(); 
 	
-	/** Mapping : channel name -> its informations */
+	/** 
+	 * Mapping : channel name -> its informations.<br>
+	 * Multi-thread safe : implemented by a {@link ConcurrentHashMap}. An operation on it does not lock the whole map.
+	 */
 	private Map<String, ChannelBrokerInfos> channelsInfos = new ConcurrentHashMap<>();
+	
+	// CONCURRENT PUBLISHING PERFORMANCES
+	
+	// For loading messages into channels, once received on the Broker.
+	
+	/** URI of the pool of threads used to load messages into channels. */
+	public static final String	LOADERS_POOL_URI = "loaders-pool" ;
+	
+	/** Number of threads in the {@code LOADERS_POOL_URI} pool. */
+	private final int nbLoadersThreads;
+	
+	// For unloading messages from channels + creating senders with messages to send to clients.
+	
+	/** URI of the pool of threads used to unload messages from channels. */
+	public static final String	UNLOADERS_POOL_URI = "unloaders-pool" ;
+	
+	/** Number of threads in the {@code UNLOADERS_POOL_URI} pool. */
+	private final int nbUnloadersThreads;
+	
+	// For sending unloaded messages to a targeted client. A different pool according to the registration class of the publisher.
+	
+	/** URI of the pool of threads used to send messages, after a FREE client publication. */
+	public static final String	FREE_SENDERS_POOL_URI = "free-senders-pool" ;
+	
+	/** Number of threads in the {@code FREE_SENDERS_POOL_URI} pool. */
+	private final int nbFreeSendersThreads;
+	
+	/** URI of the pool of threads used to send messages, after a STANDARD client publication. */
+	public static final String	STD_SENDERS_POOL_URI = "std-senders-pool" ;
+	
+	/** Number of threads in the {@code STD_SENDERS_POOL_URI} pool. 2 x {@code FREE_SENDERS_POOL_NB_THREADS} */
+	private final int nbStdSendersThreads;
+	
+	/** URI of the pool of threads used to send messages, after a PREMIUM client publication. */
+	public static final String	PREM_SENDERS_POOL_URI = "prem-senders-pool" ;
+	
+	/** Number of threads in the {@code PREM_SENDERS_POOL_URI} pool. 4 x {@code FREE_SENDERS_POOL_NB_THREADS} */
+	private final int nbPremSendersThreads;
 	
 	//--------------------------------------------------------------------------
 	// Constructor
@@ -117,7 +169,9 @@ public class Broker extends AbstractComponent{
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre {@code N >= 0}
-	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
+	 * pre	{@code nbThreads > 0}
+	 * pre	{@code nbSchedulableThreads >= 0}
+	 * pre	{@code nbLoadersThreads > 0 && nbUnloadersThreads > 0 && nbFreeSendersThreads > 0}
 	 * post class invariants satisfied
 	 * post outbound ports configured and initialized
 	 * post {@code ClientBrokerInfos.nbMaxChannelsStd >= 0 && ClientBrokerInfos.nbMaxChannelsPrem >= 0}
@@ -128,13 +182,19 @@ public class Broker extends AbstractComponent{
 	 * @param nbMaxChannelsPrem		The maximum number of channels that can be managed by a premium privileged client.
 	 * @param nbThreads				Number of threads to be created in the component pool.
 	 * @param nbSchedulableThreads	Number of threads to be created in the component schedulable pool.
+	 * @param nbLoadersThreads		Number of threads to be created in the loaders pool.
+	 * @param nbUnloadersThreads	Number of threads to be created in the unloaders pool.
+	 * @param nbFreeSendersThreads	Number of threads to be created in the senders pool for free clients. It is x2 for standard clients, and x4 for premium clients.
 	 * @throws Exception			If there is a problem while publishing a port.
 	 */
-	protected Broker(int N, int nbMaxChannelsStd, int nbMaxChannelsPrem, int nbThreads, int nbSchedulableThreads) throws Exception {
+	protected Broker(int N, int nbMaxChannelsStd, int nbMaxChannelsPrem, int nbThreads, int nbSchedulableThreads,
+			int nbLoadersThreads, int nbUnloadersThreads, int nbFreeSendersThreads) throws Exception {
 		super(nbThreads, nbSchedulableThreads);
 		// Precondition checks
 		assert(N>=0) : new PreconditionException("Broker's number of default channels cannot be negative");
-		assert(nbThreads >= 0 && nbSchedulableThreads >= 0) : new PreconditionException("cannot have a negative number of threads");
+		assert(nbThreads > 0) : new PreconditionException("must have at leat 1 normal thread");
+		assert(nbSchedulableThreads >= 0) : new PreconditionException("cannot have a negative number of schedulable threads");
+		assert(nbLoadersThreads > 0 && nbUnloadersThreads > 0 && nbFreeSendersThreads > 0) : new PreconditionException("must have at least 1 thread for each publication step");
 		
 		ClientBrokerInfos.nbMaxChannelsStd = nbMaxChannelsStd;
 		ClientBrokerInfos.nbMaxChannelsPrem = nbMaxChannelsPrem;
@@ -147,7 +207,21 @@ public class Broker extends AbstractComponent{
 		}
 		// channel0 -> MeteoStation wind datas
 		// channel1 -> MeteoBureau wind alerts
+		
+		// Creation of thread pools
+		this.nbLoadersThreads = nbLoadersThreads;
+		this.nbUnloadersThreads = nbUnloadersThreads;
+		this.nbFreeSendersThreads = nbFreeSendersThreads;
+		this.nbStdSendersThreads = 2*nbFreeSendersThreads;
+		this.nbPremSendersThreads = 4*nbFreeSendersThreads;
+		
+		this.createNewExecutorService(LOADERS_POOL_URI, this.nbLoadersThreads, false);
+		this.createNewExecutorService(UNLOADERS_POOL_URI, this.nbUnloadersThreads, false);
+		this.createNewExecutorService(FREE_SENDERS_POOL_URI, this.nbFreeSendersThreads, false);
+		this.createNewExecutorService(STD_SENDERS_POOL_URI, this.nbStdSendersThreads, false);
+		this.createNewExecutorService(PREM_SENDERS_POOL_URI, this.nbPremSendersThreads, false);
 
+		// Ports creation and publication
 		this.registrationPort = new BrokerRegistrationInboundPort(registrationPortURI, this);
 		this.registrationPort.publishPort();
 		
@@ -264,7 +338,7 @@ public class Broker extends AbstractComponent{
 	 */
 	public boolean registeredService(String receptionPortURI){
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
 		
 		return clientsInfos.containsKey(receptionPortURI);
 	}
@@ -287,8 +361,8 @@ public class Broker extends AbstractComponent{
 	public boolean registeredService(String receptionPortURI, RegistrationClass rc) 
 			throws UnknownClientException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
-		assert(rc != null);
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(rc != null) : new PreconditionException("registration class cannot be null");
 		
 		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		
@@ -316,8 +390,8 @@ public class Broker extends AbstractComponent{
 	public String registerService(String receptionPortURI, RegistrationClass rc) 
 			throws AlreadyRegisteredException, UnknownClientException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
-		assert(rc != null);
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(rc != null) : new PreconditionException("registration class cannot be null");
 		
 		if (registeredService(receptionPortURI)) throw new AlreadyRegisteredException("Client "+receptionPortURI+" already registered.");
 		
@@ -367,8 +441,8 @@ public class Broker extends AbstractComponent{
 	public String modifyServiceClassService(String receptionPortURI, RegistrationClass rc) 
 			throws UnknownClientException, AlreadyRegisteredException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
-		assert(rc != null);
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()): new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(rc != null) : new PreconditionException("registration class cannot be null");
 		
 		// 'registeredService' can throw an UnknownClientException if the client is not already registered
 		if (registeredService(receptionPortURI, rc) == true) throw new AlreadyRegisteredException("Client "+receptionPortURI+" already registered.");
@@ -425,7 +499,7 @@ public class Broker extends AbstractComponent{
 	public Void unregisterService(String receptionPortURI) 
 			throws UnknownClientException, Exception {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
 		
 		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		
@@ -467,7 +541,7 @@ public class Broker extends AbstractComponent{
 	 */
 	public boolean channelExistService(String channel) {
 		// Precondition checks
-		assert(channel != null && !channel.isEmpty());
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
 		
 		return channelsInfos.containsKey(channel);
 	}
@@ -499,8 +573,8 @@ public class Broker extends AbstractComponent{
 	public boolean channelAuthorisedService(String receptionPortURI, String channel) 
 			throws UnknownClientException, UnknownChannelException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
-		assert(channel != null && !channel.isEmpty());
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
 		
 		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
@@ -532,8 +606,8 @@ public class Broker extends AbstractComponent{
 	public boolean subscribedService(String receptionPortURI, String channel) 
 			throws UnknownClientException, UnknownChannelException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
-		assert(channel != null && !channel.isEmpty());
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
 		
 		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
@@ -563,9 +637,9 @@ public class Broker extends AbstractComponent{
 	public Void subscribeService(String receptionPortURI, String channel, MessageFilterI filter) 
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
-		assert(channel != null && !channel.isEmpty());
-		assert(filter != null);
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
+		assert(filter != null) : new PreconditionException("filter cannot be null");
 
 		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
@@ -602,8 +676,8 @@ public class Broker extends AbstractComponent{
 	public Void unsubscribeService(String receptionPortURI, String channel) 
 			throws UnknownClientException, UnknownChannelException, NotSubscribedChannelException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
-		assert(channel != null && !channel.isEmpty());
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
 		
 		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
@@ -643,9 +717,9 @@ public class Broker extends AbstractComponent{
 	public boolean modifyFilterService(String receptionPortURI, String channel, MessageFilterI filter) 
 			throws UnknownClientException, UnknownChannelException, NotSubscribedChannelException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
-		assert(channel != null && !channel.isEmpty());
-		assert(filter != null);
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
+		assert(filter != null) : new PreconditionException("filter cannot be null");
 		
 		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
@@ -685,10 +759,10 @@ public class Broker extends AbstractComponent{
 	public Void publishService(String receptionPortURI, String channel, ArrayList<MessageI> messages) 
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
-		assert(channel != null && !channel.isEmpty());
-		assert(messages != null && messages.size() > 0);
-		assert(Stream.of(messages).allMatch(m -> m != null));
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
+		assert(messages != null && messages.size() > 0) : new PreconditionException("messages must at least contain 1 message");
+		assert(Stream.of(messages).allMatch(m -> m != null)) : new PreconditionException("a message cannot be null");
 		
 		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
@@ -696,39 +770,8 @@ public class Broker extends AbstractComponent{
 		
 		this.logMessage("Broker received message(s) from '" + receptionPortURI + "' on '" + channel + "'") ;
 		
-		ChannelBrokerInfos chanInfos = channelsInfos.get(channel);
-		
-		// Puts messages into the channel
-		chanInfos.addMessages(messages);
-		
-		// Sends remaining messages
-		MessageI msg = chanInfos.getMessage();
-		while (msg != null) {
-			
-			final MessageI currentMsg = msg;
-			
-			// Gets the channel clients targeted by this message
-			List<String> targetClientsPortURI = chanInfos.targetSubscribers(currentMsg);
-			
-			// Sends them the message
-			for (String targetPortURI : targetClientsPortURI) {
-				
-				// Normally, impossible that the targeted client is not registered, just a check
-				assert(registeredService(targetPortURI));
-				
-				this.logMessage("Broker sending message to '" + targetPortURI + "'") ;
-				BrokerReceivingOutboundPort outboundPort = clientsInfos.get(targetPortURI).getOutboundPort();
-				try {
-					outboundPort.receive(channel, currentMsg); // 1 message per send for now
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			}
-			
-			// If the channel has been destroyed (with destroyChannel for instance), throws an UnknownChannelException
-			if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist anymore (destroyed).");
-			msg = chanInfos.getMessage();
-		}
+		// Delegates loading messages to the loaders thread pool
+		this.runTask(LOADERS_POOL_URI, new LoaderTask(this, clientsInfos, channelsInfos, channel, messages));
 		
 		return null;
 	}
@@ -758,10 +801,10 @@ public class Broker extends AbstractComponent{
 	public Void asyncPublishAndNotifyService(String receptionPortURI, String channel, ArrayList<MessageI> messages, String notificationInbounhdPortURI) 
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
-		assert(channel != null && !channel.isEmpty());
-		assert(messages != null && messages.size() > 0);
-		assert(Stream.of(messages).allMatch(m -> m != null));
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
+		assert(messages != null && messages.size() > 0) : new PreconditionException("messages must at least contain 1 message");
+		assert(Stream.of(messages).allMatch(m -> m != null)) : new PreconditionException("a message cannot be null");
 		
 		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
@@ -770,39 +813,8 @@ public class Broker extends AbstractComponent{
 		
 		this.logMessage("Broker received message(s) from '" + receptionPortURI + "' on '" + channel + "'") ;
 		
-		ChannelBrokerInfos chanInfos = channelsInfos.get(channel);
-		
-		// Puts messages into the channel
-		chanInfos.addMessages(messages);
-		
-		// Sends remaining messages
-		MessageI msg = chanInfos.getMessage();
-		while (msg != null) {
-			
-			final MessageI currentMsg = msg;
-			
-			// Gets the channel clients targeted by this message
-			List<String> targetClientsPortURI = chanInfos.targetSubscribers(currentMsg);
-			
-			// Sends them the message
-			for (String targetPortURI : targetClientsPortURI) {
-				
-				// Normally, impossible that the targeted client is not registered, just a check
-				assert(registeredService(targetPortURI));
-				
-				this.logMessage("Broker sending message to '" + targetPortURI + "'") ;
-				BrokerReceivingOutboundPort outboundPort = clientsInfos.get(targetPortURI).getOutboundPort();
-				try {
-					outboundPort.receive(channel, currentMsg); // 1 message per send for now
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			}
-			
-			// If the channel has been destroyed (with destroyChannel for instance), throws an UnknownChannelException
-			if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist anymore (destroyed).");
-			msg = chanInfos.getMessage();
-		}
+		// Delegates loading messages to the loaders thread pool
+		this.runTask(LOADERS_POOL_URI, new LoaderTask(this, clientsInfos, channelsInfos, channel, messages));
 		
 		return null;
 	}
@@ -828,8 +840,8 @@ public class Broker extends AbstractComponent{
 	public boolean hasCreatedChannelService(String receptionPortURI, String channel) 
 			throws UnknownChannelException{
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
-		assert(channel != null && !channel.isEmpty());
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
 		
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 		
@@ -852,7 +864,7 @@ public class Broker extends AbstractComponent{
 	public boolean channelQuotaReachedService(String receptionPortURI) 
 			throws UnknownClientException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
 		
 		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		
@@ -860,7 +872,7 @@ public class Broker extends AbstractComponent{
 	}
 
 	/**
-	 * Create a new channel of the given name with a set of users authorised to use it.
+	 * Create a new channel of the given name with a set of users authorized to use it.
 	 * 
 	 * <p>
 	 * The newly created channel is only accessible to clients with a STANDARD or PREMIUM {@link RegistrationClass}.<br>
@@ -877,18 +889,18 @@ public class Broker extends AbstractComponent{
 	 *
 	 * @param receptionPortURI						identifier of the requesting component <i>i.e.</i>, URI of its inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel								name of the channel to be created.
-	 * @param autorisedUsers						regular expression that matches the URIs of components that must be authorised to use the new channel.
+	 * @param autorizedUsers						regular expression that matches the URIs of components that must be authorized to use the new channel.
 	 * @return 										Void
 	 * @throws UnknownClientException   			If the {@code receptionPortURI} is not registered.
 	 * @throws AlreadyExistingChannelException   	If the {@code channel} already exists.
 	 * @throws ChannelQuotaExceededException   		If the {@code receptionPortURI} cannot currently manage more channels.
 	 */
-	public Void createChannelService(String receptionPortURI, String channel, String autorisedUsers) 
+	public Void createChannelService(String receptionPortURI, String channel, String autorizedUsers) 
 			throws UnknownClientException,  AlreadyExistingChannelException, ChannelQuotaExceededException{
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
-		assert(channel != null && !channel.isEmpty());
-		assert(autorisedUsers != null && !autorisedUsers.isEmpty());
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
+		assert(autorizedUsers != null && !autorizedUsers.isEmpty()) : new PreconditionException("autorizedUsers cannot be null or empty");
 		
 		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		if (channelsInfos.containsKey(channel)) throw new AlreadyExistingChannelException("Channel " + channel + " already exists.");
@@ -896,13 +908,13 @@ public class Broker extends AbstractComponent{
 		
 		this.logMessage("Broker creating new channel '" + channel + "', owned by '" + receptionPortURI + "'") ;
 		
-		channelsInfos.put(channel, new ChannelBrokerInfos(channel, autorisedUsers, receptionPortURI, true));
+		channelsInfos.put(channel, new ChannelBrokerInfos(channel, autorizedUsers, receptionPortURI, true));
 		clientsInfos.get(receptionPortURI).decreaseRemainingChannels();
 		return null;
 	}
 
 	/**
-	 * Return true if {@code uri} is authorised to use {@code channel}. The creator is automatically authorized.
+	 * Return true if {@code uri} is authorized to use {@code channel}. The creator is automatically authorized.
 	 * 
 	 * <p>
 	 * Calls the method {@code channelAuthorisedService} before veryfing the regex for the {@code channel}'s authorized users,
@@ -919,7 +931,7 @@ public class Broker extends AbstractComponent{
 	 *
 	 * @param channel						name of an existing channel.
 	 * @param uri							URI of component to be tested.
-	 * @return								true if {@code uri} is authorised to use {@code channel}.
+	 * @return								true if {@code uri} is authorized to use {@code channel}.
 	 * @throws UnknownClientException   	If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
 	 * @see Broker#channelAuthorisedService(String, String)
@@ -927,8 +939,8 @@ public class Broker extends AbstractComponent{
 	public boolean isAuthorisedUserService(String channel, String uri) 
 			throws UnknownClientException, UnknownChannelException {
 		// Precondition checks
-		assert(channel != null && !channel.isEmpty());
-		assert(uri != null && !uri.isEmpty());
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
+		assert(uri != null && !uri.isEmpty()) : new PreconditionException("uri cannot be null or empty");
 		
 		// If the client is the creator of the channel, he is automatically authorized
 		if (channelsInfos.get(channel).getCreator().equals(uri)) return true;
@@ -943,7 +955,7 @@ public class Broker extends AbstractComponent{
 	}
 
 	/**
-	 * Replace the users authorised to use {@code channel}, only available for the creator of the {@code channel}.
+	 * Replace the users authorized to use {@code channel}, only available for the creator of the {@code channel}.
 	 * 
 	 * <p>
 	 * After modyfing the authorized users, unregister users not matching anymore the new regex.
@@ -960,18 +972,18 @@ public class Broker extends AbstractComponent{
 	 *
 	 * @param receptionPortURI				identifier of the requesting component <i>i.e.</i>, URI of its inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel						name of the channel.
-	 * @param autorisedUsers				regular expression that matches the URIs of components that must be authorised to use the new channel.
+	 * @param autorizedUsers				regular expression that matches the URIs of components that must be authorized to use the new channel.
 	 * @return 								Void
 	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
 	 * @throws UnauthorisedClientException  If the {@code receptionPortURI} is not the creator of the {@code channel}.
 	 */
-	public Void modifyAuthorisedUsersService(String receptionPortURI, String channel, String autorisedUsers)
+	public Void modifyAuthorisedUsersService(String receptionPortURI, String channel, String autorizedUsers)
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
-		assert(channel != null && !channel.isEmpty());
-		assert(autorisedUsers != null && !autorisedUsers.isEmpty());
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
+		assert(autorizedUsers != null && !autorizedUsers.isEmpty()) : new PreconditionException("autorizedUsers cannot be null or empty");
 		
 		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
@@ -980,10 +992,10 @@ public class Broker extends AbstractComponent{
 		ChannelBrokerInfos chan = channelsInfos.get(channel);
 		if (!chan.getCreator().equals(receptionPortURI)) throw new UnauthorisedClientException("Client "+receptionPortURI+" is not the creator of the channel : '"+channel+"'");
 		
-		this.logMessage("Broker modifying authorized users for channel '" + channel + "', now authorized : '" + autorisedUsers + "'") ;
+		this.logMessage("Broker modifying authorized users for channel '" + channel + "', now authorized : '" + autorizedUsers + "'") ;
 		
 		// Updates the accepted regex and delegates potential unregistrations to the method
-		chan.modifyAuthorizedUsers(autorisedUsers);
+		chan.modifyAuthorizedUsers(autorizedUsers);
 		return null;
 	}
 
@@ -1013,8 +1025,8 @@ public class Broker extends AbstractComponent{
 	public Void destroyChannelService(String receptionPortURI, String channel) 
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException{
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
-		assert(channel != null && !channel.isEmpty());
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
 		
 		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
@@ -1022,39 +1034,44 @@ public class Broker extends AbstractComponent{
 		
 		// Removal of the channel mapping
 		ChannelBrokerInfos chanInfos = channelsInfos.remove(channel);
-		assert(chanInfos != null);
+		if (chanInfos == null) throw new UnknownChannelException("Channel "+channel+" doesn't exist (removed in parallel).");
 		
 		// If the channel creator was a client, and he is still registered on the broker : his number of remaining channels is increased
 		String channelCreator = chanInfos.getCreator();
 		if (channelCreator != null && clientsInfos.get(channelCreator) != null) {
-			clientsInfos.get(channelCreator).increaseRemainingChannels();
+			try {
+				clientsInfos.get(channelCreator).increaseRemainingChannels();
+			// Normally an exception would be throw if the creator is not FREE,
+			// however here being the creator implies that he is not FREE, but privileged, so the exception in never actually thrown.
+			} catch (ChannelQuotaExceededException e) {
+				e.printStackTrace();
+			}
 		}
 		
-		// Sends remaining messages
+		// Sends remaining messages (one after one)
 		MessageI msg = chanInfos.getMessage();
 		while (msg != null) {
 			
 			final MessageI currentMsg = msg;
 			
-			// Gets the channel clients targeted by this message
+			// Gets the channel clients targeted by this message AT THIS MOMENT
 			List<String> targetClientsPortURI = chanInfos.targetSubscribers(currentMsg);
 			
 			// Sends them the message
 			for (String targetPortURI : targetClientsPortURI) {
 				
-				// Normally, impossible that the targeted client is not registered, just a check
-				assert(registeredService(targetPortURI));
-				
-				this.logMessage("Broker sending message to '" + targetPortURI + "' after channel destruction") ;
-				BrokerReceivingOutboundPort outboundPort = clientsInfos.get(targetPortURI).getOutboundPort();
-				try {
-					outboundPort.receive(channel, currentMsg); // 1 message per send for now
-				} catch (Exception e) {
-					e.printStackTrace();
+				// Checks that the current targeted client is still registered and subscribed to the channel
+				if (registeredService(targetPortURI) && subscribedService(targetPortURI, channel)) {
+					
+					this.logMessage("Broker sending message to '" + targetPortURI + "'") ;
+					BrokerReceivingOutboundPort outboundPort = clientsInfos.get(targetPortURI).getOutboundPort();
+					try {
+						outboundPort.receive(channel, currentMsg);
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
 				}
 			}
-			
-			msg = chanInfos.getMessage();
 		}
 		
 		// Dans le cahier des charges il est mentionné que les ports entrants offrant ReceivingCI doivent être déconnectés après 
@@ -1090,8 +1107,8 @@ public class Broker extends AbstractComponent{
 	public Void destroyChannelNowService(String receptionPortURI, String channel) 
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException{
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty());
-		assert(channel != null && !channel.isEmpty());
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
 		
 		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
@@ -1099,12 +1116,18 @@ public class Broker extends AbstractComponent{
 		
 		// Removal of the channel mapping
 		ChannelBrokerInfos chanInfos = channelsInfos.remove(channel);
-		assert(chanInfos != null);
+		if (chanInfos == null) throw new UnknownChannelException("Channel "+channel+" doesn't exist (removed in parallel).");
 		
 		// If the channel creator was a client, and he is still registered on the broker : his number of remaining channels is increased
 		String channelCreator = chanInfos.getCreator();
 		if (channelCreator != null && clientsInfos.get(channelCreator) != null) {
-			clientsInfos.get(channelCreator).increaseRemainingChannels();
+			try {
+				clientsInfos.get(channelCreator).increaseRemainingChannels();
+			// Normally an exception would be throw if the creator is not FREE,
+			// however here being the creator implies that he is not FREE, but privileged, so the exception in never actually thrown.
+			} catch (ChannelQuotaExceededException e) {
+				e.printStackTrace();
+			}
 		}
 		
 		// Dans le cahier des charges il est mentionné que les ports entrants offrant ReceivingCI doivent être déconnectés après 

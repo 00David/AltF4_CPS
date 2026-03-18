@@ -1,11 +1,11 @@
 package fr.sorbonne_u.broker.components.infos;
 
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
-import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
@@ -13,6 +13,11 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 
 /**
  * Class storing all information related to an existing channel on the {@link Broker}.
+ * 
+ * <p>
+ * In case of multiple threads accessing the same instance, there is no global lock on the instance:
+ * each internal attribute is protected individually using fine-grained locking, if needed to be protected.
+ * </p>
  * 
  * <p>
  * Each instance is uniquely identified by its {@code channel} attribute.
@@ -23,7 +28,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
  * </p>
  * <ul>
  * 	<li> - The channel name.
- * 	<li> - A set of pairs: (subscriber client port + channel filter).
+ * 	<li> - A mapping : subscriber client port URI -> its channel filter.
  * 	<li> - Whether the channel is accessible only to privileged clients or to everyone (default channel).
  * 	<li> - The client port that created the channel, or {@code null} if it was created by the {@link Broker}.
  * 	<li> - The regular expression defining the accepted client port URIs for this channel.
@@ -43,66 +48,14 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
  */
 public class ChannelBrokerInfos {
 
-    /**
-     * Pair: subscriber client port + channel filter.
-     * 
-     * <p>
-     * Each instance is uniquely identified by its {@code subscriberPortURI}.
-     * </p>
-     * 
-     * <p><strong>Invariants</strong></p>
-     * <pre>
-     * invariant	{@code subscriberPortURI != null && !subscriberPortURI.isEmpty()}
-     * </pre>
-     * 
-     * @author Kevin Tang
-     * @author David Vadimon
-     */
-    private static final class SubsciberFilter {
-        private final String subscriberPortURI;
-        private final MessageFilterI filter;
-
-        /**
-         * Creates a pair: subscriber client port + channel filter.
-         * 
-         * <p><strong>Contract</strong></p>
-         * <pre>
-         * pre  {@code subscriberPortURI != null && !subscriberPortURI.isEmpty()}
-         * post internal class invariants satisfied
-         * </pre>
-         * 
-         * @param subscriberPortURI 		the URI of the client inbound port implementing {@code ReceivingCI}.
-         * @param filter            		the client's filter for the channel.
-         * @throws IllegalArgumentException if a {@code subscriberPortURI} is null or empty.
-         */
-        private SubsciberFilter(String subscriberPortURI, MessageFilterI filter) {
-        	if (subscriberPortURI == null || subscriberPortURI.isEmpty()) 
-        		throw new IllegalArgumentException("Subsciber URI cannot be null or empty");
-            this.subscriberPortURI = subscriberPortURI;
-            this.filter = filter;
-        }
-
-        // Equality based solely on subscriberPortURI
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            SubsciberFilter that = (SubsciberFilter) o;
-            return subscriberPortURI.equals(that.subscriberPortURI);
-        }
-
-        @Override
-        public int hashCode() {
-            return subscriberPortURI.hashCode();
-        }
-    }
-
     /** The name of the channel */
     private final String channel;
     
-    /** A set of pairs: (subscriber client port + channel filter) */
-    private final Set<SubsciberFilter> subscribers;
+    /** 
+     * A mapping : subscriber client port URI -> its channel filter.<br>
+     * Multi-thread safe : implemented by a {@link ConcurrentHashMap}. An operation on it does not lock the whole map.
+     */
+    private final Map<String, MessageFilterI> subscribers;
     
     /** Whether the channel is accessible only to privileged clients or to everyone */
     private final boolean onlyPrivileged;
@@ -113,8 +66,16 @@ public class ChannelBrokerInfos {
     /** The client port that created the channel, or {@code null} if it was created by the {@link Broker} */
     private final String clientCreator;
     
-    /** A FIFO queue of messages pending on the channel (to be sent) */
+    /** 
+     * A FIFO queue of messages pending on the channel (to be sent).<br>
+     * Multi-thread safe : implemented by a {@link ConcurrentLinkedQueue}. An operation on it does not lock the whole queue.
+     */
     private final Queue<MessageI> messages;
+    
+    // Concurrency management
+    
+	/** Lock for {@code authorizedUsers}. */
+	private final Object authorizedUsersLock = new Object();
 
     /**
      * Constructs the information associated with a channel registered on the {@link Broker}.
@@ -142,11 +103,11 @@ public class ChannelBrokerInfos {
         if (authorizedUsers == null) throw new IllegalArgumentException("The regex for authorised users cannot be null");
 
         this.channel = channel;
-        this.subscribers = new HashSet<>();
+        this.subscribers = new ConcurrentHashMap<>();
         this.onlyPrivileged = onlyPrivileged;
         this.authorizedUsers = authorizedUsers;
         this.clientCreator = clientCreator;
-        this.messages = new LinkedList<>();
+        this.messages = new ConcurrentLinkedQueue<>();
     }
 
     // -------------------------------------------------------------------------
@@ -160,7 +121,7 @@ public class ChannelBrokerInfos {
      * <pre>
      * pre  {@code clientPortURI != null && !clientPortURI.isEmpty()}
      * pre  {@code filter != null}
-     * post {@code isSubscribed(clientPortURI)}
+     * post {@code true} // no postcondition
      * </pre>
      * 
      * @param clientPortURI					the client needed to be subscibed to the channel.
@@ -171,13 +132,11 @@ public class ChannelBrokerInfos {
     	// Precondition checks
     	if (clientPortURI == null || clientPortURI.isEmpty()) throw new IllegalArgumentException("A client port URI cannot be null or empty");
     	if (filter == null) throw new IllegalArgumentException("A filter cannot be null");
-
-    	synchronized(subscribers) {
-    		subscribers.add(new SubsciberFilter(clientPortURI, filter));
-    		
-	        // Postcondition check
-	        assert isSubscribed(clientPortURI);
-    	}
+    	
+    	subscribers.put(clientPortURI, filter);
+    	// Client is atomically added to subscribers, however in a scenario where another thread removes in parallel the same client 
+    	// before the current thread exits this method, then its not possible to state that the client is still contained
+        // in the map as a postcondition (only the case in this particular scenario)
     }
 
     /**
@@ -197,9 +156,7 @@ public class ChannelBrokerInfos {
     	// Precondition checks
     	if (clientPortURI == null || clientPortURI.isEmpty()) throw new IllegalArgumentException("A client port URI cannot be null or empty");
     	
-    	synchronized(subscribers) {
-    		return subscribers.contains(new SubsciberFilter(clientPortURI, null));
-    	}
+    	return subscribers.containsKey(clientPortURI);
     }
 
     /**
@@ -209,7 +166,7 @@ public class ChannelBrokerInfos {
      * <pre>
      * pre  {@code clientPortURI != null && !clientPortURI.isEmpty()}
      * pre  {@code isSubscribed(clientPortURI)}
-     * post {@code isSubscribed(clientPortURI) == false}
+     * post {@code true} // no postcondition
      * </pre>
      * 
      * @param clientPortURI					the client to unsubscribe from the channel.
@@ -221,12 +178,10 @@ public class ChannelBrokerInfos {
     	if (clientPortURI == null || clientPortURI.isEmpty()) throw new IllegalArgumentException("A client port URI cannot be null or empty");
     	if (!isSubscribed(clientPortURI)) throw new IllegalArgumentException("Client not already subscribed");
 
-    	synchronized(subscribers) {
-    		subscribers.remove(new SubsciberFilter(clientPortURI, null));
-	        
-	        // Postcondition check
-	        assert !isSubscribed(clientPortURI);
-    	}
+    	subscribers.remove(clientPortURI);   
+    	// The client is atomically removed from subscribers, however in a scenario where another thread inserts in parallel the same client 
+    	// before the current thread exits this method, then its not possible to state that the client is not contained anymore
+        // in the map as a postcondition (only the case in this particular scenario)
     }
 
     /**
@@ -242,11 +197,12 @@ public class ChannelBrokerInfos {
      */
     public List<String> getSubscribers() {
         List<String> subs = new ArrayList<>();
-        synchronized(subscribers) {
-	        for (SubsciberFilter sub : subscribers) {
-	            subs.add(sub.subscriberPortURI);
-	        }
+        
+        for (Map.Entry<String, MessageFilterI> e : subscribers.entrySet()) {
+        	String subscriber = e.getKey();
+        	subs.add(subscriber);
         }
+        
         return subs;
         // Postcondition verified by construction
     }
@@ -267,7 +223,7 @@ public class ChannelBrokerInfos {
      * @return true if this channel is only for privileged clients, otherwise false
      */
     public boolean onlyPrivileged() {
-        return onlyPrivileged;
+        return onlyPrivileged;  // onlyPrivileged will not be modified, so no need to protect it from a data race
     }
 
     /**
@@ -277,9 +233,9 @@ public class ChannelBrokerInfos {
      * 
      * <p><strong>Contract</strong></p>
      * <pre>
-     * pre  {@code authorisedUsers != null}
-     * post  {@code this.authorisedUsers == authorisedUsers)}
-     * post  {@code subscribers.stream().allMatch(sub -> sub.subscriberPortURI.matches(this.authorisedUsers))}
+     * pre  {@code authorizedUsers != null}
+     * post {@code this.authorizedUsers == authorizedUsers)}
+     * post {@code subscribers.keySet().stream().allMatch(subscriber -> subscriber.matches(authorizedUsers))}
      * </pre>
      * 
      * @param authorizedUsers 			the new regular expression defining authorized users.
@@ -289,17 +245,19 @@ public class ChannelBrokerInfos {
     	// Precondition check
     	if (authorizedUsers == null) throw new IllegalArgumentException("Authorized users cannot be null");
     	
-        this.authorizedUsers = authorizedUsers;
-
-        List<String> currentSubs = getSubscribers();
-        for (String sub : currentSubs) {
-            if (!sub.matches(authorizedUsers)) {
-                removeSubscriber(sub);
-            }
-        }
-        
-        // Postcondition check
-        assert subscribers.stream().allMatch(sub -> sub.subscriberPortURI.matches(this.authorizedUsers));
+    	synchronized(authorizedUsersLock){
+    		this.authorizedUsers = authorizedUsers;
+		
+    		for (String subscriber : getSubscribers()) {
+    			if (!subscriber.matches(authorizedUsers)) {
+    				removeSubscriber(subscriber);
+    			}
+    		}
+		        
+    		// Postcondition check
+    		assert subscribers.keySet().stream().allMatch(subscriber -> subscriber.matches(authorizedUsers));
+    		// The "authorizedUsersLock" guarantees that here, all current subscribers will match the new "authorizedUsers" string.
+    	}
     }
 
     /**
@@ -314,7 +272,9 @@ public class ChannelBrokerInfos {
      * @return the regular expression filtering authorized client URIs.
      */
     public String getAuthorizedUsers() {
-        return authorizedUsers;
+    	synchronized(authorizedUsersLock){
+    		return authorizedUsers;
+    	}
     }
 
     // -------------------------------------------------------------------------
@@ -333,7 +293,7 @@ public class ChannelBrokerInfos {
      * @return the URI of the client port that created the channel. Can be {@code null} if the {@link Broker} has created the channel.
      */
     public String getCreator() {
-        return clientCreator;
+        return clientCreator; // clientCreator will not be modified, so no need to protect it from a data race
     }
 
     // -------------------------------------------------------------------------
@@ -346,7 +306,7 @@ public class ChannelBrokerInfos {
      * <p><strong>Contract</strong></p>
      * <pre>
      * pre  {@code msg != null}
-     * post  {@code this.messages.contains(msg)}
+     * post  {@code true} // no postcondition
      * </pre>
      * 
      * @param msg						a message to add to the channel.
@@ -357,9 +317,9 @@ public class ChannelBrokerInfos {
     	if (msg == null) throw new IllegalArgumentException("A message cannot be null");
         
         messages.add(msg);
-        
-        // Postcondition check
-        assert messages.contains(msg);
+    	// The message is atomically added to the queue, however in a scenario where another thread polls in parallel this newly inserted 
+    	// message before the current thread exits this method, then its not possible to state that the message is still contained
+        // in the queue as a postcondition (only the case in this particular scenario)
     }
 
     /**
@@ -368,7 +328,7 @@ public class ChannelBrokerInfos {
      * <p><strong>Contract</strong></p>
      * <pre>
      * pre  {@code msgs != null && !msgs.isEmpty()}
-     * post  {@code this.messages.containsAll(msgs)}
+     * post  {@code true} // no postcondition
      * </pre>
      * 
      * @param msgs						a list of message to add to the channel.
@@ -379,9 +339,9 @@ public class ChannelBrokerInfos {
     	if (msgs == null || msgs.isEmpty()) throw new IllegalArgumentException("Messages cannot be null or empty");
         
         messages.addAll(msgs);
-        
-        // Postcondition check
-        assert messages.containsAll(msgs);
+    	// Messages are added one after one to the queue, however in a scenario where another thread polls in parallel those newly inserted 
+    	// messages before the current thread exits this method, then its not possible to state that all messages are still contained
+        // in the queue as a postcondition (only the case in this particular scenario)
     }
 
     /**
@@ -418,12 +378,15 @@ public class ChannelBrokerInfos {
     	// Precondition check
     	if (msg == null) throw new IllegalArgumentException("A message cannot be null");
 
-        List<String> targets = new ArrayList<>();
-        for (SubsciberFilter sub : subscribers) {
-            if (sub.filter.match(msg)) {
-                targets.add(sub.subscriberPortURI);
-            }
-        }
+    	List<String> targets = new ArrayList<>();
+    	for (Map.Entry<String, MessageFilterI> e : subscribers.entrySet()) {
+    		String subscriber = e.getKey();
+    		MessageFilterI filter = e.getValue();
+    		if (filter.match(msg)) {
+    			targets.add(subscriber);
+    		}
+    	}
+    	
         return targets;
         // Postcondition verified by construction
     }

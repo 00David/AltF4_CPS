@@ -6,9 +6,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import fr.sorbonne_u.broker.components.infos.ClientBrokerInfos;
-import fr.sorbonne_u.broker.components.infos.exceptions.NegativeRemainingChannelsException;
-import fr.sorbonne_u.broker.components.infos.exceptions.CannotIncreaseRemainingChannelsException;
 import fr.sorbonne_u.broker.components.infos.exceptions.ChannelNumberNotInitializedException;
+import fr.sorbonne_u.cps.pubsub.exceptions.ChannelQuotaExceededException;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 
 /**
@@ -109,33 +108,47 @@ public class ClientBrokerInfosTest {
     void testDecreaseRemainingChannels() {
         assertTrue(client.canCreateChannel()); // Client is STANDARD, has max 2 channels
 
-        client.decreaseRemainingChannels();
-        client.decreaseRemainingChannels();
+        try {
+			client.decreaseRemainingChannels();
+			client.decreaseRemainingChannels();
+        } catch (ChannelQuotaExceededException e) {
+			e.printStackTrace();
+		}
 
         assertFalse(client.canCreateChannel()); // Now the client has 0 channels remaining
 
-        // If we try to decrease while the client cannot create a channel anymore : throws a NegativeRemainingChannelsException
-        assertThrows(NegativeRemainingChannelsException.class,
+        // If we try to decrease while the client cannot create a channel anymore : throws a ChannelQuotaExceededException
+        assertThrows(ChannelQuotaExceededException.class,
                 () -> client.decreaseRemainingChannels());
     }
 
     @Test
     void testIncreaseRemainingChannels() {
-    	client.decreaseRemainingChannels();
-        client.decreaseRemainingChannels();
+    	// Client is STANDARD, has max 2 channels
+    	
+        try {
+			client.decreaseRemainingChannels();
+			client.decreaseRemainingChannels();
+        } catch (ChannelQuotaExceededException e) {
+			e.printStackTrace();
+		}
 
         assertFalse(client.canCreateChannel()); // Now the client has 0 channels remaining
+        
+        try {
+        	client.increaseRemainingChannels();
+        } catch (ChannelQuotaExceededException e) {
+			e.printStackTrace();
+		}
 
-        client.increaseRemainingChannels();
-
-        assertTrue(client.canCreateChannel()); // Now the client has 1 channel remaining, can create
+        assertTrue(client.canCreateChannel()); // Now the client has 1 remaining channel, can create
     }
 
     @Test
     void testFreeClientCannotIncreaseRemainingChannels() {
         ClientBrokerInfos freeClient = new ClientBrokerInfos("freeClientURI", RegistrationClass.FREE, null);
         
-        assertThrows(CannotIncreaseRemainingChannelsException.class,
+        assertThrows(ChannelQuotaExceededException.class,
                 () -> freeClient.increaseRemainingChannels()); // A free client cannot create any channel
     }
 

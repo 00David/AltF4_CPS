@@ -473,7 +473,7 @@ public class CVMCompleteTest extends AbstractCVM {
 		int nbMaxChannelsPREM = 4;
 		String broker_URI = AbstractComponent.createComponent(
 				Broker.class.getCanonicalName(),
-				new Object[] {2, nbMaxChannelsSTD, nbMaxChannelsPREM, 1, 0});
+				new Object[] {2, nbMaxChannelsSTD, nbMaxChannelsPREM, 1, 0, 1, 1, 1});
 		assert this.isDeployedComponent(broker_URI);
 		this.toggleTracing(broker_URI);
 

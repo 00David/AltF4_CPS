@@ -63,6 +63,7 @@ public class ClientPrivilegedOutboundPort extends ClientPublishingOutboundPort i
 		
 	}
 
+	@SuppressWarnings("deprecation")
 	@Override
 	public boolean isAuthorisedUser(String channel, String uri) throws Exception {
 		return ((PrivilegedClientCI)this.getConnector()).isAuthorisedUser(channel, uri);

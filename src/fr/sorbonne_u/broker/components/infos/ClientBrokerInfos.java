@@ -2,10 +2,9 @@ package fr.sorbonne_u.broker.components.infos;
 
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.broker.components.infos.exceptions.ChannelNumberNotInitializedException;
-import fr.sorbonne_u.broker.components.infos.exceptions.NegativeRemainingChannelsException;
-import fr.sorbonne_u.broker.components.infos.exceptions.CannotIncreaseRemainingChannelsException;
 import fr.sorbonne_u.broker.ports.BrokerReceivingOutboundPort;
 import fr.sorbonne_u.clients.components.Client;
+import fr.sorbonne_u.cps.pubsub.exceptions.ChannelQuotaExceededException;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 
 /**
@@ -13,6 +12,11 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
  * 
  * <p>
  * Before creating an instance, the {@link Broker} must initialize static attributes {@code nbMaxChannelsStd} and {@code nbMaxChannelsPrem}.
+ * </p>
+ * 
+ * <p>
+ * In case of multiple threads accessing the same instance, there is no global lock on the instance :
+ * each internal attribute is protected individually using fine-grained locking, if needed to be protected.
  * </p>
  * 
  * <p>
@@ -64,14 +68,11 @@ public class ClientBrokerInfos {
 	
 	/** 
 	 * Lock for {@code rc}.
-	 * Cannot 'synchronised' on it because on an enumreration (static), it would lock the enumeration as a whole (not only here).
+	 * Cannot 'synchronised' on {@code rc} because on an enumreration (static), it would lock the enumeration as a whole (not only here).
 	 */
 	private final Object rcLock = new Object();
 	
-	/** 
-	 * Lock for {@code nbRemainingChannels}.
-	 * Cannot 'synchronised' on it because on an enumreration (static), it would lock the enumeration as a whole (not only here).
-	 */
+	/** Lock for {@code nbRemainingChannels}. */
 	private final Object nbRemainingChannelsLock = new Object();
 	
 	/**
@@ -158,7 +159,7 @@ public class ClientBrokerInfos {
 		synchronized(rcLock) {
 			this.rc = rc;
 		}
-		// Postcondition verified by construction
+		// Postcondition verified by construction (atomic assignment)
 	}
 	
 	// -------------------------------------------------------------------------
@@ -177,9 +178,7 @@ public class ClientBrokerInfos {
 	 * @return the client's {@link BrokerReceivingOutboundPort}.
 	 */
 	public BrokerReceivingOutboundPort getOutboundPort() {
-		synchronized (clientOutboundPort) {
-			return clientOutboundPort;
-		}
+		return clientOutboundPort; // clientOutboundPort will not be modified, so no need to protect it from a data race
 	}
 	
 	// -------------------------------------------------------------------------
@@ -212,12 +211,12 @@ public class ClientBrokerInfos {
 	 * post {@code this.nbRemainingChannels >= 0}
 	 * </pre>
 	 * 
-	 * @throws NegativeRemainingChannelsException	if {@code this.nbChannelsRemaining} would become negative.
+	 * @throws ChannelQuotaExceededException	if {@code this.nbChannelsRemaining} would become negative.
 	 */
-	public synchronized void decreaseRemainingChannels() {
+	public synchronized void decreaseRemainingChannels() throws ChannelQuotaExceededException{
 		synchronized(nbRemainingChannelsLock) {
 			// Precondition check
-			if (nbRemainingChannels == 0) throw new NegativeRemainingChannelsException("The number of remaining channels cannot become negative");
+			if (nbRemainingChannels == 0) throw new ChannelQuotaExceededException("The number of remaining channels cannot become negative");
 			
 			nbRemainingChannels--;
 			
@@ -235,12 +234,12 @@ public class ClientBrokerInfos {
      * post {@code true} // no postcondition
 	 * </pre>
 	 * 
-	 * @throws CannotIncreaseRemainingChannelsException	if {@code this.nbChannelsRemaining} would become strictly positive for a FREE client.
+	 * @throws ChannelQuotaExceededException	if {@code this.nbChannelsRemaining} would become strictly positive for a FREE client.
 	 */
-	public synchronized void increaseRemainingChannels() {
+	public synchronized void increaseRemainingChannels() throws ChannelQuotaExceededException{
 		synchronized (rcLock) {
 			// Precondition check
-			if (rc == RegistrationClass.FREE) throw new CannotIncreaseRemainingChannelsException("A free client cannot have more than 0 channels to create");
+			if (rc == RegistrationClass.FREE) throw new ChannelQuotaExceededException("A free client cannot increase its number of remaining channels (0 by default)");
 		}
 		
 		synchronized (nbRemainingChannelsLock) {

@@ -49,6 +49,7 @@ public class ClientPrivilegedServiceConnector extends ClientPublishingServiceCon
 		((PrivilegedClientCI)this.offering).createChannel(receptionPortURI, channel, autorisedUsers);
 	}
 
+	@SuppressWarnings("deprecation")
 	@Override
 	public boolean isAuthorisedUser(String channel, String uri) throws Exception {
 		return ((PrivilegedClientCI)this.offering).isAuthorisedUser(channel, uri);

@@ -68,14 +68,26 @@ public class ClientReceivingPluginInboundPort extends AbstractInboundPort implem
 
 	@Override
 	public void receive(String channel, MessageI[] messages) throws Exception {
-		this.getOwner().handleRequest(
-				new AbstractComponent.AbstractService<Void>(this.getPluginURI()) {
-					@Override
-					public Void call() throws Exception {
-						((ClientSubscriptionPlugin)
-								this.getServiceProviderReference()).receive(channel, messages);
-						return null;
-					}
-				});
+		if (messages.length == 1) {
+			this.getOwner().handleRequest(
+					new AbstractComponent.AbstractService<Void>(this.getPluginURI()) {
+						@Override
+						public Void call() throws Exception {
+							((ClientSubscriptionPlugin)
+									this.getServiceProviderReference()).receive(channel, messages[0]);
+							return null;
+						}
+					});
+		} else {
+			this.getOwner().handleRequest(
+					new AbstractComponent.AbstractService<Void>(this.getPluginURI()) {
+						@Override
+						public Void call() throws Exception {
+							((ClientSubscriptionPlugin)
+									this.getServiceProviderReference()).receive(channel, messages);
+							return null;
+						}
+					});
+		}
 	}
 }
