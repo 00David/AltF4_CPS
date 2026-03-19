@@ -56,6 +56,7 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 		// Precondition checks
 		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
 		assert(message != null) : new PreconditionException("message cannot be null");
+		nbMessagesReceived.incrementAndGet();
 		
 		WindTurbine windTurbine = (WindTurbine)this.getOwner();
 		
@@ -83,6 +84,7 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
 		assert(messages != null && messages.length > 0) : new PreconditionException("messages container cannot be null or empty");
 		assert(Stream.of(messages).allMatch(m -> m != null)) : new PreconditionException("a message received cannot be null");
+		nbMessagesReceived.incrementAndGet();
 		
 		WindTurbine windTurbine = (WindTurbine)this.getOwner();
 		

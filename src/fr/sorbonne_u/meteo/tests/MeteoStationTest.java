@@ -1,6 +1,10 @@
 package fr.sorbonne_u.meteo.tests;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import fr.sorbonne_u.components.utils.tests.TestScenario;
+import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
@@ -124,5 +128,41 @@ public class MeteoStationTest extends MeteoStation {
 		this.logMessage("------------------------------");
 		
 		publicationPlugin.publish(channel, msg);
+	}
+	
+	/**
+	 * Publishes given {@link WindData}s on the {@code channel}, from the position of the MeteoStation.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code windDatas != null}
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 * 
+	 * @param windDatas 	Wind datas to publish on the {@code channel}.
+	 * @param channel		The channel on which it must publish the wind data.
+	 * @throws Exception	If an error occurs while publishing.
+	 */
+	public void publishWindDatas(List<WindData> windDatas, String channel) throws Exception {
+		// Precondition checks
+		assert(windDatas != null) : new PreconditionException("windDatas cannot be null");	
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");	
+		
+		ArrayList<MessageI> messages = new ArrayList<>();
+		for (WindData wd : windDatas) {
+			Message msg = new Message();
+			msg.setPayload(wd);
+			msg.putProperty("position", stationPosition);
+			msg.putProperty("xWind", wd.xComponent());
+			msg.putProperty("yWind", wd.yComponent());
+			messages.add(msg);
+		}
+			
+		this.logMessage("------------------------------");
+		this.logMessage("MeteoStation sending "+messages.size()+" wind datas to channel : '"+channel+"'");
+		this.logMessage("------------------------------");
+		
+		publicationPlugin.publish(channel, messages);
 	}
 }

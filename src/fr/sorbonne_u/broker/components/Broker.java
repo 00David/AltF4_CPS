@@ -44,7 +44,7 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  *   <li>Manages client component registrations (via the URI of their inbound port implementing {@link ReceivingCI}).</li>
  *   <li>Manages transmission channels between these registered client components.</li>
  *   <li>Handles message transmissions by applying filters provided by components subscribed to the relevant channel.</li>
- *   <li>Handles privileges for non-FREE clients, with [TODO with multi-threading : better performance and] advanced channel management.</li>
+ *   <li>Handles privileges for non-FREE clients, with better performances on publication and advanced channel management.</li>
  * </ul>
  * 
  * <p><strong>Invariants</strong></p>
