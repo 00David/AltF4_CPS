@@ -19,6 +19,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.plugins.interfaces.ClientSubscriptionI;
 import fr.sorbonne_u.exceptions.PreconditionException;
+import fr.sorbonne_u.meteo.components.WindTurbine;
 
 /**
  * The {@link Client} plugin having a {@link ClientReceivingPluginInboundPort}.
@@ -178,7 +179,8 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 		// Precondition checks
 		assert(channel != null && !channel.isEmpty());
 		
-		this.logMessage("Client received message '" + message + "' from the channel : " + channel);
+		Client client = (Client)this.getOwner();
+		client.logMessage("Client received message '" + message + "' from the channel : " + channel);
 	}
 
 	// Needs to be @Override for implementing a more personalized behavior on reception
@@ -189,11 +191,11 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 		assert(messages != null && messages.length > 0);
 		assert(Stream.of(messages).allMatch(m -> m != null));
 		
-		this.logMessage("Client received multiple messages from the channel : " + channel);
-		int i = 1;
-		for (MessageI msg : messages) {
-			this.logMessage("Message " + i + " : " + msg);
-			i++;
+		Client client = (Client)this.getOwner();
+		client.logMessage("Client received multiple messages from the channel : " + channel);
+		for (int i=0; i<messages.length; i++) {
+			MessageI message = messages[i];
+			client.logMessage("Message " + i + "  '" + message + "'");
 		}
 	}
 
