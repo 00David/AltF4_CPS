@@ -34,28 +34,42 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  *     <li>The {@link Broker} has :
  *         <ul>
  *             <li>4 normal threads</li>
- *             <li>4 loading threads</li>
+ *             <li>2 FREE loading threads, 4 STANDARD loading threads, 8 PREMIUM loading threads</li>
  *             <li>4 unloading threads</li>
- *             <li>2 FREE sending threads, 4 STANDARD sending threads, 8 PREMIUM sending threads</li>
+ *             <li>4 sending threads</li>
  *         </ul>
  *     </li>
- *     <li>1 (FREE) {@link WindTurbineTest} accepting everything, with 4 threads</li>
+ *     <li>1 (STANDARD) {@link WindTurbineTest} accepting everything, with 4 threads</li>
  *     <li>3 FREE {@link MeteoStationTest}, each with 4 threads</li>
  *     <li>3 STANDARD {@link MeteoStationTest}, each with 4 threads</li>
  *     <li>3 PREMIUM {@link MeteoStationTest}, each with 4 threads</li>
  * </ul>
  * 
  * <p>
- * 	SCENARIO
+ * 	SCENARIO, FIRST PART : multi-thread publications
  * </p>
  * <ul>
- * 	<li> - After 20 seconds, <strong>all 3 FREE MeteoStations</strong> each send 30 wind datas to 'channel0'.
- * 	<li> - After 40 seconds, <strong>WindTurbine</strong> checks that it has received 90 wind datas.
- * 	<li> - After 60 seconds, <strong>all 3 STANDARD MeteoStations</strong> each send 30 wind datas to 'channel0'.
- * 	<li> - After 80 seconds, <strong>WindTurbine</strong> checks that it has received a total of 180 wind datas.
- * 	<li> - After 100 seconds, <strong>all 3 PREMIUM MeteoStations</strong> each send 30 wind datas to 'channel0'.
- * 	<li> - After 120 seconds, <strong>WindTurbine</strong> checks that it has received a total of 270 wind datas.
+ * 	<li> - After 20 seconds, <strong>all 3 FREE MeteoStations</strong> each send 30 wind datas to 'channel0'.</li>
+ * 	<li> - After 40 seconds, <strong>WindTurbine</strong> checks that it has received 90 wind datas.</li>
+ * 	<li> - After 60 seconds, <strong>all 3 STANDARD MeteoStations</strong> each send 30 wind datas to 'channel0'.</li>
+ * 	<li> - After 80 seconds, <strong>WindTurbine</strong> checks that it has received a total of 180 wind datas.</li>
+ * 	<li> - After 100 seconds, <strong>all 3 PREMIUM MeteoStations</strong> each send 30 wind datas to 'channel0'.</li>
+ * 	<li> - After 120 seconds, <strong>WindTurbine</strong> checks that it has received a total of 270 wind datas.</li>
  * </ul>
+ * 
+ * <p>
+ * 	SECOND PART : multi-thread publications on different channels (depending creator registration classes)
+ * </p>
+ * <ul>
+ * 	<li> - After 130 seconds, <strong>MeteoStation4 (STANDARD)</strong> creates 'testChannel0' 
+ * 			+ <strong>MeteoStation7 (PREMIUM)</strong> creates 'testChannel1'.</li>
+ * 	<li> - After 140 seconds, <strong>WindTurbine</strong> subscribes to 'testChannel0' and 'testChannel1'</li>
+ * 	<li> - After 150 seconds, <strong>all 3 STANDARD MeteoStations</strong> each send 29 wind datas to 'testChannel0'.</li>
+ * 	<li> - After 170 seconds, <strong>WindTurbine</strong> checks that it has received a total of 357 wind datas.</li>
+ * 	<li> - After 190 seconds, <strong>all 3 STANDARD MeteoStations</strong> each send 29 wind datas to 'testChannel1'.</li>
+ * 	<li> - After 210 seconds, <strong>WindTurbine</strong> checks that it has received a total of 444 wind datas.</li>
+ * </ul>
+ * 
  * 
  * @author Kevin TANG
  * @author David VADIMON
@@ -68,7 +82,7 @@ public class CVMConcurrentTest extends AbstractCVM {
 
 	public static String CLOCK_URI = "test-clock";
 	public static String START_INSTANT = "2026-01-30T09:00:00.00Z";
-	public static String END_INSTANT = "2026-01-30T09:02:10.00Z";
+	public static String END_INSTANT = "2026-01-30T09:03:40.00Z";
 
 	public static long DELAY_TO_START = 1000L;
 	public static long END_SLEEP_DURATION = 10000L;
@@ -84,16 +98,22 @@ public class CVMConcurrentTest extends AbstractCVM {
 	public static long STEP3 = 80; // WindTurbine checks that it has received 180 wind datas.
 	public static long STEP4 = 100; // all 3 PREMIUM MeteoStations each send 30 wind datas to 'channel0'
 	public static long STEP5 = 120; // WindTurbine checks that it has received 270 wind datas.
-
+	public static long STEP6 = 130; // MeteoStation4 (STANDARD) creates 'testChannel0' + MeteoStation7 (PREMIUM) creates 'testChannel1'.
+	public static long STEP7 = 140; // WindTurbine subscribes to channels 'testChannel0' and 'testChannel1'.
+	public static long STEP8 = 150; // all 3 STANDARD MeteoStations each send 29 wind datas to 'testChannel0'.
+	public static long STEP9 = 170; // WindTurbine checks that it has received 357 wind datas.
+	public static long STEP10 = 190; // all 3 STANDARD MeteoStations each send 29 wind datas to 'testChannel1'.
+	public static long STEP11 = 210; // WindTurbine checks that it has received 444 wind datas.
+	
 	// -------------------------------------------------------------------------
 	// Component datas
 	// -------------------------------------------------------------------------
 	
 	// Broker
 	protected static final int brokerNbThreads = 4;
-	protected static final int brokerNbLoadersThreads = 4;
+	protected static final int brokerNbFreeLoadersThreads = 2; // Broker's constructor automatically scales at 4 and 8 threads for Standard and Premium senders.
 	protected static final int brokerNbUnloadersThreads = 4;
-	protected static final int brokerNbFreeSendersThreads = 2; // Broker's constructor automatically scales at 4 and 8 threads for Standard and Premium senders.
+	protected static final int brokerNbSendersThreads = 4;
 	
 	// MeteoStation general URIs
 	protected final static String MS_URI = "MeteoStation-URI";
@@ -116,9 +136,9 @@ public class CVMConcurrentTest extends AbstractCVM {
 	protected static final int windTurbineNbThreads = 4;
 	protected static final PositionData windTurbinePosition = new PositionData(2, 0);
 	
-    protected TimeFilterI timeFilter = new JokerTimeFilter();
-    protected MessageFilterI windTurbineWindFilter = new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], timeFilter);
-    protected MessageFilterI windTurbineAlertFilter = new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], timeFilter);
+    protected static final TimeFilterI timeFilter = new JokerTimeFilter();
+    protected static final MessageFilterI windTurbineWindFilter = new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], timeFilter);
+    protected static final MessageFilterI windTurbineAlertFilter = new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], timeFilter);
 	
 	// -------------------------------------------------------------------------
 	// Test scenario steps
@@ -147,6 +167,12 @@ public class CVMConcurrentTest extends AbstractCVM {
 		Instant step3_Instant = startInstant.plusSeconds(STEP3);
 		Instant step4_Instant = startInstant.plusSeconds(STEP4);
 		Instant step5_Instant = startInstant.plusSeconds(STEP5);
+		Instant step6_Instant = startInstant.plusSeconds(STEP6);
+		Instant step7_Instant = startInstant.plusSeconds(STEP7);
+		Instant step8_Instant = startInstant.plusSeconds(STEP8);
+		Instant step9_Instant = startInstant.plusSeconds(STEP9);
+		Instant step10_Instant = startInstant.plusSeconds(STEP10);
+		Instant step11_Instant = startInstant.plusSeconds(STEP11);
 		
 		List<WindData> ms1_winds = new ArrayList<>(); List<WindData> ms2_winds = new ArrayList<>(); List<WindData> ms3_winds = new ArrayList<>();
 		for (int j=0; j<90; j++) {
@@ -168,6 +194,7 @@ public class CVMConcurrentTest extends AbstractCVM {
 			else if (j<60) ms8_winds.add(new WindData(PREMIUMstationPosition, j, j));
 			else ms9_winds.add(new WindData(PREMIUMstationPosition, j, j));
 		}
+
 		
 		return new TestScenario(
 			CLOCK_URI,
@@ -179,7 +206,7 @@ public class CVMConcurrentTest extends AbstractCVM {
 					CLOCK_URI, MS_URI+1, step0_Instant,
 					owner -> {
 						try {
-							System.out.println("STEP 0/5 (20s)");
+							System.out.println("STEP 0/10 (20s) : all 3 FREE MeteoStations each send 30 wind datas to 'channel0'");
 							((MeteoStationTest)owner).publishWindDatas(ms1_winds, "channel0");
 						} catch (Exception e) {
 							System.err.println("MeteoStation1, step 0 wind datas publication failed with exception " + e);
@@ -208,7 +235,7 @@ public class CVMConcurrentTest extends AbstractCVM {
 						CLOCK_URI, WT_URI, step1_Instant,
 						owner -> {
 							try {
-								System.out.println("STEP 1/5 (40s)");
+								System.out.println("STEP 1/11 (40s) : WindTurbine checks that it has received 90 wind datas");
 								((WindTurbineTest)owner).verifyNbMessagesReceived(90);
 							} catch (Exception e) {
 								System.err.println("Step 1 wind datas account check failed with exception " + e);
@@ -219,7 +246,7 @@ public class CVMConcurrentTest extends AbstractCVM {
 						CLOCK_URI, MS_URI+4, step2_Instant,
 						owner -> {
 							try {
-								System.out.println("STEP 2/5 (60s)");
+								System.out.println("STEP 2/11 (60s) : all 3 STANDARD MeteoStations each send 30 wind datas to 'channel0'");
 								((MeteoStationTest)owner).publishWindDatas(ms4_winds, "channel0");
 							} catch (Exception e) {
 								System.err.println("MeteoStation4, step 2 wind datas publication failed with exception " + e);
@@ -248,7 +275,7 @@ public class CVMConcurrentTest extends AbstractCVM {
 						CLOCK_URI, WT_URI, step3_Instant,
 						owner -> {
 							try {
-								System.out.println("STEP 3/5 (80s)");
+								System.out.println("STEP 3/11 (80s) : WindTurbine checks that it has received 180 wind datas");
 								((WindTurbineTest)owner).verifyNbMessagesReceived(180);
 							} catch (Exception e) {
 								System.err.println("Step 3 wind datas account check failed with exception " + e);
@@ -259,7 +286,7 @@ public class CVMConcurrentTest extends AbstractCVM {
 						CLOCK_URI, MS_URI+7, step4_Instant,
 						owner -> {
 							try {
-								System.out.println("STEP 4/5 (100s)");
+								System.out.println("STEP 4/11 (100s) : all 3 PREMIUM MeteoStations each send 30 wind datas to 'channel0'");
 								((MeteoStationTest)owner).publishWindDatas(ms7_winds, "channel0");
 							} catch (Exception e) {
 								System.err.println("MeteoStation7, step 4 wind datas publication failed with exception " + e);
@@ -288,15 +315,127 @@ public class CVMConcurrentTest extends AbstractCVM {
 						CLOCK_URI, WT_URI, step5_Instant,
 						owner -> {
 							try {
-								System.out.println("STEP 5/5 (120s)");
+								System.out.println("STEP 5/11 (120s) : WindTurbine checks that it has received 270 wind datas");
 								((WindTurbineTest)owner).verifyNbMessagesReceived(270);
 							} catch (Exception e) {
 								System.err.println("Step 5 wind datas account check failed with exception " + e);
 							}
 						}),
+				// MeteoStation4 (STANDARD) creates 'testChannel0' + MeteoStation7 (PREMIUM) creates 'testChannel1'.
+				new TestStep(
+						CLOCK_URI, MS_URI+4, step6_Instant,
+						owner -> {
+							try {
+								System.out.println("STEP 6/11 (130s) : MeteoStation4 (STANDARD) creates 'testChannel0' + MeteoStation7 (PREMIUM) creates 'testChannel1'");
+								((MeteoStationTest)owner).createNewChannel("testChannel0", ".*");
+							} catch (Exception e) {
+								System.err.println("Step 6 'testChannel0' creation failed with exception " + e);
+							}
+						}),
+				new TestStep(
+						CLOCK_URI, MS_URI+7, step6_Instant,
+						owner -> {
+							try {
+								((MeteoStationTest)owner).createNewChannel("testChannel1", ".*");
+							} catch (Exception e) {
+								System.err.println("Step 6 'testChannel1' creation failed with exception " + e);
+							}
+						}),
+				// WindTurbine subscribes to channels 'testChannel0' and 'testChannel1'.
+				new TestStep(
+						CLOCK_URI, WT_URI, step7_Instant,
+						owner -> {
+							try {
+								System.out.println("STEP 7/11 (140s) : WindTurbine subscribes to channels 'testChannel0' and 'testChannel1'");
+								((WindTurbineTest)owner).subscibeToChannel("testChannel0", windTurbineWindFilter);
+								((WindTurbineTest)owner).subscibeToChannel("testChannel1", windTurbineWindFilter);
+							} catch (Exception e) {
+								System.err.println("Step 7 WindTurbine subscrition failed with exception " + e);
+							}
+						}),
+				// all 3 STANDARD MeteoStations each send 30 wind datas to 'testChannel0'.
+				new TestStep(
+						CLOCK_URI, MS_URI+4, step8_Instant,
+						owner -> {
+							try {
+								System.out.println("STEP 8/11 (150s) : all 3 STANDARD MeteoStations each send 29 wind datas to 'testChannel0'");
+								((MeteoStationTest)owner).publishWindDatas(ms4_winds.subList(0, ms4_winds.size() - 1), "testChannel0");
+							} catch (Exception e) {
+								System.err.println("MeteoStation4, step 8 wind datas publication failed with exception " + e);
+							}
+						}),
+				new TestStep(
+						CLOCK_URI, MS_URI+5, step8_Instant,
+						owner -> {
+							try {
+								((MeteoStationTest)owner).publishWindDatas(ms5_winds.subList(0, ms5_winds.size() - 1), "testChannel0");
+							} catch (Exception e) {
+								System.err.println("MeteoStation5, step 8 wind datas publication failed with exception " + e);
+							}
+						}),
+				new TestStep(
+						CLOCK_URI, MS_URI+6, step8_Instant,
+						owner -> {
+							try {
+								((MeteoStationTest)owner).publishWindDatas(ms6_winds.subList(0, ms6_winds.size() - 1), "testChannel0");
+							} catch (Exception e) {
+								System.err.println("MeteoStation6, step 8 wind datas publication failed with exception " + e);
+							}
+						}),
+				// WindTurbine checks that it has received 357 wind datas.
+				new TestStep(
+						CLOCK_URI, WT_URI, step9_Instant,
+						owner -> {
+							try {
+								System.out.println("STEP 9/11 (170s) : WindTurbine checks that it has received 357 wind datas");
+								((WindTurbineTest)owner).verifyNbMessagesReceived(357);
+							} catch (Exception e) {
+								System.err.println("Step 9 wind datas account check failed with exception " + e);
+							}
+						}),
+				// all 3 STANDARD MeteoStations each send 30 wind datas to 'testChannel1'.
+				new TestStep(
+						CLOCK_URI, MS_URI+4, step10_Instant,
+						owner -> {
+							try {
+								System.out.println("STEP 10/11 (190s) : all 3 STANDARD MeteoStations each send 29 wind datas to 'testChannel1'");
+								((MeteoStationTest)owner).publishWindDatas(ms4_winds.subList(0, ms4_winds.size() - 1), "testChannel1");
+							} catch (Exception e) {
+								System.err.println("MeteoStation4, step 10 wind datas publication failed with exception " + e);
+							}
+						}),
+				new TestStep(
+						CLOCK_URI, MS_URI+5, step10_Instant,
+						owner -> {
+							try {
+								((MeteoStationTest)owner).publishWindDatas(ms5_winds.subList(0, ms5_winds.size() - 1), "testChannel1");
+							} catch (Exception e) {
+								System.err.println("MeteoStation5, step 10 wind datas publication failed with exception " + e);
+							}
+						}),
+				new TestStep(
+						CLOCK_URI, MS_URI+6, step10_Instant,
+						owner -> {
+							try {
+								((MeteoStationTest)owner).publishWindDatas(ms6_winds.subList(0, ms6_winds.size() - 1), "testChannel1");
+							} catch (Exception e) {
+								System.err.println("MeteoStation6, step 10 wind datas publication failed with exception " + e);
+							}
+						}),
+				// WindTurbine checks that it has received 444 wind datas.
+				new TestStep(
+						CLOCK_URI, WT_URI, step11_Instant,
+						owner -> {
+							try {
+								System.out.println("STEP 11/11 (210s) : WindTurbine checks that it has received 444 wind datas");
+								((WindTurbineTest)owner).verifyNbMessagesReceived(444);
+							} catch (Exception e) {
+								System.err.println("Step 11 wind datas account check failed with exception " + e);
+							}
+						})
 				});
 	}
-	
+
 	public CVMConcurrentTest() throws Exception{
 		super();
 	}
@@ -321,7 +460,7 @@ public class CVMConcurrentTest extends AbstractCVM {
 		String broker_URI = AbstractComponent.createComponent(
 				Broker.class.getCanonicalName(),
 				new Object[] {2, nbMaxChannelsSTD, nbMaxChannelsPREM, brokerNbThreads, 0, 
-						brokerNbLoadersThreads, brokerNbUnloadersThreads, brokerNbFreeSendersThreads});
+						brokerNbFreeLoadersThreads, brokerNbUnloadersThreads, brokerNbSendersThreads});
 		assert this.isDeployedComponent(broker_URI);
 		this.toggleTracing(broker_URI);
 		
@@ -343,7 +482,7 @@ public class CVMConcurrentTest extends AbstractCVM {
 		// Creation of 1 WindTurbine
 		String tmp_windTurbine_URI = AbstractComponent.createComponent(WindTurbineTest.class.getCanonicalName(),
 				new Object[] { WindTurbineReceivingInboundPortURI, WindTurbineRegistrationOutboundPortURI, WindTurbinePublishingOutboundPortURI,
-						RegistrationClass.FREE, 1, 1, windTurbinePosition, MeteoAlertI.Level.ORANGE, WT_URI, testScenario, 1, windTurbineWindFilter, windTurbineAlertFilter});
+						RegistrationClass.STANDARD, 1, 1, windTurbinePosition, MeteoAlertI.Level.ORANGE, WT_URI, testScenario, 1, windTurbineWindFilter, windTurbineAlertFilter});
 		this.toggleTracing(tmp_windTurbine_URI);
 		
 		// Clock server creation

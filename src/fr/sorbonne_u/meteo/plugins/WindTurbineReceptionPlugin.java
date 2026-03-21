@@ -84,13 +84,14 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
 		assert(messages != null && messages.length > 0) : new PreconditionException("messages container cannot be null or empty");
 		assert(Stream.of(messages).allMatch(m -> m != null)) : new PreconditionException("a message received cannot be null");
-		nbMessagesReceived.incrementAndGet();
 		
 		WindTurbine windTurbine = (WindTurbine)this.getOwner();
 		
 		windTurbine.logMessage("------------------------------");
-		windTurbine.logMessage("WindTurbine received multiple messages from the channel : " + channel);
+		windTurbine.logMessage("WindTurbine received "+ messages.length +" messages from the channel : " + channel);
 		for (int i=0; i<messages.length; i++) {
+			nbMessagesReceived.incrementAndGet();
+			
 			MessageI message = messages[i];
 			windTurbine.logMessage("Message " + i + " '" + message + "'");
 			Serializable payload = message.getPayload();

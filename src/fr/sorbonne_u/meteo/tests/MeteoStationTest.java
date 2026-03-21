@@ -10,6 +10,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
+import fr.sorbonne_u.exceptions.PostconditionException;
 import fr.sorbonne_u.exceptions.PreconditionException;
 import fr.sorbonne_u.messages.Message;
 import fr.sorbonne_u.meteo.components.MeteoStation;
@@ -164,5 +165,36 @@ public class MeteoStationTest extends MeteoStation {
 		this.logMessage("------------------------------");
 		
 		publicationPlugin.publish(channel, messages);
+	}
+	
+	/**
+	 * Creates a new channel on the broker.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * pre	{@code authorizedUsers != null && !authorizedUsers.isEmpty()}
+	 * pre	{@code registrationClass == (RegistrationClass.STANDARD || RegistrationClass.PREMIUM)}
+	 * post	{@code publicationPlugin.channelExist(channel)}
+	 * </pre>
+	 * 
+	 * @param channel 			The new channel name.
+	 * @param authorizedUsers 	The regex for filtering accepted users.
+	 * @throws Exception		If an error occurs while creating the new channel.
+	 */
+	public void createNewChannel(String channel, String authorizedUsers) throws Exception {
+		// Precondition checks
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
+		assert(authorizedUsers != null && !authorizedUsers.isEmpty()) : 
+			new PreconditionException("authorizedUsers cannot be null or empty");
+		assert(registrationClass == RegistrationClass.STANDARD ||  registrationClass == RegistrationClass.PREMIUM) : 
+			new PreconditionException("client must be privileged");
+		
+		privilegedPlugin.createChannel(channel, authorizedUsers);
+		this.logMessage("Meteo Bureau has created channel : "+channel);
+		
+		// Postcondition check
+		assert(publicationPlugin.channelExist(channel)) : new PostconditionException("new channel '"+channel+"' should exist");
 	}
 }

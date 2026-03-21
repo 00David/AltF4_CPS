@@ -4,7 +4,6 @@ import java.util.Map;
 
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.broker.components.infos.ClientBrokerInfos;
-import fr.sorbonne_u.broker.ports.BrokerReceivingOutboundPort;
 import fr.sorbonne_u.components.AbstractComponent.AbstractTask;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.exceptions.PreconditionException;
@@ -69,14 +68,17 @@ public class SenderTask extends AbstractTask {
 	public void run() {
 		try {
 			
-			// Checks that the targeted client is still registered and subscribed to the channel
-			// If it is okay, sends messages.
-			if (broker.registeredService(targetPortURI) && broker.subscribedService(targetPortURI, channel)) {
-				broker.logMessage("Broker sending message to '" + targetPortURI + "'") ;
-				BrokerReceivingOutboundPort outboundPort = clientsInfos.get(targetPortURI).getOutboundPort();
-				outboundPort.receive(channel, messagesToSend);
+			// Takes the client lock
+			ClientBrokerInfos client = clientsInfos.get(targetPortURI);
+			synchronized(client) {
+				// Checks that the targeted client is still registered and subscribed to the channel
+				// If it is okay, sends messages.
+				if (broker.registeredService(targetPortURI) && broker.subscribedService(targetPortURI, channel)) {
+					broker.logMessage("Broker sending message to '" + targetPortURI + "'") ;
+					client.getOutboundPort().receive(channel, messagesToSend);
+				}
 			}
-			
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

@@ -7,7 +7,9 @@ import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.broker.components.infos.ChannelBrokerInfos;
 import fr.sorbonne_u.broker.components.infos.ClientBrokerInfos;
 import fr.sorbonne_u.components.AbstractComponent.AbstractTask;
+import fr.sorbonne_u.cps.pubsub.exceptions.UnknownChannelException;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
+import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
@@ -70,13 +72,29 @@ public class LoaderTask extends AbstractTask {
 	@Override
 	public void run() {
 		try {
+			
 			ChannelBrokerInfos chanInfos = channelsInfos.get(channel);
-			if (chanInfos == null) return ; // channel does not exist anymore
+			if (chanInfos == null) throw new UnknownChannelException("Channel "+channel+" doesn't exist anymore.");
+			
+			// The maximum number of messages to unload, PER UNLOADER
+			int nbMaxUnloadMessages = UnloaderTask.NB_MAX_UNLOAD_MSG_FREE_CHANNEL;
+			
+			// If the creator is still registered on the system, and is standard or premium, then the maximum number increases
+			String channelCreator = chanInfos.getCreator();
+			if (channelCreator != null) {
+				RegistrationClass channelCreatorRC = clientsInfos.get(channelCreator).getRegistrationClass();
+				if (channelCreatorRC == RegistrationClass.STANDARD) {
+					nbMaxUnloadMessages = UnloaderTask.NB_MAX_UNLOAD_MSG_STD_CHANNEL;
+				} else if (channelCreatorRC == RegistrationClass.PREMIUM) {
+					nbMaxUnloadMessages = UnloaderTask.NB_MAX_UNLOAD_MSG_PREM_CHANNEL;
+				}
+			}
 			
 			// Puts messages into the channel
-			chanInfos.addMessages(messagesToLoad);
+			chanInfos.loadMessages(messagesToLoad);
 			
-			broker.runTask(Broker.UNLOADERS_POOL_URI, new UnloaderTask(broker, clientsInfos, chanInfos, channel));
+			// Creates an unload task
+			broker.runTask(Broker.UNLOADERS_POOL_URI, new UnloaderTask(broker, clientsInfos, chanInfos, channel, nbMaxUnloadMessages));
 			
 		} catch (Exception e) {
 			e.printStackTrace();

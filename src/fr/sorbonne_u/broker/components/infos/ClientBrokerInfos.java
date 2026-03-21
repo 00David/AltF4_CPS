@@ -15,8 +15,8 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
  * </p>
  * 
  * <p>
- * In case of multiple threads accessing the same instance, there is no global lock on the instance :
- * each internal attribute is protected individually using fine-grained locking, if needed to be protected.
+ * In case of multiple threads accessing on the same instance informations that can be modified, a global lock is used :
+ * because of having only short operations, it does not cost a lot in terms of performances.
  * </p>
  * 
  * <p>
@@ -64,17 +64,6 @@ public class ClientBrokerInfos {
 	/** The number of remaining channels the client can create */
 	private int nbRemainingChannels;
 	
-	// Concurrency management
-	
-	/** 
-	 * Lock for {@code rc}.
-	 * Cannot 'synchronised' on {@code rc} because on an enumreration (static), it would lock the enumeration as a whole (not only here).
-	 */
-	private final Object rcLock = new Object();
-	
-	/** Lock for {@code nbRemainingChannels}. */
-	private final Object nbRemainingChannelsLock = new Object();
-	
 	/**
 	 * Creates the information structure for a {@link Client} registered on the {@link Broker}.
 	 * 
@@ -117,8 +106,6 @@ public class ClientBrokerInfos {
 		}
 	}
 	
-	// Getters postconditions verified by class invariants
-	
 	// -------------------------------------------------------------------------
 	// REGISTRATION CLASS MANAGEMENT
 	// -------------------------------------------------------------------------
@@ -134,10 +121,8 @@ public class ClientBrokerInfos {
 	 * 
 	 * @return the client's {@link RegistrationClass}.
 	 */
-	public RegistrationClass getRegistrationClass() {
-		synchronized(rcLock) {
-			return rc;
-		}
+	public synchronized RegistrationClass getRegistrationClass() {
+		return rc;
 	}
 	
 	/**
@@ -152,14 +137,12 @@ public class ClientBrokerInfos {
 	 * @param rc 						the new {@link RegistrationClass} of the client.
 	 * @throws IllegalArgumentException if {@code rc} is null.
 	 */
-	public void setRegistrationClass(RegistrationClass rc) {
+	public synchronized void setRegistrationClass(RegistrationClass rc) {
 		// Precondition check
 		if (rc == null) throw new IllegalArgumentException("A registration class cannot be null");
 		
-		synchronized(rcLock) {
-			this.rc = rc;
-		}
-		// Postcondition verified by construction (atomic assignment)
+		this.rc = rc;
+		// Postcondition verified by construction
 	}
 	
 	// -------------------------------------------------------------------------
@@ -172,13 +155,13 @@ public class ClientBrokerInfos {
      * <p><strong>Contract</strong></p>
      * <pre>
      * pre  {@code true} // no precondition
-     * post {@code true} // no postcondition
+     * post {@code != null}
      * </pre>
 	 * 
 	 * @return the client's {@link BrokerReceivingOutboundPort}.
 	 */
 	public BrokerReceivingOutboundPort getOutboundPort() {
-		return clientOutboundPort; // clientOutboundPort will not be modified, so no need to protect it from a data race
+		return clientOutboundPort; // clientOutboundPort cannot not be modified, so no need to protect it from a data race
 	}
 	
 	// -------------------------------------------------------------------------
@@ -196,10 +179,8 @@ public class ClientBrokerInfos {
 	 * 
 	 * @return true if at least one channel can be created by the client, false otherwise.
 	 */
-	public boolean canCreateChannel() {
-		synchronized(nbRemainingChannelsLock) {
-			return nbRemainingChannels > 0;
-		}
+	public synchronized boolean canCreateChannel() {
+		return nbRemainingChannels > 0;
 	}
 	
 	/**
@@ -214,15 +195,13 @@ public class ClientBrokerInfos {
 	 * @throws ChannelQuotaExceededException	if {@code this.nbChannelsRemaining} would become negative.
 	 */
 	public synchronized void decreaseRemainingChannels() throws ChannelQuotaExceededException{
-		synchronized(nbRemainingChannelsLock) {
-			// Precondition check
-			if (nbRemainingChannels == 0) throw new ChannelQuotaExceededException("The number of remaining channels cannot become negative");
+		// Precondition check
+		if (nbRemainingChannels == 0) throw new ChannelQuotaExceededException("The number of remaining channels cannot become negative");
 			
-			nbRemainingChannels--;
+		nbRemainingChannels--;
 			
-			// Postcondition check
-			assert(nbRemainingChannels >= 0);
-		}
+		// Postcondition check
+		assert(nbRemainingChannels >= 0);
 	}
 	
 	/**
@@ -237,14 +216,10 @@ public class ClientBrokerInfos {
 	 * @throws ChannelQuotaExceededException	if {@code this.nbChannelsRemaining} would become strictly positive for a FREE client.
 	 */
 	public synchronized void increaseRemainingChannels() throws ChannelQuotaExceededException{
-		synchronized (rcLock) {
-			// Precondition check
-			if (rc == RegistrationClass.FREE) throw new ChannelQuotaExceededException("A free client cannot increase its number of remaining channels (0 by default)");
-		}
+		// Precondition check
+		if (rc == RegistrationClass.FREE) throw new ChannelQuotaExceededException("A free client cannot increase its number of remaining channels (0 by default)");
 		
-		synchronized (nbRemainingChannelsLock) {
-			nbRemainingChannels++;
-		}
+		nbRemainingChannels++;
 	}
 	
 	// A ClientBrokerInfos is uniquely identified by the client's port URI

@@ -233,11 +233,11 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 		assert(channel != null && !channel.isEmpty());
 		assert(messages != null && messages.length > 0);
 		assert(Stream.of(messages).allMatch(m -> m != null));
-		nbMessagesReceived.incrementAndGet();
 		
 		Client client = (Client)this.getOwner();
-		client.logMessage("Client received multiple messages from the channel : " + channel);
+		client.logMessage("Client received "+ messages.length +" messages from the channel : " + channel);
 		for (int i=0; i<messages.length; i++) {
+			nbMessagesReceived.incrementAndGet();
 			MessageI message = messages[i];
 			client.logMessage("Message " + i + "  '" + message + "'");
 		}

@@ -159,7 +159,7 @@ public class CVMSimpleTest extends AbstractCVM {
 					step0_Instant,
 					owner -> {
 						try {
-							System.out.println("STEP 0/5 (30s)");
+							System.out.println("STEP 0/5 (30s) : MeteoStation1 sends wind data to 'channel0'");
 							((MeteoStationTest)owner).publishWindData(2.0, 2.0, "channel0");
 						} catch (Exception e) {
 							System.err.println("Step 0 wind data publication failed with exception " + e);
@@ -172,7 +172,7 @@ public class CVMSimpleTest extends AbstractCVM {
 					step1_Instant,
 					owner -> {
 						try {
-							System.out.println("STEP 1/5 (60s)");
+							System.out.println("STEP 1/5 (60s) : MeteoStation2 sends wind data to 'channel0'");
 							((MeteoStationTest)owner).publishWindData(1.0, 1.0, "channel0");
 						} catch (Exception e) {
 							System.err.println("Step 1 wind data publication failed with exception " + e);
@@ -185,7 +185,7 @@ public class CVMSimpleTest extends AbstractCVM {
 						step2_Instant,
 						owner -> {
 							try {
-								System.out.println("STEP 2/5 (90s)");
+								System.out.println("STEP 2/5 (90s) : MeteoBureau sends a dangerous alert to 'channel1'");
 								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.RED, 
 										step2_3_regions, step2_Instant, Duration.ofSeconds((long)((STEP3-STEP2)/ACCELERATION_FACTOR)), "channel1");
 							} catch (Exception e) {
@@ -199,7 +199,7 @@ public class CVMSimpleTest extends AbstractCVM {
 						step3_Instant,
 						owner -> {
 							try {
-								System.out.println("STEP 3/5 (120s)");
+								System.out.println("STEP 3/5 (120s) : MeteoBureau sends an end-of-danger alert to 'channel1'");
 								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.GREEN, 
 										step2_3_regions, step3_Instant, Duration.ofSeconds((long)((STEP3-STEP2)/ACCELERATION_FACTOR)), "channel1");
 							} catch (Exception e) {
@@ -213,7 +213,7 @@ public class CVMSimpleTest extends AbstractCVM {
 					step4_Instant,
 					owner -> {
 						try {
-							System.out.println("STEP 4/5 (150s)");
+							System.out.println("STEP 4/5 (150s) : MeteoStation1 sends wind data to 'channel0'");
 							((MeteoStationTest)owner).publishWindData(2.0, 2.0, "channel0");
 						} catch (Exception e) {
 							System.err.println("Step 4 wind data publication failed with exception " + e);
@@ -226,7 +226,7 @@ public class CVMSimpleTest extends AbstractCVM {
 						step5_Instant,
 						owner -> {
 							try {
-								System.out.println("STEP 5/5 (180s)");
+								System.out.println("STEP 5/5 (180s) :  MeteoBureau sends a dangerous alert to 'channel1', not affecting the wind turbine region");
 								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.RED, 
 										step5_regions, step5_Instant, Duration.ofSeconds((long)((STEP3-STEP2)/ACCELERATION_FACTOR)), "channel1");
 							} catch (Exception e) {
