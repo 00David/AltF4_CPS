@@ -63,23 +63,9 @@ public class ClientPrivilegedOutboundPort extends ClientPublishingOutboundPort i
 		
 	}
 
-	@SuppressWarnings("deprecation")
-	@Override
-	public boolean isAuthorisedUser(String channel, String uri) throws Exception {
-		return ((PrivilegedClientCI)this.getConnector()).isAuthorisedUser(channel, uri);
-	}
-
 	@Override
 	public void modifyAuthorisedUsers(String receptionPortURI, String channel, String autorisedUsers) throws Exception {
 		((PrivilegedClientCI)this.getConnector()).modifyAuthorisedUsers(receptionPortURI, channel, autorisedUsers);
-	}
-	
-	// 'removeAuthorisedUsers' removed from source interface
-	@Override
-	public void removeAuthorisedUsers(String receptionPortURI, String channel, String regularExpression)
-			throws Exception {
-		// TODO Auto-generated method stub
-		
 	}
 
 	@Override

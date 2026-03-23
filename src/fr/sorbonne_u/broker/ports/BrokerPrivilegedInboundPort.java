@@ -69,23 +69,9 @@ implements	PrivilegedClientCI {
 	}
 
 	@Override
-	public boolean isAuthorisedUser(String channel, String uri) throws Exception {
-		return this.getOwner().handleRequest(
-				owner -> ((Broker)owner).isAuthorisedUserService(channel, uri));
-	}
-
-	@Override
 	public void modifyAuthorisedUsers(String receptionPortURI, String channel, String autorisedUsers) throws Exception {
 		this.getOwner().handleRequest(
 				owner -> ((Broker)owner).modifyAuthorisedUsersService(receptionPortURI, channel, autorisedUsers));
-	}
-
-	// 'removeAuthorisedUsers' removed from source interface
-	@Override
-	public void removeAuthorisedUsers(String receptionPortURI, String channel, String regularExpression)
-			throws Exception {
-		// TODO Auto-generated method stub
-		
 	}
 
 	@Override

@@ -588,13 +588,13 @@ public class Broker extends AbstractComponent{
 	}
 	
 	/**
-	 * Return true if the use of {@code channel} is authorised for {@code receptionPortURI}, otherwise false.
+	 * Return true if the use of {@code channel} is authorized for {@code receptionPortURI}, otherwise false.<br>
+	 * The channel creator is automatically authorized.
 	 * 
 	 * <p>
-	 * The method only verifies the compatibily between the {@code receptionPortURI}'s {@link RegistrationClass}
+	 * The method firstly verifies the compatibility between the {@code receptionPortURI}'s {@link RegistrationClass}
 	 * and the {@code channel}'s requirement to be accessed (or not) by only privileged clients.<br>
-	 * 
-	 * To include also regex verification on {@code channel}'s authorized users, please see the {@code isAuthorisedUserService} method.
+	 * Secondly, it does a regex verification between {@code channel}'s authorized users and {@code receptionPortURI} string.
 	 * </p>
 	 * 
 	 * <p><strong>Contract</strong></p>
@@ -609,7 +609,6 @@ public class Broker extends AbstractComponent{
 	 * @return					           true if the use of {@code channel} is authorised for {@code receptionPortURI}, otherwise false.
 	 * @throws UnknownClientException      If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     If the {@code channel} doesn't exist.
-	 * @see Broker#isAuthorisedUserService(String, String)
 	 */
 	public boolean channelAuthorisedService(String receptionPortURI, String channel) 
 			throws UnknownClientException, UnknownChannelException {
@@ -625,10 +624,18 @@ public class Broker extends AbstractComponent{
 			ChannelBrokerInfos chan = channelsInfos.get(channel);
 			synchronized(chan) {
 				
-				if (client.getRegistrationClass() == RegistrationClass.FREE && channelsInfos.get(channel).onlyPrivileged()){
+				// If the client is the creator of the channel, he is automatically authorized
+				String creator = chan.getCreator();
+				if (creator != null && creator.equals(receptionPortURI)) return true;
+				
+				// If the client registration class is FREE, and the channel requires privileged clients -> not authorized
+				if (client.getRegistrationClass() == RegistrationClass.FREE && chan.onlyPrivileged()){
 					return false;
 				} else {
-					return true;
+					
+					// Gets the regex accepting clients URIs, checks if the client matches it
+					String authorised = chan.getAuthorizedUsers();	
+					return receptionPortURI.matches(authorised);
 				}
 				
 			}
@@ -958,8 +965,12 @@ public class Broker extends AbstractComponent{
 		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
 		
 		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
-		
-		return channelsInfos.get(channel).getCreator().equals(receptionPortURI);
+		String creator = channelsInfos.get(channel).getCreator();
+		if (creator == null) { // If the broker is the channel creator
+			return false;
+		} else {
+			return creator.equals(receptionPortURI);
+		}
 	}
 
 	/**
@@ -1034,58 +1045,6 @@ public class Broker extends AbstractComponent{
 	}
 
 	/**
-	 * Return true if {@code uri} is authorized to use {@code channel}. The creator is automatically authorized.
-	 * 
-	 * <p>
-	 * Calls the method {@code channelAuthorisedService} before veryfing the regex for the {@code channel}'s authorized users,
-	 * so that {@code uri}'s {@link RegistrationClass} is compatible with the {@code channel}'s requirement to be accessed 
-	 * (or not) by only privileged clients
-	 * </p>
-	 * 
-	 * <p><strong>Contract</strong></p>
-	 * <pre>
-	 * pre	{@code channel != null && !channel.isEmpty()}
-	 * pre	{@code uri != null && !uri.isEmpty()}
-	 * post	{@code true}	// no postcondition.
-	 * </pre>
-	 *
-	 * @param channel						name of an existing channel.
-	 * @param uri							URI of component to be tested.
-	 * @return								true if {@code uri} is authorized to use {@code channel}.
-	 * @throws UnknownClientException   	If the {@code receptionPortURI} is not registered.
-	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
-	 * @see Broker#channelAuthorisedService(String, String)
-	 */
-	public boolean isAuthorisedUserService(String channel, String uri) 
-			throws UnknownClientException, UnknownChannelException {
-		// Precondition checks
-		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
-		assert(uri != null && !uri.isEmpty()) : new PreconditionException("uri cannot be null or empty");
-		
-		if (!registeredService(uri)) throw new UnknownClientException("Client "+uri+" not registered.");
-		// Takes the client lock
-		ClientBrokerInfos client = clientsInfos.get(uri);
-		synchronized(client) {
-			if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
-			ChannelBrokerInfos chan = channelsInfos.get(channel);
-			synchronized(chan) {
-				
-				// If the client is the creator of the channel, he is automatically authorized
-				if (chan.getCreator().equals(uri)) return true;
-
-				// This call checks that the RegistrationClass of the URI is compatible with the channel
-				if (!channelAuthorisedService(uri, channel)) return false;
-				
-				// Gets the regex accepting clients URIs
-				String authorised = chan.getAuthorizedUsers();
-						
-				return uri.matches(authorised);
-				
-			}
-		}
-	}
-
-	/**
 	 * Replace the users authorized to use {@code channel}, only available for the creator of the {@code channel}.
 	 * 
 	 * <p>
@@ -1125,7 +1084,8 @@ public class Broker extends AbstractComponent{
 			synchronized(chan) {
 				
 				// If the client is not the creator of the channel, then he cannot modify authorized users.
-				if (!chan.getCreator().equals(receptionPortURI)) throw new UnauthorisedClientException("Client "+receptionPortURI+" is not the creator of the channel : '"+channel+"'");
+				String creator = chan.getCreator();
+				if (creator == null || !creator.equals(receptionPortURI)) throw new UnauthorisedClientException("Client "+receptionPortURI+" is not the creator of the channel : '"+channel+"'");
 				
 				this.logMessage("Broker modifying authorized users for channel '" + channel + "', now authorized : '" + autorizedUsers + "'") ;
 				
@@ -1171,7 +1131,7 @@ public class Broker extends AbstractComponent{
 		ClientBrokerInfos client = clientsInfos.get(receptionPortURI);
 		synchronized(client) {
 			if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
-			if (!isAuthorisedUserService(channel, receptionPortURI)) throw new UnauthorisedClientException("Client "+receptionPortURI+" not authorized");
+			if (!channelAuthorisedService(receptionPortURI, channel)) throw new UnauthorisedClientException("Client "+receptionPortURI+" not authorized");
 			
 			// Removal of the channel mapping
 			ChannelBrokerInfos chanInfos = channelsInfos.remove(channel);
@@ -1262,7 +1222,7 @@ public class Broker extends AbstractComponent{
 		ClientBrokerInfos client = clientsInfos.get(receptionPortURI);
 		synchronized(client) {
 			if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
-			if (!isAuthorisedUserService(channel, receptionPortURI)) throw new UnauthorisedClientException("Client "+receptionPortURI+" not authorized");
+			if (!channelAuthorisedService(receptionPortURI, channel)) throw new UnauthorisedClientException("Client "+receptionPortURI+" not authorized");
 			
 			// Removal of the channel mapping
 			ChannelBrokerInfos chanInfos = channelsInfos.remove(channel);

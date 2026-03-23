@@ -84,7 +84,7 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  *         Both with filters accepting everything.</li>
  *     <li>After 160 seconds, <strong>MeteoStation n°1</strong> sends wind on "channel0".</li>
  *     <li>After 180 seconds, <strong>MeteoStation n°1</strong> sends wind on "testChannel".</li>
- *     <li>After 200 seconds, <strong>MeteoBureau n°1</strong> changes authorized users 
+ *     <li>After 200 seconds, <strong>MeteoBureau n°1</strong> changes 'testChannel' authorized users 
  *         for exactly <strong>WindTurbine n°1</strong> URI.</li>
  *     <li>After 220 seconds, <strong>MeteoBureau n°1</strong> sends a GREEN alert on the "testChannel", 
  *         received only by <strong>WindTurbine n°1</strong>.</li>
@@ -361,7 +361,7 @@ public class CVMCompleteTest extends AbstractCVM {
 						step6_Instant,
 						owner -> {
 							try {
-								System.out.println("STEP 6/11 (140s) : WindTurbine1 unsubscribe from channels 'channel0' and 'channel1',\nWindTurbine1 + WindTurbine2 subscribe to channel 'testChannel'");
+								System.out.println("STEP 6/11 (140s) : WindTurbine1 unsubscribes from channels 'channel0' and 'channel1',\nWindTurbine1 + WindTurbine2 subscribe to channel 'testChannel'");
 								((WindTurbineTest)owner).unsubscibeFromChannel("channel0");
 								((WindTurbineTest)owner).unsubscibeFromChannel("channel1");
 								((WindTurbineTest)owner).subscibeToChannel("testChannel", accept_all_filter);
@@ -388,7 +388,7 @@ public class CVMCompleteTest extends AbstractCVM {
 						step7_Instant,
 						owner -> {
 							try {
-								System.out.println("STEP 7/11 (160s) : MeteoStation1 sends wind on 'channel0'");
+								System.out.println("STEP 7/11 (160s) : MeteoStation1 sends wind on 'channel0', \nwith only WindTurbine2 still subscribed to it");
 								((MeteoStationTest)owner).publishWindData(1.0, 1.0, "channel0");
 							} catch (Exception e) {
 								System.err.println("Step 7 wind data publication failed with exception " + e);
@@ -401,7 +401,7 @@ public class CVMCompleteTest extends AbstractCVM {
 						step8_Instant,
 						owner -> {
 							try {
-								System.out.println("STEP 8/11 (180s) : MeteoStation1 sends wind on 'testChannel'");
+								System.out.println("STEP 8/11 (180s) : MeteoStation1 sends wind on 'testChannel', \nwith both WindTurbine 1 and 2 subscribed to it");
 								((MeteoStationTest)owner).publishWindData(2.0, 2.0, "testChannel");
 							} catch (Exception e) {
 								System.err.println("Step 8 wind data publication failed with exception " + e);
@@ -414,7 +414,7 @@ public class CVMCompleteTest extends AbstractCVM {
 						step9_Instant,
 						owner -> {
 							try {
-								System.out.println("STEP 9/11 (200s) : MeteoBureau1 changes authorized users for exactly WindTurbine1 URI");
+								System.out.println("STEP 9/11 (200s) : MeteoBureau1 changes 'testChannel' authorized users for exactly WindTurbine1 URI,\nimplicitly unsubsrcribing WindTurbine2");
 								((MeteoBureauTest)owner).modifyAuthorizedUsers("testChannel", "^"+WT1ReceivingInboundPortURI+"$"); // inbound receiving port used on the broker
 							} catch (Exception e) {
 								System.err.println("Step 9 authorized users modification failed with exception " + e);
@@ -441,7 +441,7 @@ public class CVMCompleteTest extends AbstractCVM {
 						step11_Instant,
 						owner -> {
 							try {
-								System.out.println("STEP 11/11 (240s) : MeteoBureau11 destroys its 'testChannel' and verifies that it is has been deleted");
+								System.out.println("STEP 11/11 (240s) : MeteoBureau1 destroys its 'testChannel' and verifies that it is has been deleted");
 								((MeteoBureauTest)owner).destroyChannelAndVerifies("testChannel");
 							} catch (Exception e) {
 								System.err.println("Step 11 \"testChannel\" destruction + verification failed with exception " + e);
