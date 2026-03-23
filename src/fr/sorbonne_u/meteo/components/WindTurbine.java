@@ -2,6 +2,7 @@ package fr.sorbonne_u.meteo.components;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.clients.components.Client;
@@ -71,7 +72,7 @@ public class WindTurbine extends Client {
 	protected final LevelI maxWorkingLevel;
 
 	/** Indicates whether the turbine is in safety mode or not (false by default) */
-	protected boolean safeMode;
+	protected AtomicBoolean safeMode;
 	
 	// SUBSCRIPTION + RECEPTION
 	
@@ -125,7 +126,7 @@ public class WindTurbine extends Client {
 		this.windTurbinePos = windTurbinePos;
 		this.datas = new ArrayList<WindData>();
 		this.orientation = new PositionData(0, 0);
-		this.safeMode = false;
+		this.safeMode = new AtomicBoolean(false);
 		this.maxWorkingLevel = maxWorkingLevel;
 		this.defaultReceptionOnExec = true;
 		
@@ -193,7 +194,7 @@ public class WindTurbine extends Client {
 		this.windTurbinePos = windTurbinePos;
 		this.datas = new ArrayList<WindData>();
 		this.orientation = new PositionData(0, 0);
-		this.safeMode = false;
+		this.safeMode = new AtomicBoolean(false);
 		this.maxWorkingLevel = maxWorkingLevel;
 		this.defaultReceptionOnExec = true;
 		
@@ -292,7 +293,7 @@ public class WindTurbine extends Client {
 	 * @return true		if wind turbine is in safe mode, otherwise it operates normally.
 	 */
 	public boolean inSafeMode() {
-		return safeMode;
+		return safeMode.get();
 	}
 
     /**
@@ -307,43 +308,51 @@ public class WindTurbine extends Client {
 	 * @param newWindData New wind data to consider.
      */
 	public void considerNewWindData(WindData newWindData) {
-		if (newWindData != null) datas.add(newWindData);
+		synchronized (this.datas) {
+			if (newWindData != null) {
+				datas.add(newWindData);
+			}
+			
+		    double x = 0;
+		    double y = 0;
+		    double sumWeights = 0;
+
+		    for (WindData d : datas) {
+		        double distance = distance((PositionData) d.getPosition()); // having a WindData implies that its position is a 'PositionData'
+
+		        double weight;
+		        if (distance == 0) {
+		            weight = 1.0;
+		        } else {
+		            weight = 1.0 / distance;
+		        }
+
+		        x += d.xComponent() * weight;
+		        y += d.yComponent() * weight;
+
+		        sumWeights += weight;
+		    }
+
+		    if (sumWeights != 0) {
+		        x = x / sumWeights;
+		        y = y / sumWeights;
+		    }
+
+		    // Reverse vector direction
+		    x = -x;
+		    y = -y;
+
+			this.orientation = new PositionData(x, y);
+			this.logMessage("WindTurbine has changed orientation : now = " + this.orientation);
+			this.logMessage("------------------------------");
+			
+			// Postcondition check
+			assert(datas.contains(newWindData)) : new PostconditionException("New wind data must be considered");
+			
+		}
 		
-	    double x = 0;
-	    double y = 0;
-	    double sumWeights = 0;
-
-	    for (WindData d : datas) {
-	        double distance = distance((PositionData) d.getPosition()); // having a WindData implies that its position is a 'PositionData'
-
-	        double weight;
-	        if (distance == 0) {
-	            weight = 1.0;
-	        } else {
-	            weight = 1.0 / distance;
-	        }
-
-	        x += d.xComponent() * weight;
-	        y += d.yComponent() * weight;
-
-	        sumWeights += weight;
-	    }
-
-	    if (sumWeights != 0) {
-	        x = x / sumWeights;
-	        y = y / sumWeights;
-	    }
-
-	    // Reverse vector direction
-	    x = -x;
-	    y = -y;
-
-		this.orientation = new PositionData(x, y);
-		this.logMessage("WindTurbine has changed orientation : now = " + this.orientation);
-		this.logMessage("------------------------------");
 		
-		// Postcondition check
-		assert(datas.contains(newWindData)) : new PostconditionException("New wind data must be considered");
+		
 	}
 	
     /**
@@ -362,14 +371,14 @@ public class WindTurbine extends Client {
 			this.logMessage("------------------------------");
 			return;
 		}
-
+		
 		MeteoAlertI.Level maxLevel = (MeteoAlertI.Level) this.maxWorkingLevel;
 		MeteoAlertI.Level alertLevel = (MeteoAlertI.Level) alert.getLevel();
 
-		if (alertLevel.ordinal() > maxLevel.ordinal() && !safeMode) {
+		if (alertLevel.ordinal() > maxLevel.ordinal() && (!safeMode.get() == false)) {
 			goInSafeMode();
 			this.datas.clear(); // Erase previous wind datas
-		} else if (alertLevel.ordinal() <= maxLevel.ordinal() && safeMode) {
+		} else if (alertLevel.ordinal() <= maxLevel.ordinal() && (safeMode.get() == true)) {
 			goBacktoNormalMode();
 		
 		// Don't change anything, if we have :
@@ -415,13 +424,13 @@ public class WindTurbine extends Client {
 	 * </pre>
 	 */
 	protected void goInSafeMode() {
-		if (!this.safeMode) {
+		if (this.safeMode.get() == false) {
 			this.logMessage("WindTurbine going into security mode.");
 			this.logMessage("------------------------------");
-			this.safeMode = true;
+			this.safeMode.set(true);
 		}
 		// Postcondition check
-		assert(this.safeMode == true) : new PostconditionException("Safe mode must be turned on");
+		assert(this.safeMode.get() == true) : new PostconditionException("Safe mode must be turned on");
 	}
 
 	/**
@@ -434,12 +443,12 @@ public class WindTurbine extends Client {
 	 * </pre>
 	 */
 	protected void goBacktoNormalMode() {
-		if (this.safeMode) {
+		if (this.safeMode.get() == true) {
 			this.logMessage("WindTurbine returning to normal operation.");
 			this.logMessage("------------------------------");
-			this.safeMode = false;
+			this.safeMode.set(false);
 		}
 		// Postcondition check
-		assert(this.safeMode == false) : new PostconditionException("Safe mode must be turned off");
+		assert(this.safeMode.get() == false) : new PostconditionException("Safe mode must be turned off");
 	}
 }
