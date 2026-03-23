@@ -62,4 +62,18 @@ public class ClientPublishingOutboundPort extends AbstractOutboundPort implement
 		((PublishingCI)this.getConnector()).publish(receptionPortURI, channel, messages);
 		
 	}
+
+	@Override
+	public void asyncPublishAndNotify(String receptionPortURI, String channel, MessageI message,
+			String notificationInbounhdPortURI) throws Exception {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void asyncPublishAndNotify(String receptionPortURI, String channel, ArrayList<MessageI> messages,
+			String notificationInbounhdPortURI) throws Exception {
+		// TODO Auto-generated method stub
+		
+	}
 }

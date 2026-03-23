@@ -50,16 +50,9 @@ public class ClientPrivilegedServiceConnector extends ClientPublishingServiceCon
 	}
 
 	@Override
-	public boolean isAuthorisedUser(String channel, String uri) throws Exception {
-		return ((PrivilegedClientCI)this.offering).isAuthorisedUser(channel, uri);
-	}
-
-	@Override
 	public void modifyAuthorisedUsers(String receptionPortURI, String channel, String autorisedUsers) throws Exception {
 		((PrivilegedClientCI)this.offering).modifyAuthorisedUsers(receptionPortURI, channel, autorisedUsers);
 	}
-	
-	// 'removeAuthorisedUsers' removed from source interface
 
 	@Override
 	public void destroyChannel(String receptionPortURI, String channel) throws Exception {

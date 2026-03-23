@@ -4,6 +4,7 @@ import fr.sorbonne_u.components.utils.tests.TestScenario;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.LevelI;
 import fr.sorbonne_u.meteo.components.WindTurbine;
 import fr.sorbonne_u.meteo.data.PositionData;
+import fr.sorbonne_u.meteo.plugins.WindTurbineReceptionPlugin;
 import fr.sorbonne_u.utils.aclocks.ClocksServer;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
@@ -228,5 +229,22 @@ public class WindTurbineTest extends WindTurbine {
 		assert(subscriptionPlugin.subscribed(channel)) : new PostconditionException("should be subscribed to channel : "+channel);
 	}
 	
+	/**
+	 * Verifies that the wind turbine has received {@code expectedNb} messages since its start.
+	 * 
+	 * <p><strong>Contract</strong></p>
+     * <pre>
+	 * pre	{@code true} // no precondition
+     * post {@code true} // no postcondition
+     * </pre>
+	 * 
+	 * @param expectedNb	The expected number of messages received on the wind turbine.
+	 */
+	public void verifyNbMessagesReceived(int expectedNb) {
+		WindTurbineReceptionPlugin plugin = (WindTurbineReceptionPlugin)this.getPlugin("subscription");
+		int nbReceived = plugin.getNbMessagesReceived();
+		assert(nbReceived == expectedNb);
+		this.logMessage("WindTurbine expected "+expectedNb+" messages, correct");
+	}
 	
 }

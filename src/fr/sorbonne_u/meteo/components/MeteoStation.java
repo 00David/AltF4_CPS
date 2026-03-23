@@ -115,7 +115,7 @@ public class MeteoStation extends Client {
 	 */
 	protected MeteoStation(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, String privilegedOutboundPortURI, 
 			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData stationPosition, int sleepMinTime, int sleepMaxTime, double windMinXY, double windMaxXY) throws Exception {
-		super(receivingInboundPortURI, "registration", registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads);
+		super(receivingInboundPortURI, registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads);
 		
 		// Some preconditions are checked inside the superconstructor while others are checked here
 		assert(stationPosition != null) : new PreconditionException("stationPosition cannot be null");	
@@ -189,7 +189,7 @@ public class MeteoStation extends Client {
 	 */
 	protected MeteoStation(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, String privilegedOutboundPortURI, 
 			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData stationPosition, String reflectionInboundPortURI) throws Exception {
-		super(receivingInboundPortURI, "registration", registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
+		super(receivingInboundPortURI, registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
 		
 		// Some preconditions are checked inside the superconstructor while others are checked here
 		assert(stationPosition != null) : new PreconditionException("stationPosition cannot be null");	

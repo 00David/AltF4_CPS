@@ -155,16 +155,10 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 		}
 	}
 
+	// tmp, will be deleted
 	@Override
 	public boolean isAuthorisedUser(String channel, String uri) throws UnknownClientException, UnknownChannelException {
-		try {
-			return privilegedOutboundPort.isAuthorisedUser(channel, uri);
-		} catch (UnknownClientException | UnknownChannelException e) {
-			throw e;
-		} catch (Exception e) {
-			e.printStackTrace();
-			return false;
-		}
+		return true;
 	}
 
 	@Override

@@ -53,20 +53,18 @@ public abstract class Client extends AbstractComponent {
 	 * </pre>
 	 * 
 	 * @param receivingInboundPortURI     	The URI of the inbound port offering {@link ReceivingCI}.
-	 * @param registrationPluginURI			The URI of the registration plugin.
 	 * @param registrationOutboundPortURI 	The URI of the outbound port requiring {@link RegistrationCI}.
 	 * @param registrationClass				The registration class of the component.
 	 * @param nbThreads						Number of threads to be created in the component pool.
 	 * @param nbSchedulableThreads			Number of threads to be created in the component schedulable pool.
 	 * @throws Exception                  	If an error occurs during registration plugin installation.
 	 */
-	protected Client(String receivingInboundPortURI, String registrationPluginURI, String registrationOutboundPortURI, 
+	protected Client(String receivingInboundPortURI, String registrationOutboundPortURI, 
 			RegistrationClass registrationClass, int nbThreads, int nbSchedulableThreads) throws Exception {
 		super(nbThreads,nbSchedulableThreads);
 		
 		// Precondition checks
 		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : new PreconditionException("receivingInboundPortURI cannot be empty or null");
-		assert(registrationPluginURI != null && !registrationPluginURI.isEmpty()) : new PreconditionException("registrationPluginURI cannot be empty or null");
 		assert(registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()) : new PreconditionException("registrationOutboundPortURI cannot be empty or null");
 		assert(registrationClass != null) : new PreconditionException("registrationClass cannot be null");
 		assert(nbThreads >= 0 && nbSchedulableThreads >= 0) : new PreconditionException("cannot have a negative number of threads");
@@ -76,7 +74,7 @@ public abstract class Client extends AbstractComponent {
 		
 		// Install the registration plug-in.
 		this.registrationPlugin = new ClientRegistrationPlugin(receivingInboundPortURI, registrationOutboundPortURI);
-		this.registrationPlugin.setPluginURI(registrationPluginURI);
+		this.registrationPlugin.setPluginURI("registration");
 		this.installPlugin(this.registrationPlugin);
 		
 		// Invariant checks
@@ -111,7 +109,6 @@ public abstract class Client extends AbstractComponent {
 	 * </pre>
 	 * 
 	 * @param receivingInboundPortURI     	The URI of the inbound port offering {@link ReceivingCI}.
-	 * @param registrationPluginURI			The URI of the registration plugin.
 	 * @param registrationOutboundPortURI 	The URI of the outbound port requiring {@link RegistrationCI}.
 	 * @param registrationClass				The registration class of the component.
 	 * @param nbThreads						Number of threads to be created in the component pool.
@@ -119,13 +116,12 @@ public abstract class Client extends AbstractComponent {
 	 * @param reflectionInboundPortURI		URI of the reflection inbound port to be created in this component.
 	 * @throws Exception                  	If an error occurs during registration plugin installation.
 	 */
-	protected Client(String receivingInboundPortURI, String registrationPluginURI, String registrationOutboundPortURI, 
+	protected Client(String receivingInboundPortURI, String registrationOutboundPortURI, 
 			RegistrationClass registrationClass, int nbThreads, int nbSchedulableThreads, String reflectionInboundPortURI) throws Exception {
 		super(reflectionInboundPortURI, nbThreads,nbSchedulableThreads);
 		
 		// Precondition checks
 		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : new PreconditionException("receivingInboundPortURI cannot be empty or null");
-		assert(registrationPluginURI != null && !registrationPluginURI.isEmpty()) : new PreconditionException("registrationPluginURI cannot be empty or null");
 		assert(registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()) : new PreconditionException("registrationOutboundPortURI cannot be empty or null");
 		assert(registrationClass != null) : new PreconditionException("registrationClass cannot be empty or null");
 		assert(nbThreads >= 0 && nbSchedulableThreads >= 0) : new PreconditionException("cannot have a negative number of threads");
@@ -136,7 +132,7 @@ public abstract class Client extends AbstractComponent {
 		
 		// Install the registration plug-in.
 		this.registrationPlugin = new ClientRegistrationPlugin(receivingInboundPortURI, registrationOutboundPortURI);
-		this.registrationPlugin.setPluginURI(registrationPluginURI);
+		this.registrationPlugin.setPluginURI("registration");
 		this.installPlugin(this.registrationPlugin);
 		
 		// Invariant checks

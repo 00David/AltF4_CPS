@@ -189,42 +189,42 @@ public class ChannelBrokerInfosTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void testAddMessageAndGet() {
+    void testLoadMessageAndUnload() {
         MessageI msg1 = new Message();
         MessageI msg2 = new Message();
 
-        channel.addMessage(msg1);
-        channel.addMessage(msg2);
+        channel.loadMessage(msg1);
+        channel.loadMessage(msg2);
 
-        assertEquals(msg1, channel.getMessage());
-        assertEquals(msg2, channel.getMessage());
-        assertNull(channel.getMessage()); // No more messages into the channel
+        assertEquals(msg1, channel.unloadMessage());
+        assertEquals(msg2, channel.unloadMessage());
+        assertNull(channel.unloadMessage()); // No more messages into the channel
     }
 
     @Test
-    void testAddMessagesAndGet() {
+    void testLoadMessagesAndUnload() {
     	MessageI msg1 = new Message();
     	MessageI msg2 = new Message();
 
         List<MessageI> msgs = new ArrayList<>(); msgs.add(msg1); msgs.add(msg2); 
-        channel.addMessages(msgs);
+        channel.loadMessages(msgs);
 
-        assertEquals(msg1, channel.getMessage());
-        assertEquals(msg2, channel.getMessage());
-        assertNull(channel.getMessage()); // No more messages into the channel
+        assertEquals(msg1, channel.unloadMessage());
+        assertEquals(msg2, channel.unloadMessage());
+        assertNull(channel.unloadMessage()); // No more messages into the channel
     }
 
     @Test
-    void testAddNullMessages() {
+    void testLoadNullMessages() {
     	// For AddMessage
         assertThrows(IllegalArgumentException.class,
-                () -> channel.addMessage(null)); // message null
+                () -> channel.loadMessage(null)); // message null
         
         // For AddMessages
         assertThrows(IllegalArgumentException.class,
-                () -> channel.addMessages(null));  // messages null
+                () -> channel.loadMessages(null));  // messages null
         assertThrows(IllegalArgumentException.class,
-                () -> channel.addMessages(new ArrayList<MessageI>()));  // messages empty
+                () -> channel.loadMessages(new ArrayList<MessageI>()));  // messages empty
     }
 
     @Test
