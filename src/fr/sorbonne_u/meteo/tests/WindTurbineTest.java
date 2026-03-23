@@ -243,7 +243,10 @@ public class WindTurbineTest extends WindTurbine {
 	public void verifyNbMessagesReceived(int expectedNb) {
 		WindTurbineReceptionPlugin plugin = (WindTurbineReceptionPlugin)this.getPlugin("subscription");
 		int nbReceived = plugin.getNbMessagesReceived();
-		assert(nbReceived == expectedNb);
+		synchronized (this.datas) {
+			assert(nbReceived == this.datas.size());
+		}
+		
 		this.logMessage("WindTurbine expected "+expectedNb+" messages, correct");
 	}
 	
