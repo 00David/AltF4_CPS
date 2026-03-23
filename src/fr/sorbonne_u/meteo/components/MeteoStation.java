@@ -7,6 +7,7 @@ import fr.sorbonne_u.clients.plugins.ClientPrivilegedPlugin;
 import fr.sorbonne_u.clients.plugins.ClientPublicationPlugin;
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
 import fr.sorbonne_u.components.AbstractComponent;
+import fr.sorbonne_u.components.tasks_management.interfaces.AbnormalTerminationNotificationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
@@ -251,14 +252,25 @@ public class MeteoStation extends Client {
 				publishingOutboundPortURI, registrationPlugin.getBrokerPublishingPortURI());
 		this.publicationPlugin.setPluginURI("publication");
 		this.installPlugin(this.publicationPlugin);
+		
 		assert publicationPlugin.isInitialised();
+		assert this.isPortExisting(publishingOutboundPortURI);
+		assert this.findPortFromURI(publishingOutboundPortURI).getImplementedInterface().equals(PublishingCI.class);
+		assert this.findPortFromURI(publishingOutboundPortURI).isPublished();
+		String[] notificationURIs = this.findInboundPortURIsFromInterface(AbnormalTerminationNotificationCI.class);
+		assert notificationURIs.length == 1;
+		assert this.findPortFromURI(notificationURIs[0]).isPublished();
 		
 		// Install the privileged plug-in if it is allowed.
 		if (this.registrationClass == RegistrationClass.STANDARD || this.registrationClass == RegistrationClass.PREMIUM) {
 			this.privilegedPlugin = new ClientPrivilegedPlugin(receivingInboundPortURI, privilegedOutboundPortURI, registrationPlugin.getBrokerPublishingPortURI());
 			this.privilegedPlugin.setPluginURI("privileged");
 			this.installPlugin(this.privilegedPlugin);
+			
 			assert privilegedPlugin.isInitialised();
+			assert this.isPortExisting(privilegedOutboundPortURI);
+			assert this.findPortFromURI(privilegedOutboundPortURI).getImplementedInterface().equals(PrivilegedClientCI.class);
+			assert this.findPortFromURI(privilegedOutboundPortURI).isPublished();
 		}
 		
 		if (sendWDFromExec) sendRandomWindData("channel0");

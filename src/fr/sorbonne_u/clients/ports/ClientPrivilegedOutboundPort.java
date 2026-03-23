@@ -38,7 +38,7 @@ public class ClientPrivilegedOutboundPort extends ClientPublishingOutboundPort i
 	 * @throws Exception 	if an error occurs while creating the port
 	 */
 	public ClientPrivilegedOutboundPort(String uri, ComponentI owner) throws Exception {
-		super(uri, owner);
+		super(uri, PrivilegedClientCI.class, owner);
 		// Precondition checks
 		assert(uri != null && !uri.isEmpty());
 		assert(owner != null);

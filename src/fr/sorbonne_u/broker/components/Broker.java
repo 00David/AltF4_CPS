@@ -21,6 +21,8 @@ import fr.sorbonne_u.components.annotations.OfferedInterfaces;
 import fr.sorbonne_u.components.annotations.RequiredInterfaces;
 import fr.sorbonne_u.components.exceptions.ComponentShutdownException;
 import fr.sorbonne_u.components.exceptions.ComponentStartException;
+import fr.sorbonne_u.components.tasks_management.connection.AbnormalTerminationNotificationOutboundPort;
+import fr.sorbonne_u.components.tasks_management.interfaces.AbnormalTerminationNotificationCI;
 import fr.sorbonne_u.cps.pubsub.exceptions.AlreadyExistingChannelException;
 import fr.sorbonne_u.cps.pubsub.exceptions.AlreadyRegisteredException;
 import fr.sorbonne_u.cps.pubsub.exceptions.ChannelQuotaExceededException;
@@ -79,6 +81,7 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
+ * invariant	{@code notificationPort != null}
  * invariant	{@code registrationPortURI != null && !registrationPortURI.isEmpty()}
  * invariant	{@code registrationPort != null}
  * invariant	{@code publishingPortURI != null && !publishingPortURI.isEmpty()}
@@ -91,7 +94,7 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * 
  * invariant	{@code FREE_LOADERS_POOL_URI != null && !FREE_LOADERS_POOL_URI.isEmpty() && nbFreeLoadersThreads > 0}
  * invariant	{@code STD_LOADERS_POOL_URI != null && !STD_LOADERS_POOL_URI.isEmpty() && nbStdLoadersThreads > 0}
- * invariant	{@code PREM_LOADERS_POOL_URI != null && !PREM_LOADERS_POOL_URI.isEmpty() && nbPremLoadersThreads > 0}
+ * invariant	{@code PREM_LOADERS_POOL_URI != null && !notificationPortPREM_LOADERS_POOL_URI.isEmpty() && nbPremLoadersThreads > 0}
  * invariant	{@code UNLOADERS_POOL_URI != null && !UNLOADERS_POOL_URI.isEmpty() && nbUnloadersThreads > 0}
  * invariant	{@code SENDERS_POOL_URI != null && !SENDERS_POOL_URI.isEmpty() && nbSendersThreads > 0}
  * </pre>
@@ -100,12 +103,17 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * @author David Vadimon
  */
 @OfferedInterfaces(offered = {RegistrationCI.class, PublishingCI.class, PrivilegedClientCI.class})
-@RequiredInterfaces(required = {ReceivingCI.class})
+@RequiredInterfaces(required = {ReceivingCI.class, AbnormalTerminationNotificationCI.class})
 public class Broker extends AbstractComponent{
 	
 	//--------------------------------------------------------------------------
 	// Internal datas
 	//--------------------------------------------------------------------------
+	
+	// NOTIFICATION
+	
+	/** Broker's outbound port, implementing {@link AbnormalTerminationNotificationCI} */
+	private final AbnormalTerminationNotificationOutboundPort notificationPort;
 	
 	// REGISTRATION
 	
@@ -199,7 +207,7 @@ public class Broker extends AbstractComponent{
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
-	 * pre {@code N >= 2}
+	 * pre  {@code N >= 2}
 	 * pre	{@code nbThreads > 0}
 	 * pre	{@code nbSchedulableThreads >= 0}
 	 * pre	{@code nbFreeLoadersThreads > 0 && nbUnloadersThreads > 0 && nbSendersThreads > 0}
@@ -233,7 +241,7 @@ public class Broker extends AbstractComponent{
 		// Creation of N channels
 		// The channel0 is for wind datas, and the channel1 for meteo alerts
 		for (int i = 0; i < N; i++) {
-			String chan = "channel"+i;
+			String chan = "channel"+i;		
 			channelsInfos.put(chan, new ChannelBrokerInfos(chan, ".*", null, false));
 		}
 		
@@ -251,13 +259,16 @@ public class Broker extends AbstractComponent{
 		this.createNewExecutorService(SENDERS_POOL_URI, this.nbSendersThreads, false);
 
 		// Ports creation and publication
+		this.notificationPort = new AbnormalTerminationNotificationOutboundPort(this);
+		this.notificationPort.publishPort();
+		
 		this.registrationPort = new BrokerRegistrationInboundPort(registrationPortURI, this);
 		this.registrationPort.publishPort();
 		
-		this.publishingPort = new BrokerPublishingInboundPort(publishingPortURI, this);
+		this.publishingPort = new BrokerPublishingInboundPort(publishingPortURI, this, this.notificationPort);
 		this.publishingPort.publishPort();
 		
-		this.privilegedPort = new BrokerPrivilegedInboundPort(privilegedPortURI, this);
+		this.privilegedPort = new BrokerPrivilegedInboundPort(privilegedPortURI, this, this.notificationPort);
 		this.privilegedPort.publishPort();
 		
 		// Invariant checks
@@ -269,10 +280,19 @@ public class Broker extends AbstractComponent{
 			new InvariantException("The Broker component should offer the interface PrivilegedClientCI!");
 		assert	this.isRequiredInterface(ReceivingCI.class) :
 			new InvariantException("The Broker component should require the interface ReceivingCI!");
+		assert	this.isRequiredInterface(AbnormalTerminationNotificationCI.class) :
+			new InvariantException("The Broker component should require the interface AbnormalTerminationNotificationCI!");
+		
 		AbstractComponent.checkImplementationInvariant(this);
 		AbstractComponent.checkInvariant(this);
 		
 		// Postcondition checks
+		String[] notificationURIs = this.findOutboundPortURIsFromInterface(AbnormalTerminationNotificationCI.class);
+		assert  notificationURIs.length == 1 : 
+			new PostconditionException("The Broker must have a port with implemented interface AbnormalTerminationNotificationCI");;
+		assert  this.findPortFromURI(notificationURIs[0]).isPublished() :
+			new PostconditionException("The Broker must have a notification port published");
+		
 		assert	this.isPortExisting(registrationPortURI) : 
 			new PostconditionException("The component must have a port with URI " + registrationPortURI);
 		assert	this.findPortFromURI(registrationPortURI).getImplementedInterface().equals(RegistrationCI.class) : 
@@ -336,7 +356,8 @@ public class Broker extends AbstractComponent{
 				outboundPort.unpublishPort();
 			}
 		
-			// Unpublish all Broker inbound ports
+			// Unpublish Broker notification outbound port + all inbound ports
+			this.notificationPort.unpublishPort();
 			this.registrationPort.unpublishPort();
 			this.publishingPort.unpublishPort();
 			this.privilegedPort.unpublishPort();
@@ -878,65 +899,6 @@ public class Broker extends AbstractComponent{
 				
 			}
 		}
-		return null;
-	}
-	
-	/**
-	 * Asynchronously publish all of the {@code messages} on {@code channel} and notify the client component if an 
-	 * abnormal termination condition occurred.
-	 * 
-	 * <p><strong>Contract</strong></p>
-	 * <pre>
-	 * pre	{@code receptionPortURI != null && !receptionPortURI.isEmpty()}
-	 * pre	{@code channel != null && !channel.isEmpty()}
-	 * pre	{@code messages != null && messages.size() > 0}
-	 * pre	{@code Stream.of(messages).allMatch(m -> m != null)}
-	 * post	{@code true}	// no postcondition.
-	 * </pre>
-	 *
-	 * @param receptionPortURI				URI of the inbound port offering the component interface {@code ReceivingCI}.
-	 * @param channel						name of the channel on which {@code message} must be published.
-	 * @param messages						list of messages to be published on {@code channel}.
-	 * @param notificationInbounhdPortURI	URI of an inbound port offering {@code AbnormalTerminationNotificationCI}.
-	 * @return 								Void
-	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
-	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
-	 * @throws UnauthorisedClientException 	If {@code receptionPortURI} is not authorized to interact with the {@code channel}.
-	 */
-	public Void asyncPublishAndNotifyService(String receptionPortURI, String channel, ArrayList<MessageI> messages, String notificationInbounhdPortURI) 
-			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
-		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
-		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
-		assert(messages != null && messages.size() > 0) : new PreconditionException("messages must at least contain 1 message");
-		assert(Stream.of(messages).allMatch(m -> m != null)) : new PreconditionException("a message cannot be null");
-		
-		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
-		// Takes the client lock + the channel lock
-		ClientBrokerInfos client = clientsInfos.get(receptionPortURI);
-		synchronized(client) {
-			if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
-			ChannelBrokerInfos chan = channelsInfos.get(channel);
-			synchronized(chan) {
-				
-				if (!channelAuthorisedService(receptionPortURI, channel)) throw new UnauthorisedClientException("Client "+receptionPortURI+" is not authorized.");
-				// TODO : send exceptions via notificationInbounhdPortURI
-				
-				this.logMessage("Broker received message(s) from '" + receptionPortURI + "' on '" + channel + "'") ;
-				
-				// Delegates loading messages to a loaders thread pool, chosen depending on the registration class of the publisher
-				RegistrationClass rc = clientsInfos.get(receptionPortURI).getRegistrationClass();
-				if (rc == RegistrationClass.FREE) {
-					this.runTask(FREE_LOADERS_POOL_URI, new LoaderTask(this, clientsInfos, channelsInfos, channel, messages));
-				} else if (rc == RegistrationClass.STANDARD) {
-					this.runTask(STD_LOADERS_POOL_URI, new LoaderTask(this, clientsInfos, channelsInfos, channel, messages));
-				} else {
-					this.runTask(PREM_LOADERS_POOL_URI, new LoaderTask(this, clientsInfos, channelsInfos, channel, messages));
-				}
-				
-			}
-		}
-		
 		return null;
 	}
 	

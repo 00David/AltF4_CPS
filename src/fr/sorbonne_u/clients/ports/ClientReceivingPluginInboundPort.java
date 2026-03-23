@@ -3,7 +3,6 @@ package fr.sorbonne_u.clients.ports;
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
-import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.components.ports.AbstractInboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
@@ -51,43 +50,40 @@ public class ClientReceivingPluginInboundPort extends AbstractInboundPort implem
 		assert(pluginURI != null && !pluginURI.isEmpty());
 	}
 	
-	// Precondition and postcondition verifications are delegated to the Client
+	// Precondition and postcondition verifications are delegated to the ClientSubscriptionPlugin
 
 	@Override
 	public void receive(String channel, MessageI message) throws Exception {
-		this.getOwner().handleRequest(
-				new AbstractComponent.AbstractService<Void>(this.getPluginURI()) {
-					@Override
-					public Void call() throws Exception {
-						((ClientSubscriptionPlugin)
-								this.getServiceProviderReference()).receive(channel, message);
-						return null;
-					}
-				});
+		this.getOwner().runTask( client -> {
+			try {
+				ClientSubscriptionPlugin csp = (ClientSubscriptionPlugin) this.getOwnerPlugin(this.pluginURI);
+				csp.receive(channel, message);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		});
 	}
 
 	@Override
 	public void receive(String channel, MessageI[] messages) throws Exception {
 		if (messages.length == 1) {
-			this.getOwner().handleRequest(
-					new AbstractComponent.AbstractService<Void>(this.getPluginURI()) {
-						@Override
-						public Void call() throws Exception {
-							((ClientSubscriptionPlugin)
-									this.getServiceProviderReference()).receive(channel, messages[0]);
-							return null;
-						}
-					});
+			this.getOwner().runTask( client -> {
+				try {
+					ClientSubscriptionPlugin csp = (ClientSubscriptionPlugin) this.getOwnerPlugin(this.pluginURI);
+					csp.receive(channel, messages[0]);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			});
 		} else {
-			this.getOwner().handleRequest(
-					new AbstractComponent.AbstractService<Void>(this.getPluginURI()) {
-						@Override
-						public Void call() throws Exception {
-							((ClientSubscriptionPlugin)
-									this.getServiceProviderReference()).receive(channel, messages);
-							return null;
-						}
-					});
+			this.getOwner().runTask( client -> {
+				try {
+					ClientSubscriptionPlugin csp = (ClientSubscriptionPlugin) this.getOwnerPlugin(this.pluginURI);
+					csp.receive(channel, messages);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			});
 		}
 	}
 }

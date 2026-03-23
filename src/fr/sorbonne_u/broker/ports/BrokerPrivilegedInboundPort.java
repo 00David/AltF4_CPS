@@ -2,8 +2,8 @@ package fr.sorbonne_u.broker.ports;
 
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.components.ComponentI;
+import fr.sorbonne_u.components.tasks_management.connection.AbnormalTerminationNotificationOutboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
-import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
  * Inbound port of a {@link Broker}, allowing the handling of message publications from a privileged client, 
@@ -30,22 +30,22 @@ implements	PrivilegedClientCI {
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
-	 * pre {@code uri != null && !uri.isEmpty()}
-	 * pre {@code owner != null}
-	 * pre {@code owner instanceof Broker}
-	 * post true            // no postcondition.
+	 * pre  {@code uri != null && !uri.isEmpty()}
+	 * pre  {@code owner != null}
+	 * pre  {@code owner instanceof Broker}
+	 * pre  {@code notificationPort != null}
+	 * post class invariant satisfied (for the parent class)
 	 * </pre>
 	 * 
-	 * @param uri    		the URI of the port.
-	 * @param owner  		the component owning the port.
-	 * @throws Exception 	if an error occurs while creating the port
+	 * @param uri    					the URI of the port.
+	 * @param owner  					the component owning the port.
+	 * @param notificationPort  		outport port requiring the component interface {@code AbnormalTerminationNotificationCI}.
+	 * @throws Exception 				if an error occurs while creating the port
 	 */
-	public BrokerPrivilegedInboundPort(String uri, ComponentI owner) throws Exception {
-		super(uri, PrivilegedClientCI.class, owner) ;
-		// Precondition checks
-		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
-		assert(owner != null) : new PreconditionException("owner cannot be null");
-		assert(owner instanceof Broker) : new PreconditionException("owner must be a Broker");
+	public BrokerPrivilegedInboundPort(String uri, ComponentI owner, 
+			AbnormalTerminationNotificationOutboundPort notificationPort) throws Exception {
+		super(uri, PrivilegedClientCI.class, owner, notificationPort) ;
+		// Preconditions checked in the parent constructor
 	}
 	
 	// Precondition and postcondition verifications are delegated to the Broker

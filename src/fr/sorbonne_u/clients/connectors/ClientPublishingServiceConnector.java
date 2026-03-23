@@ -38,14 +38,13 @@ public class ClientPublishingServiceConnector extends AbstractConnector implemen
 	@Override
 	public void asyncPublishAndNotify(String receptionPortURI, String channel, MessageI message,
 			String notificationInbounhdPortURI) throws Exception {
-		// TODO Auto-generated method stub
+		((PublishingCI)this.offering).asyncPublishAndNotify(receptionPortURI, channel, message, notificationInbounhdPortURI);
 		
 	}
 
 	@Override
 	public void asyncPublishAndNotify(String receptionPortURI, String channel, ArrayList<MessageI> messages,
 			String notificationInbounhdPortURI) throws Exception {
-		// TODO Auto-generated method stub
-		
+		((PublishingCI)this.offering).asyncPublishAndNotify(receptionPortURI, channel, messages, notificationInbounhdPortURI);
 	}
 }
