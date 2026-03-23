@@ -375,7 +375,7 @@ public class WindTurbine extends Client {
 		MeteoAlertI.Level maxLevel = (MeteoAlertI.Level) this.maxWorkingLevel;
 		MeteoAlertI.Level alertLevel = (MeteoAlertI.Level) alert.getLevel();
 
-		if (alertLevel.ordinal() > maxLevel.ordinal() && (!safeMode.get() == false)) {
+		if (alertLevel.ordinal() > maxLevel.ordinal() && (safeMode.get() == false)) {
 			goInSafeMode();
 			this.datas.clear(); // Erase previous wind datas
 		} else if (alertLevel.ordinal() <= maxLevel.ordinal() && (safeMode.get() == true)) {
