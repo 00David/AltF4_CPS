@@ -74,7 +74,7 @@ public class SenderTask extends AbstractTask {
 				// Checks that the targeted client is still registered and subscribed to the channel
 				// If it is okay, sends messages.
 				if (broker.registeredService(targetPortURI) && broker.subscribedService(targetPortURI, channel)) {
-					broker.logMessage("Broker sending message to '" + targetPortURI + "'") ;
+					broker.logMessage("Broker sending "+messagesToSend.length+" message(s) to '" + targetPortURI + "'") ;
 					client.getOutboundPort().receive(channel, messagesToSend);
 				}
 			}

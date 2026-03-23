@@ -3,7 +3,6 @@ package fr.sorbonne_u.clients.ports;
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
-import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.components.ports.AbstractInboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
@@ -51,24 +50,21 @@ public class ClientReceivingPluginInboundPort extends AbstractInboundPort implem
 		assert(pluginURI != null && !pluginURI.isEmpty());
 	}
 	
-	// Precondition and postcondition verifications are delegated to the Client
+	// Precondition and postcondition verifications are delegated to the ClientSubscriptionPlugin
 
 	@Override
 	public void receive(String channel, MessageI message) throws Exception {
 		ClientSubscriptionPlugin csp = (ClientSubscriptionPlugin) this.getOwnerPlugin(this.pluginURI);
-		this.getOwner().runTask(
-				client -> csp.receive(channel, message));
+		this.getOwner().runTask(client -> csp.receive(channel, message));
 	}
 
 	@Override
 	public void receive(String channel, MessageI[] messages) throws Exception {
 		ClientSubscriptionPlugin csp = (ClientSubscriptionPlugin) this.getOwnerPlugin(this.pluginURI);
 		if (messages.length == 1) {
-			this.getOwner().runTask(
-					client -> csp.receive(channel, messages[0]));
+			this.getOwner().runTask(client -> csp.receive(channel, messages[0]));
 		} else {
-			this.getOwner().runTask(
-					client -> csp.receive(channel, messages));
+			this.getOwner().runTask(client -> csp.receive(channel, messages));
 		}
 	}
 }

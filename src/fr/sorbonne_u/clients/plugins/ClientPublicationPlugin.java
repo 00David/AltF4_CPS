@@ -9,6 +9,8 @@ import fr.sorbonne_u.clients.ports.ClientPublishingOutboundPort;
 import fr.sorbonne_u.clients.ports.ClientRegistrationOutboundPort;
 import fr.sorbonne_u.components.AbstractPlugin;
 import fr.sorbonne_u.components.ComponentI;
+import fr.sorbonne_u.components.tasks_management.connection.AbnormalTerminationNotificationInboundPort;
+import fr.sorbonne_u.components.tasks_management.interfaces.AbnormalTerminationNotificationCI;
 import fr.sorbonne_u.cps.pubsub.exceptions.UnauthorisedClientException;
 import fr.sorbonne_u.cps.pubsub.exceptions.UnknownChannelException;
 import fr.sorbonne_u.cps.pubsub.exceptions.UnknownClientException;
@@ -21,7 +23,7 @@ import fr.sorbonne_u.cps.pubsub.plugins.interfaces.ClientPublicationI;
 import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
- * The {@link Client} plugin having a {@link ClientPublishingOutboundPort}.
+ * The {@link Client} plugin having a {@link ClientPublishingOutboundPort} and a {@link AbnormalTerminationNotificationInboundPort}.
  * 
  * <p>
  * This plugin needs to be created after registering on the {@link Broker}, in order to pass 
@@ -42,6 +44,11 @@ import fr.sorbonne_u.exceptions.PreconditionException;
 public class ClientPublicationPlugin extends AbstractPlugin implements ClientPublicationI {
 	
 	private static final long serialVersionUID = 4889836074410437984L;
+	
+	// NOTIFICATION
+	
+	/** Notification inbound port, set up after plugin installation + initialization */
+	protected AbnormalTerminationNotificationInboundPort notificationInboundPort;
 	
 	// RECEPTION
 	
@@ -103,6 +110,7 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 	public void	installOn(ComponentI owner) throws Exception {
 		super.installOn(owner);
 		this.addRequiredInterface(PublishingCI.class);
+		this.addOfferedInterface(AbnormalTerminationNotificationCI.class);
 	}
 	
 	@Override
@@ -113,6 +121,10 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 		this.getOwner().doPortConnection(this.publishingOutboundPort.getPortURI(),
 				brokerPublishingPortURI,
 				ClientPublishingServiceConnector.class.getCanonicalName());
+		
+		this.notificationInboundPort = new AbnormalTerminationNotificationInboundPort(this.getOwner());
+		this.notificationInboundPort.publishPort();
+		
 		super.initialise();
 	}
 	
@@ -124,6 +136,7 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 	@Override
 	public void uninstall() throws Exception {
 		this.publishingOutboundPort.unpublishPort();
+		this.notificationInboundPort.unpublishPort();
 		this.removeRequiredInterface(PublishingCI.class);
 	}
 	
@@ -181,14 +194,20 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 
 	@Override
 	public void asyncPublishAndNotify(String channel, MessageI message) {
-		// TODO Auto-generated method stub
-		
+		try {
+			publishingOutboundPort.asyncPublishAndNotify(receivingInboundPortURI, channel, message, notificationInboundPort.getPortURI());
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Override
 	public void asyncPublishAndNotify(String channel, ArrayList<MessageI> messages) {
-		// TODO Auto-generated method stub
-		
+		try {
+			publishingOutboundPort.asyncPublishAndNotify(receivingInboundPortURI, channel, messages, notificationInboundPort.getPortURI());
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 }

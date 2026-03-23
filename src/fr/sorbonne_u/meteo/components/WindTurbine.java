@@ -7,6 +7,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.components.AbstractComponent;
+import fr.sorbonne_u.components.tasks_management.interfaces.AbnormalTerminationNotificationCI;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.LevelI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.PropertyFilterI;

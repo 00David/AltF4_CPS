@@ -1,11 +1,14 @@
 package fr.sorbonne_u.broker.ports;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.components.interfaces.OfferedCI;
 import fr.sorbonne_u.components.ports.AbstractInboundPort;
+import fr.sorbonne_u.components.tasks_management.BCM4JavaComponentThread;
+import fr.sorbonne_u.components.tasks_management.connection.AbnormalTerminationNotificationOutboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.exceptions.PreconditionException;
@@ -16,7 +19,7 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
- * invariant	{@code true}	// no more invariant
+ * invariant	{@code notificationPort != null}
  * </pre>
  * 
  * @author Kevin Tang
@@ -27,33 +30,67 @@ extends		AbstractInboundPort
 implements	PublishingCI {
 
 	private static final long serialVersionUID = 1878031196993861332L;
+	
+	protected final AbnormalTerminationNotificationOutboundPort	notificationPort;
 
 	/**
 	 * Creates the inbound port with the given {@code uri}, whose owner component {@code owner} is a {@link Broker}.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
-	 * pre {@code uri != null && !uri.isEmpty()}
-	 * pre {@code owner != null}
-	 * pre {@code owner instanceof Broker}
-	 * post {@code  true}	// no postcondition.
+	 * pre  {@code uri != null && !uri.isEmpty()}
+	 * pre  {@code owner != null}
+	 * pre  {@code owner instanceof Broker}
+	 * pre  {@code notificationPort != null}
+	 * post class invariant satisfied
 	 * </pre>
 	 * 
-	 * @param uri    		the URI of the port.
-	 * @param owner  		the component owning the port.
-	 * @throws Exception 	if an error occurs while creating the port
+	 * @param uri    					the URI of the port.
+	 * @param owner  					the component owning the port.
+	 * @param notificationPort  		outport port requiring the component interface {@code AbnormalTerminationNotificationCI}.
+	 * @throws Exception 				if an error occurs while creating the port
 	 */
-	public BrokerPublishingInboundPort(String uri, ComponentI owner) throws Exception {
+	public BrokerPublishingInboundPort(String uri, ComponentI owner, 
+			AbnormalTerminationNotificationOutboundPort notificationPort) throws Exception {
 		super(uri, PublishingCI.class, owner) ;
 		// Precondition checks
 		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
 		assert(owner != null) : new PreconditionException("owner cannot be null");
 		assert(owner instanceof Broker) : new PreconditionException("owner must be a Broker");
+		assert(notificationPort != null) : new PreconditionException("notificationPort cannot be null");
+		
+		this.notificationPort = notificationPort;
 	}
 	
-	// Used for BrokerPrivilegedInboundPort constructor
-	public BrokerPublishingInboundPort(String uri, Class<? extends OfferedCI> implementedInterface, ComponentI owner) throws Exception {
+	/**
+	 * Creates the inbound port with the given {@code uri}, whose owner component {@code owner} is a {@link Broker}.<br>
+	 * Used by {@link BrokerPrivilegedInboundPort} constructor.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre  {@code uri != null && !uri.isEmpty()}
+	 * pre  {@code owner != null}
+	 * pre  {@code owner instanceof Broker}
+	 * pre  {@code notificationPort != null}
+	 * post class invariant satisfied
+	 * </pre>
+	 * 
+	 * @param uri    					the URI of the port.
+	 * @param implementedInterface    	the implemented interface, extending {@link OfferedCI}.
+	 * @param owner  					the component owning the port.
+	 * @param notificationPort  		outport port requiring the component interface {@code AbnormalTerminationNotificationCI}.
+	 * @throws Exception 				if an error occurs while creating the port
+	 */
+	public BrokerPublishingInboundPort(String uri, Class<? extends OfferedCI> implementedInterface, ComponentI owner, 
+			AbnormalTerminationNotificationOutboundPort notificationPort) throws Exception {
 		super(uri, implementedInterface, owner);
+		// Precondition checks
+		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
+		assert(owner != null) : new PreconditionException("owner cannot be null");
+		assert(owner instanceof Broker) : new PreconditionException("owner must be a Broker");
+		assert(notificationPort != null) : new PreconditionException("notificationPort cannot be null");
+		
+		this.notificationPort = notificationPort;
 	}
 
 	// Precondition and postcondition verifications are delegated to the Broker
@@ -91,7 +128,15 @@ implements	PublishingCI {
 		this.getOwner().runTask(
 				owner -> {
 					try {
-						((Broker)owner).asyncPublishAndNotifyService(receptionPortURI, channel, messages, notificationInbounhdPortURI);
+						((BCM4JavaComponentThread)Thread.currentThread()).
+							setServiceInvocationInfo(
+									notificationPort, // Broker notification outbound port
+									notificationInbounhdPortURI, // Client notification inbound port URI
+									PublishingCI.class,
+									this.getPortURI(),
+									"asyncPublishAndNotify",
+									new Serializable[]{receptionPortURI, channel, messages});
+						((Broker)owner).publishService(receptionPortURI, channel, messages);
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
@@ -103,7 +148,15 @@ implements	PublishingCI {
 		this.getOwner().runTask(
 				owner -> {
 					try {
-						((Broker)owner).asyncPublishAndNotifyService(receptionPortURI, channel, messages, notificationInbounhdPortURI);
+						((BCM4JavaComponentThread)Thread.currentThread()).
+							setServiceInvocationInfo(
+									notificationPort, // Broker notification outbound port
+									notificationInbounhdPortURI, // Client notification inbound port URI
+									PublishingCI.class,
+									this.getPortURI(),
+									"asyncPublishAndNotify",
+									new Serializable[]{receptionPortURI, channel, messages});
+						((Broker)owner).publishService(receptionPortURI, channel, messages);
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
