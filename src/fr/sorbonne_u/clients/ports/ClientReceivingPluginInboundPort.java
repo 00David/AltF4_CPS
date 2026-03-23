@@ -54,36 +54,17 @@ public class ClientReceivingPluginInboundPort extends AbstractInboundPort implem
 
 	@Override
 	public void receive(String channel, MessageI message) throws Exception {
-		this.getOwner().runTask( client -> {
-			try {
-				ClientSubscriptionPlugin csp = (ClientSubscriptionPlugin) this.getOwnerPlugin(this.pluginURI);
-				csp.receive(channel, message);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		});
+		ClientSubscriptionPlugin csp = (ClientSubscriptionPlugin) this.getOwnerPlugin(this.pluginURI);
+		this.getOwner().runTask(client -> csp.receive(channel, message));
 	}
 
 	@Override
 	public void receive(String channel, MessageI[] messages) throws Exception {
+		ClientSubscriptionPlugin csp = (ClientSubscriptionPlugin) this.getOwnerPlugin(this.pluginURI);
 		if (messages.length == 1) {
-			this.getOwner().runTask( client -> {
-				try {
-					ClientSubscriptionPlugin csp = (ClientSubscriptionPlugin) this.getOwnerPlugin(this.pluginURI);
-					csp.receive(channel, messages[0]);
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			});
+			this.getOwner().runTask(client -> csp.receive(channel, messages[0]));
 		} else {
-			this.getOwner().runTask( client -> {
-				try {
-					ClientSubscriptionPlugin csp = (ClientSubscriptionPlugin) this.getOwnerPlugin(this.pluginURI);
-					csp.receive(channel, messages);
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			});
+			this.getOwner().runTask(client -> csp.receive(channel, messages));
 		}
 	}
 }
