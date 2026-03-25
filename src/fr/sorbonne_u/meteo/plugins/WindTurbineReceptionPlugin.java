@@ -56,12 +56,12 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 		// Precondition checks
 		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
 		assert(message != null) : new PreconditionException("message cannot be null");
-		nbMessagesReceived.incrementAndGet();
 		
 		WindTurbine windTurbine = (WindTurbine)this.getOwner();
 		
-		windTurbine.logMessage("------------------------------");
-		windTurbine.logMessage("WindTurbine received message '" + message + "' from the channel : " + channel);
+		windTurbine.logMessage("------------------------------\n"
+				+ "Thread "+Thread.currentThread().getId()+": WindTurbine received message '" + message + "' from the channel : " + channel 
+				+ "\n------------------------------");
 		Serializable payload = message.getPayload();
 
 		// Handling of received wind data delegated to the WindTurbine
@@ -74,7 +74,7 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 			
 		// Handling of received wind data while in safe mode (nothing)
 		} else {
-			windTurbine.logMessage("------------------------------");
+			
 		}
 	}
 
@@ -87,13 +87,13 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 		
 		WindTurbine windTurbine = (WindTurbine)this.getOwner();
 		
-		windTurbine.logMessage("------------------------------");
-		windTurbine.logMessage("WindTurbine received "+ messages.length +" messages from the channel : " + channel);
+		windTurbine.logMessage("------------------------------\n"
+				+ "Thread "+Thread.currentThread().getId()+": WindTurbine received "+ messages.length +" messages from the channel : " + channel 
+				+ "\n------------------------------");
 		for (int i=0; i<messages.length; i++) {
-			nbMessagesReceived.incrementAndGet();
 			
 			MessageI message = messages[i];
-			windTurbine.logMessage("Message " + i + " '" + message + "'");
+			//windTurbine.logMessage("Message " + i + " '" + message + "'");
 			Serializable payload = message.getPayload();
 			
 			// Handling of received wind data delegated to the WindTurbine
@@ -106,7 +106,7 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 				
 			// Handling of received wind data while in safe mode (nothing)
 			} else {
-				windTurbine.logMessage("------------------------------");
+				
 			}
 		}
 	}

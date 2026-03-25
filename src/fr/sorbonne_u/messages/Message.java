@@ -116,7 +116,7 @@ public class Message implements MessageI {
 	public MessageI copy() {
 		Message copiedMessage = new Message();
 		for(PropertyI p : this.properties.values()) {
-			copiedMessage.putProperty(p.getName(), p);
+			copiedMessage.putProperty(p.getName(), p.getValue());
 		}
 		copiedMessage.setPayload(this.payload);
 		

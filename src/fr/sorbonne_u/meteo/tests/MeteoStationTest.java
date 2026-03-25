@@ -111,9 +111,10 @@ public class MeteoStationTest extends MeteoStation {
 	 * @param xWind 		The X component of the wind vector.
 	 * @param yWind			The Y component of the wind vector.
 	 * @param channel		The channel on which it must publish the wind data.
+	 * @param notify		Indicates if the publishing service with notification must be called or not.
 	 * @throws Exception	If an error occurs while publishing.
 	 */
-	public void publishWindData(double xWind, double yWind, String channel) throws Exception {
+	public void publishWindData(double xWind, double yWind, String channel, boolean notify) throws Exception {
 		// Precondition checks
 		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");	
 		
@@ -128,7 +129,11 @@ public class MeteoStationTest extends MeteoStation {
 		this.logMessage("MeteoStation sending wind data "+wd+"\nto channel : '"+channel+"'");
 		this.logMessage("------------------------------");
 		
-		publicationPlugin.publish(channel, msg);
+		if (notify) {
+			publicationPlugin.asyncPublishAndNotify(channel, msg);
+		} else {
+			publicationPlugin.publish(channel, msg);
+		}
 	}
 	
 	/**
@@ -143,9 +148,10 @@ public class MeteoStationTest extends MeteoStation {
 	 * 
 	 * @param windDatas 	Wind datas to publish on the {@code channel}.
 	 * @param channel		The channel on which it must publish the wind data.
+	 * @param notify		Indicates if the publishing service with notification must be called or not.
 	 * @throws Exception	If an error occurs while publishing.
 	 */
-	public void publishWindDatas(List<WindData> windDatas, String channel) throws Exception {
+	public void publishWindDatas(List<WindData> windDatas, String channel, boolean notify) throws Exception {
 		// Precondition checks
 		assert(windDatas != null) : new PreconditionException("windDatas cannot be null");	
 		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");	
@@ -164,7 +170,11 @@ public class MeteoStationTest extends MeteoStation {
 		this.logMessage("MeteoStation sending "+messages.size()+" wind datas to channel : '"+channel+"'");
 		this.logMessage("------------------------------");
 		
-		publicationPlugin.publish(channel, messages);
+		if (notify) {
+			publicationPlugin.asyncPublishAndNotify(channel, messages);
+		} else {
+			publicationPlugin.publish(channel, messages);
+		}
 	}
 	
 	/**

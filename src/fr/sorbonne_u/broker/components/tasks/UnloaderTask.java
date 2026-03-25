@@ -82,6 +82,7 @@ public class UnloaderTask extends AbstractTask {
 	@Override
 	public void run() {
 		try {
+			//broker.logMessage("UNLOADER "+Thread.currentThread().getId()+" starts unloading from'"+channel+"'") ;
 
 			boolean isUnloading = true;
 			
@@ -128,8 +129,9 @@ public class UnloaderTask extends AbstractTask {
 				
 			}
 
-		} catch (Exception e) {
-			e.printStackTrace();
+			//broker.logMessage("UNLOADER "+Thread.currentThread().getId()+" ended task") ;
+		} catch (UnknownChannelException e) {
+			System.err.println("Unloader error : "+e.getMessage());
 		}
 	}
 }

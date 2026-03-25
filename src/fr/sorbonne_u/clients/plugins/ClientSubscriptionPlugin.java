@@ -2,7 +2,6 @@ package fr.sorbonne_u.clients.plugins;
 
 import java.time.Duration;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import fr.sorbonne_u.clients.components.Client;
@@ -27,7 +26,6 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * <p><strong>Invariants</strong></p>
  * <pre>
  * invariant	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
- * invariant	{@code nbMessagesReceived != null && nbMessagesReceived.get() >= 0}
  * invariant	{@code registrationOutboundPort != null}
  * </pre>
  * 
@@ -45,9 +43,6 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	
 	/** Reception inbound port, set up after plugin installation + initialization */
 	protected ClientReceivingPluginInboundPort receivingInboundPort;
-	
-	/** A counter incremented on each message received. Used for testing. */
-	protected AtomicInteger nbMessagesReceived = new AtomicInteger();
 	
 	// REGISTRATION
 	
@@ -184,7 +179,6 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	 * 
 	 * <p>
 	 * Needs to be @Override for implementing a more personalized behavior on reception.
-	 * If done so, the new version must ensure incrementing {@code nbMessagesReceived}.
 	 * </p>
 	 * 
 	 * <p><strong>Contract</strong></p>
@@ -200,10 +194,11 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	public void receive(String channel, MessageI message) {
 		// Precondition checks
 		assert(channel != null && !channel.isEmpty());
-		nbMessagesReceived.incrementAndGet();
 		
 		Client client = (Client)this.getOwner();
-		client.logMessage("Client received message '" + message + "' from the channel : " + channel);
+		client.logMessage("------------------------------\n"
+				+ "Thread "+Thread.currentThread().getId()+": Client received message '" + message + "' from the channel : " + channel 
+				+ "\n------------------------------");
 	}
 	
 	/**
@@ -213,7 +208,6 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	 * 
 	 * <p>
 	 * Needs to be @Override for implementing a more personalized behavior on reception.
-	 * If done so, the new version must ensure incrementing {@code nbMessagesReceived}.
 	 * </p>
 	 * 
 	 * <p><strong>Contract</strong></p>
@@ -235,12 +229,13 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 		assert(Stream.of(messages).allMatch(m -> m != null));
 		
 		Client client = (Client)this.getOwner();
-		client.logMessage("Client received "+ messages.length +" messages from the channel : " + channel);
-		for (int i=0; i<messages.length; i++) {
-			nbMessagesReceived.incrementAndGet();
+		client.logMessage("------------------------------\n"
+				+ "Thread "+Thread.currentThread().getId()+": Client received "+ messages.length +" messages from the channel : " + channel 
+				+ "\n------------------------------");
+		/*for (int i=0; i<messages.length; i++) {
 			MessageI message = messages[i];
-			client.logMessage("Message " + i + "  '" + message + "'");
-		}
+			client.logMessage("Message " + i + " '" + message + "'");
+		}*/
 	}
 
 	@Override
@@ -264,23 +259,4 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 		return null;
 	}
 	
-	// -------------------------------------------------------------------------
-	// Number of messages received getter
-	// -------------------------------------------------------------------------
-	
-	/**
-	 * Returns the number of messages received since the start of the plugin.
-	 * 
-	 * <p><strong>Contract</strong></p>
-	 * <pre>
-	 * pre	{@code true} // no precondition
-	 * post	{@code return >= 0}
-	 * </pre>
-	 * 
-	 * @return the number of messages received since the start of the plugin.
-	 */
-	public int getNbMessagesReceived() {
-		return nbMessagesReceived.get();
-	}
-
 }

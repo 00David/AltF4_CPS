@@ -4,7 +4,6 @@ import fr.sorbonne_u.components.utils.tests.TestScenario;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.LevelI;
 import fr.sorbonne_u.meteo.components.WindTurbine;
 import fr.sorbonne_u.meteo.data.PositionData;
-import fr.sorbonne_u.meteo.plugins.WindTurbineReceptionPlugin;
 import fr.sorbonne_u.utils.aclocks.ClocksServer;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
@@ -141,11 +140,11 @@ public class WindTurbineTest extends WindTurbine {
 		
         // Wind data subscription
         subscriptionPlugin.subscribe("channel0", filterChannel0);
-        this.logMessage("WindTurbine subscribed to channel0");
+        this.logMessage("Thread "+Thread.currentThread().getId()+": WindTurbine subscribed to channel0");
 
         // Alert data subscription
         subscriptionPlugin.subscribe("channel1", filterChannel1);
-        this.logMessage("WindTurbine subscribed to channel1");
+        this.logMessage("Thread "+Thread.currentThread().getId()+": WindTurbine subscribed to channel1");
 		
 		if (testScenario != null) {
 			// Initialization of the clock
@@ -241,13 +240,12 @@ public class WindTurbineTest extends WindTurbine {
 	 * @param expectedNb	The expected number of messages received on the wind turbine.
 	 */
 	public void verifyNbMessagesReceived(int expectedNb) {
-		WindTurbineReceptionPlugin plugin = (WindTurbineReceptionPlugin)this.getPlugin("subscription");
-		int nbReceived = plugin.getNbMessagesReceived();
+		int nbReceived;
 		synchronized (this.datas) {
-			assert(nbReceived == this.datas.size());
+			nbReceived = this.datas.size();
 		}
-		
-		this.logMessage("WindTurbine expected "+expectedNb+" messages, correct");
+		assert(nbReceived == expectedNb);
+		this.logMessage("WindTurbine expected "+expectedNb+" messages and got them : correct");
 	}
 	
 }

@@ -160,7 +160,7 @@ public class CVMSimpleTest extends AbstractCVM {
 					owner -> {
 						try {
 							System.out.println("STEP 0/5 (30s) : MeteoStation1 sends wind data to 'channel0'");
-							((MeteoStationTest)owner).publishWindData(2.0, 2.0, "channel0");
+							((MeteoStationTest)owner).publishWindData(2.0, 2.0, "channel0", false);
 						} catch (Exception e) {
 							System.err.println("Step 0 wind data publication failed with exception " + e);
 						}
@@ -173,7 +173,7 @@ public class CVMSimpleTest extends AbstractCVM {
 					owner -> {
 						try {
 							System.out.println("STEP 1/5 (60s) : MeteoStation2 sends wind data to 'channel0'");
-							((MeteoStationTest)owner).publishWindData(1.0, 1.0, "channel0");
+							((MeteoStationTest)owner).publishWindData(1.0, 1.0, "channel0", false);
 						} catch (Exception e) {
 							System.err.println("Step 1 wind data publication failed with exception " + e);
 						}
@@ -214,7 +214,7 @@ public class CVMSimpleTest extends AbstractCVM {
 					owner -> {
 						try {
 							System.out.println("STEP 4/5 (150s) : MeteoStation1 sends wind data to 'channel0'");
-							((MeteoStationTest)owner).publishWindData(2.0, 2.0, "channel0");
+							((MeteoStationTest)owner).publishWindData(2.0, 2.0, "channel0", false);
 						} catch (Exception e) {
 							System.err.println("Step 4 wind data publication failed with exception " + e);
 						}

@@ -311,9 +311,9 @@ public class MeteoBureau extends Client {
 		msg.putProperty("instant", instant);
 		msg.putProperty("duration", duration);
 			
-		this.logMessage("------------------------------");
-		this.logMessage("MeteoBureau sending an alert "+ma);
-		this.logMessage("------------------------------");
+		this.logMessage("------------------------------\n"
+				+ "MeteoBureau sending an alert "+ma
+				+ "\n------------------------------");
 		
 		publicationPlugin.publish(channel, msg);
 		

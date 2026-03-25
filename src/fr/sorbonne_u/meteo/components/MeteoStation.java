@@ -310,9 +310,9 @@ public class MeteoStation extends Client {
 		msg.putProperty("xWind", xWind);
 		msg.putProperty("yWind", yWind);
 		
-		this.logMessage("------------------------------");
-		this.logMessage("MeteoStation sending wind data "+wd);
-		this.logMessage("------------------------------");
+		this.logMessage("------------------------------\n"
+				+ "MeteoStation sending wind data "+wd
+				+ "\n------------------------------");
 		
 		publicationPlugin.publish(channel, msg);
 		

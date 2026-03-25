@@ -293,7 +293,7 @@ public class CVMCompleteTest extends AbstractCVM {
 					owner -> {
 						try {
 							System.out.println("STEP 1/11 (40s) : MeteoStation2 sends wind data with light force, only taken into account by WindTubine2");
-							((MeteoStationTest)owner).publishWindData(10.0, 10.0, "channel0");
+							((MeteoStationTest)owner).publishWindData(10.0, 10.0, "channel0", false);
 						} catch (Exception e) {
 							System.err.println("Step 1 wind data publication failed with exception " + e);
 						}
@@ -389,7 +389,7 @@ public class CVMCompleteTest extends AbstractCVM {
 						owner -> {
 							try {
 								System.out.println("STEP 7/11 (160s) : MeteoStation1 sends wind on 'channel0', \nwith only WindTurbine2 still subscribed to it");
-								((MeteoStationTest)owner).publishWindData(1.0, 1.0, "channel0");
+								((MeteoStationTest)owner).publishWindData(1.0, 1.0, "channel0", false);
 							} catch (Exception e) {
 								System.err.println("Step 7 wind data publication failed with exception " + e);
 							}
@@ -402,7 +402,7 @@ public class CVMCompleteTest extends AbstractCVM {
 						owner -> {
 							try {
 								System.out.println("STEP 8/11 (180s) : MeteoStation1 sends wind on 'testChannel', \nwith both WindTurbine 1 and 2 subscribed to it");
-								((MeteoStationTest)owner).publishWindData(2.0, 2.0, "testChannel");
+								((MeteoStationTest)owner).publishWindData(2.0, 2.0, "testChannel", false);
 							} catch (Exception e) {
 								System.err.println("Step 8 wind data publication failed with exception " + e);
 							}

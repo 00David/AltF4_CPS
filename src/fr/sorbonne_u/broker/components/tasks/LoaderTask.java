@@ -1,6 +1,7 @@
 package fr.sorbonne_u.broker.components.tasks;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import fr.sorbonne_u.broker.components.Broker;
@@ -13,7 +14,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
- * Created by the {@link Broker}, handles loading messages into a specific channel, 
+ * Created by the {@link Broker}, handles loading (copies of) messages into a specific channel, 
  * and submits an {@link UnloaderTask} for unloading those messages.
  * 
  * <p><strong>Invariants</strong></p>
@@ -72,6 +73,7 @@ public class LoaderTask extends AbstractTask {
 	@Override
 	public void run() {
 		try {
+			//broker.logMessage("LOADER "+Thread.currentThread().getId()+" starts loading into '"+channel+"'") ;
 			
 			ChannelBrokerInfos chanInfos = channelsInfos.get(channel);
 			if (chanInfos == null) throw new UnknownChannelException("Channel "+channel+" doesn't exist anymore.");
@@ -90,14 +92,20 @@ public class LoaderTask extends AbstractTask {
 				}
 			}
 			
-			// Puts messages into the channel
-			chanInfos.loadMessages(messagesToLoad);
+			// Puts copies of original messages into the channel (for not spreading shared references)
+			List<MessageI> copyMessagesToLoad = new ArrayList<>();
+			for(MessageI msg : messagesToLoad) {
+				copyMessagesToLoad.add(msg.copy());
+			}
+			chanInfos.loadMessages(copyMessagesToLoad);
+			//chanInfos.loadMessages(messagesToLoad);
 			
 			// Creates an unload task
 			broker.runTask(Broker.UNLOADERS_POOL_URI, new UnloaderTask(broker, clientsInfos, chanInfos, channel, nbMaxUnloadMessages));
 			
-		} catch (Exception e) {
-			e.printStackTrace();
+			//broker.logMessage("LOADER "+Thread.currentThread().getId()+" ended task") ;
+		} catch (UnknownChannelException e) {
+			System.err.println("Loader error : "+e.getMessage());
 		}
 	}
 }
