@@ -132,7 +132,6 @@ implements	PublishingCI {
 		this.getOwner().runTask(
 				owner -> {
 					try {
-						System.out.println("avant setServiceInvocationInfo");
 						((BCM4JavaComponentThread)Thread.currentThread()).
 							setServiceInvocationInfo(
 									notificationPort, // Broker notification outbound port
@@ -141,14 +140,9 @@ implements	PublishingCI {
 									this.getPortURI(),
 									"asyncPublishAndNotify",
 									new Serializable[]{receptionPortURI, channel, messages});
-						System.out.println("après setServiceInvocationInfo, avant publishService");
 						((Broker)owner).publishService(receptionPortURI, channel, messages);
-					} catch (UnknownChannelException e) {
-						System.out.println("CATCHER : UnknownChannelException");
+					} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException e) {
 						throw new BCMRuntimeException(e);
-					/*} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException e) {
-						System.out.println("CATCHER : UnknownChannelException");
-						throw new BCMRuntimeException(e);*/
 					} catch (Exception e) {
 						e.printStackTrace();
 					}

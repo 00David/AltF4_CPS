@@ -1,7 +1,11 @@
 package fr.sorbonne_u.clients.components;
 
+import java.io.Serializable;
+
 import fr.sorbonne_u.clients.plugins.ClientRegistrationPlugin;
 import fr.sorbonne_u.components.AbstractComponent;
+import fr.sorbonne_u.components.interfaces.OfferedCI;
+import fr.sorbonne_u.components.tasks_management.interfaces.AbnormalTerminationNotificationImplI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
@@ -10,6 +14,11 @@ import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
  * The abstract class providing a component that acts as a client of the publish/subscribe system.
+ * 
+ * <p>
+ * A client can handle abnormal termination notifications thanks to its {@link AbnormalTerminationNotificationImplI} 
+ * implementation and {@code notifyAbnormalTermination} method overriding.
+ * </p>
  * 
  * <p>The client is created only with a registration plugin. Concrete sub-classes can add/use more plugins.</p>
  * 
@@ -24,7 +33,7 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * @author Kevin TANG
  * @author David VADIMON
  */
-public abstract class Client extends AbstractComponent {
+public abstract class Client extends AbstractComponent implements AbnormalTerminationNotificationImplI {
 	
 	// RECEPTION
 	
@@ -148,5 +157,22 @@ public abstract class Client extends AbstractComponent {
 			new PostconditionException("The component must have a port with implemented interface RegistrationCI");
 		assert	this.findPortFromURI(registrationOutboundPortURI).isPublished() :
 			new PostconditionException("The component must have a port published with URI " + registrationOutboundPortURI);
+	}
+	
+	@Override
+	public void notifyAbnormalTermination(Class<? extends OfferedCI> offeredInterface, String inboundPortURI, 
+			String serviceName, Serializable[] actualParameters,Throwable t) throws Exception {
+		StringBuffer sb = new StringBuffer("Client::notifyAbnormalTermination ");
+		sb.append(serviceName);
+		sb.append("(");
+		for (int i = 0 ; i < actualParameters.length ; i++) {
+			sb.append(actualParameters[i]);
+			if (i < actualParameters.length - 1) {
+				sb.append(", ");
+			}
+		}
+		sb.append(") call abnormally terminated with throwable ");
+		sb.append(t.toString());
+		System.err.println(sb.toString());
 	}
 }

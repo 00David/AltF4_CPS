@@ -74,7 +74,7 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * 	THIRD PART : asynchronous error management
  * </p>
  * <ul>
- * 	<li> - After 230 seconds, <strong>MeteoStation1</strong> tries publishing with a notification a message on a non existing channel, 'testChannel7'.</li>
+ * 	<li> - After 230 seconds, <strong>MeteoStation1</strong> attempts to publish a message with a notification to a non-existing channel, 'testChannel7'.</li>
  * </ul>
  * 
  * @author Kevin TANG
@@ -110,7 +110,7 @@ public class CVMConcurrentTest extends AbstractCVM {
 	public static long STEP9 = 170; // WindTurbine checks that it has received 357 wind datas.
 	public static long STEP10 = 190; // all 3 STANDARD MeteoStations each send 29 wind datas to 'testChannel1' (created by a PREMIUM).
 	public static long STEP11 = 210; // WindTurbine checks that it has received 444 wind datas.
-	public static long STEP12 = 230; // MeteoStation1 tries publishing with a notification a message on a non existing channel, 'testChannel7'.
+	public static long STEP12 = 230; // MeteoStation1 attempts to publish a message with a notification to a non-existing channel, 'testChannel7'.
 
 	// -------------------------------------------------------------------------
 	// Component datas
@@ -441,15 +441,15 @@ public class CVMConcurrentTest extends AbstractCVM {
 								System.err.println("Step 11 wind datas account check failed with exception " + e);
 							}
 						}),
-				// MeteoStation1 tries publishing with a notification a message on a non existing channel, 'testChannel7'.
+				// MeteoStation1 attempts to publish a message with a notification to a non-existing channel, 'testChannel7'.
 				new TestStep(
 						CLOCK_URI, MS_URI+1, step12_Instant,
 						owner -> {
 							try {
-								System.out.println("STEP 12/12 (230s) : MeteoStation1 tries publishing with a notification a message on a non existing channel, 'testChannel7'");
+								System.out.println("STEP 12/12 (230s) : MeteoStation1 attempts to publish a message with a notification to a non-existing channel, 'testChannel7'");
 								((MeteoStationTest)owner).publishWindData(2, 2, "testChannel7", true);
 							} catch (Exception e) {
-								System.err.println("Step 12 wind datas publishing failed with exception " + e);
+								System.err.println("Step 12 wind data publishing failed with exception " + e);
 							}
 						})
 				});
@@ -525,8 +525,8 @@ public class CVMConcurrentTest extends AbstractCVM {
 	
 	public static void main(String[] args) {
 		try {
-			VerboseException.VERBOSE = true;
-			VerboseException.PRINT_STACK_TRACE = true;
+			VerboseException.VERBOSE = false;
+			VerboseException.PRINT_STACK_TRACE = false;
 			
 			CVMConcurrentTest cvm = new CVMConcurrentTest() ;
 			cvm.startStandardLifeCycle(EXECUTION_DURATION);

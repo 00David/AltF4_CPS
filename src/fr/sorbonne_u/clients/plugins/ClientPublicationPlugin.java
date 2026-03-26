@@ -136,8 +136,9 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 	@Override
 	public void uninstall() throws Exception {
 		this.publishingOutboundPort.unpublishPort();
-		this.notificationInboundPort.unpublishPort();
 		this.removeRequiredInterface(PublishingCI.class);
+		this.notificationInboundPort.unpublishPort();
+		this.removeOfferedInterface(AbnormalTerminationNotificationCI.class);
 	}
 	
 	// -------------------------------------------------------------------------
