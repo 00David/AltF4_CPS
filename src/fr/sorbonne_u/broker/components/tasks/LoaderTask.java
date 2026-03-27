@@ -1,7 +1,6 @@
 package fr.sorbonne_u.broker.components.tasks;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 import fr.sorbonne_u.broker.components.Broker;
@@ -48,6 +47,16 @@ public class LoaderTask extends AbstractTask {
 	
 	/**
 	 * Broker publication task handling loading received messages into a specific channel.
+	 * 
+	 * <pre>
+	 * pre	{@code broker != null}
+	 * pre	{@code clientsInfos != null}
+	 * pre	{@code channelsInfos != null}
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * pre	{@code messagesToLoad != null}
+	 * post class invariants satisfied
+	 * </pre>
+	 * 
 	 * @param broker			The broker component having the task.
 	 * @param clientsInfos		{@code broker} mapping : client inbound port (URI) -> its informations.
 	 * @param channelsInfos		{@code broker} mapping : channel name -> its informations.
@@ -93,19 +102,16 @@ public class LoaderTask extends AbstractTask {
 			}
 			
 			// Puts copies of original messages into the channel (for not spreading shared references)
-			List<MessageI> copyMessagesToLoad = new ArrayList<>();
 			for(MessageI msg : messagesToLoad) {
-				copyMessagesToLoad.add(msg.copy());
+				chanInfos.loadMessage(msg.copy());
 			}
-			chanInfos.loadMessages(copyMessagesToLoad);
-			//chanInfos.loadMessages(messagesToLoad);
 			
 			// Creates an unload task
 			broker.runTask(Broker.UNLOADERS_POOL_URI, new UnloaderTask(broker, clientsInfos, chanInfos, channel, nbMaxUnloadMessages));
 			
 			//broker.logMessage("LOADER "+Thread.currentThread().getId()+" ended task") ;
 		} catch (UnknownChannelException e) {
-			System.err.println("Loader error : "+e.getMessage());
+			System.err.println("Thread "+Thread.currentThread().getId()+": Loader error : "+e.getMessage());
 		}
 	}
 }

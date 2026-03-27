@@ -202,29 +202,10 @@ public class ChannelBrokerInfosTest {
     }
 
     @Test
-    void testLoadMessagesAndUnload() {
-    	MessageI msg1 = new Message();
-    	MessageI msg2 = new Message();
-
-        List<MessageI> msgs = new ArrayList<>(); msgs.add(msg1); msgs.add(msg2); 
-        channel.loadMessages(msgs);
-
-        assertEquals(msg1, channel.unloadMessage());
-        assertEquals(msg2, channel.unloadMessage());
-        assertNull(channel.unloadMessage()); // No more messages into the channel
-    }
-
-    @Test
-    void testLoadNullMessages() {
+    void testLoadNullMessage() {
     	// For AddMessage
         assertThrows(IllegalArgumentException.class,
                 () -> channel.loadMessage(null)); // message null
-        
-        // For AddMessages
-        assertThrows(IllegalArgumentException.class,
-                () -> channel.loadMessages(null));  // messages null
-        assertThrows(IllegalArgumentException.class,
-                () -> channel.loadMessages(new ArrayList<MessageI>()));  // messages empty
     }
 
     @Test

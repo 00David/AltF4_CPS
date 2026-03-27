@@ -16,8 +16,6 @@ import fr.sorbonne_u.exceptions.PreconditionException;
 /**
  * Test class representing a {@link WindTurbine}, following a predefined scenario.
  * 
- * <p>The scenario is described in the {@link CVMSimpleTest} class.</p>
- * 
  * <p>The class does extend {@link WindTurbine} because instead of only listening by default, here it has also defined actions to make.</p>
  * 
  * @author Kevin TANG
@@ -229,7 +227,7 @@ public class WindTurbineTest extends WindTurbine {
 	}
 	
 	/**
-	 * Verifies that the wind turbine has received {@code expectedNb} messages since its start.
+	 * Verifies that the wind turbine has received {@code expectedNb} wind datas since its start.
 	 * 
 	 * <p><strong>Contract</strong></p>
      * <pre>
@@ -237,15 +235,32 @@ public class WindTurbineTest extends WindTurbine {
      * post {@code true} // no postcondition
      * </pre>
 	 * 
-	 * @param expectedNb	The expected number of messages received on the wind turbine.
+	 * @param expectedNb	The expected number of wind datas received on the wind turbine.
 	 */
-	public void verifyNbMessagesReceived(int expectedNb) {
+	public void verifyNbWindDatasReceived(int expectedNb) {
 		int nbReceived;
 		synchronized (this.datas) {
 			nbReceived = this.datas.size();
 		}
 		assert(nbReceived == expectedNb);
-		this.logMessage("WindTurbine expected "+expectedNb+" messages and got them : correct");
+		this.logMessage("WindTurbine expected "+expectedNb+" wind datas and got them : correct");
+	}
+	
+	/**
+	 * Gets the number of wind datas the wind turbine has received since its start.
+	 * 
+	 * <p><strong>Contract</strong></p>
+     * <pre>
+	 * pre	{@code true} // no precondition
+     * post {@code true} // no postcondition
+     * </pre>
+     * 
+	 * @return		The number of wind datas the wind turbine has received since its start.
+	 */
+	public int getNbWindDatasReceived() {
+		synchronized (this.datas) {
+			return this.datas.size();
+		}
 	}
 	
 }

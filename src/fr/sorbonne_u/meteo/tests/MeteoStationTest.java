@@ -21,8 +21,6 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
 /**
  * Class representing a {@link MeteoStation} emitting wind data following a predefined scenario.
  * 
- * <p>The scenario is described in the {@link CVMSimpleTest} class.</p>
- * 
  * <p>The class does extend {@link MeteoStation} because it keeps the same setup, while adding personalized actions for a test scenario.</p>
  * 
  * @author Kevin TANG
@@ -206,5 +204,41 @@ public class MeteoStationTest extends MeteoStation {
 		
 		// Postcondition check
 		assert(publicationPlugin.channelExist(channel)) : new PostconditionException("new channel '"+channel+"' should exist");
+	}
+	
+	/**
+	 * Modifies authorized users of the {@code channel}.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * pre	{@code registrationClass == (RegistrationClass.STANDARD || RegistrationClass.PREMIUM)}
+	 * post	{@code !publicationPlugin.channelExist(channel)}
+	 * </pre>
+	 * 
+	 * @param channel 			The channel to destroy.
+	 * @param now				Indicates if we destroy NOW the channel, without sending to clients unloaded messages.
+	 * @throws Exception		If an error occurs while destroying the channel, or verifying the deletion.
+	 */
+	public void destroyChannelAndVerifies(String channel, boolean now) throws Exception {
+		// Precondition checks
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
+		assert(registrationClass == RegistrationClass.STANDARD ||  registrationClass == RegistrationClass.PREMIUM) : 
+			new PreconditionException("client must be privileged");
+		
+		if (now) {
+			privilegedPlugin.destroyChannelNow(channel);
+		} else {
+			privilegedPlugin.destroyChannel(channel);
+		}
+		
+		this.logMessage("Meteo Bureau has destroyed its channel : "+channel);
+		
+		boolean verif = subscriptionPlugin.channelExist(channel);
+		this.logMessage("Channel still exists ? "+verif);
+		
+		// Postcondition check
+		assert(!verif) : new PostconditionException("channel '"+channel+"' should not exist anymore");
 	}
 }

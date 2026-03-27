@@ -59,13 +59,9 @@ public class CVMSimpleTest extends AbstractCVM {
 		(long) (DELAY_TO_START + 1000L + ((Instant.parse(END_INSTANT).toEpochMilli() - Instant.parse(START_INSTANT).toEpochMilli())
 														/ACCELERATION_FACTOR));
 	
-	// Delay after the start when the step will be executed, in seconds
-	public static long STEP0 = 30; // MeteoStationTest n°1 sends wind data to 'channel0'.
-	public static long STEP1 = 60; // MeteoStationTest n°2 sends wind data to 'channel0'.
-	public static long STEP2 = 90; // MeteoBureauTest sends a dangerous alert to 'channel1'.
-	public static long STEP3 = 120; // MeteoBureauTest sends an end-of-danger alert to 'channel1'.
-	public static long STEP4 = 150; // MeteoStationTest n°1 sends wind data to 'channel0'.
-	public static long STEP5 = 180; // MeteoBureauTest sends a dangerous alert to 'channel1', not affecting the wind turbine region.
+	// Delay after the start when steps will be executed, in seconds
+	public static long[] STEPS = new long[] {30, 60, 90, 120, 150, 180};
+	public static final int NBSTEPS = STEPS.length;
 
 	// -------------------------------------------------------------------------
 	// Component datas
@@ -130,13 +126,8 @@ public class CVMSimpleTest extends AbstractCVM {
 		Instant endInstant = Instant.parse(END_INSTANT);
 
 		// Scenario instants
-		
-		Instant step0_Instant = startInstant.plusSeconds(STEP0);
-		Instant step1_Instant = startInstant.plusSeconds(STEP1);
-		Instant step2_Instant = startInstant.plusSeconds(STEP2);
-		Instant step3_Instant = startInstant.plusSeconds(STEP3);
-		Instant step4_Instant = startInstant.plusSeconds(STEP4);
-		Instant step5_Instant = startInstant.plusSeconds(STEP5);
+		Instant[] step_Instants = new Instant[NBSTEPS];
+		for (int i=0; i<NBSTEPS; i++) step_Instants[i] = startInstant.plusSeconds(STEPS[i]);
 		
 		double x; double y;
 
@@ -156,10 +147,10 @@ public class CVMSimpleTest extends AbstractCVM {
 				new TestStep(
 					CLOCK_URI,
 					MS1_URI,
-					step0_Instant,
+					step_Instants[0],
 					owner -> {
 						try {
-							System.out.println("STEP 0/5 (30s) : MeteoStation1 sends wind data to 'channel0'");
+							System.out.println("STEP 0/"+(NBSTEPS-1)+" ("+STEPS[0]+"s) : MeteoStation1 sends wind data to 'channel0'");
 							((MeteoStationTest)owner).publishWindData(2.0, 2.0, "channel0", false);
 						} catch (Exception e) {
 							System.err.println("Step 0 wind data publication failed with exception " + e);
@@ -169,10 +160,10 @@ public class CVMSimpleTest extends AbstractCVM {
 				new TestStep(
 					CLOCK_URI,
 					MS2_URI,
-					step1_Instant,
+					step_Instants[1],
 					owner -> {
 						try {
-							System.out.println("STEP 1/5 (60s) : MeteoStation2 sends wind data to 'channel0'");
+							System.out.println("STEP 1/"+(NBSTEPS-1)+" ("+STEPS[1]+"s) : MeteoStation2 sends wind data to 'channel0'");
 							((MeteoStationTest)owner).publishWindData(1.0, 1.0, "channel0", false);
 						} catch (Exception e) {
 							System.err.println("Step 1 wind data publication failed with exception " + e);
@@ -182,12 +173,12 @@ public class CVMSimpleTest extends AbstractCVM {
 				new TestStep(
 						CLOCK_URI,
 						MB_URI,
-						step2_Instant,
+						step_Instants[2],
 						owner -> {
 							try {
-								System.out.println("STEP 2/5 (90s) : MeteoBureau sends a dangerous alert to 'channel1'");
+								System.out.println("STEP 2/"+(NBSTEPS-1)+" ("+STEPS[2]+"s) : MeteoBureau sends a dangerous alert to 'channel1'");
 								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.RED, 
-										step2_3_regions, step2_Instant, Duration.ofSeconds((long)((STEP3-STEP2)/ACCELERATION_FACTOR)), "channel1");
+										step2_3_regions, step_Instants[2], Duration.ofSeconds((long)((STEPS[3]-STEPS[2])/ACCELERATION_FACTOR)), "channel1");
 							} catch (Exception e) {
 								System.err.println("Step 2 alert publication failed with exception " + e);
 							}
@@ -196,12 +187,12 @@ public class CVMSimpleTest extends AbstractCVM {
 				new TestStep(
 						CLOCK_URI,
 						MB_URI,
-						step3_Instant,
+						step_Instants[3],
 						owner -> {
 							try {
-								System.out.println("STEP 3/5 (120s) : MeteoBureau sends an end-of-danger alert to 'channel1'");
+								System.out.println("STEP 3/"+(NBSTEPS-1)+" ("+STEPS[3]+"s) : MeteoBureau sends an end-of-danger alert to 'channel1'");
 								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.GREEN, 
-										step2_3_regions, step3_Instant, Duration.ofSeconds((long)((STEP3-STEP2)/ACCELERATION_FACTOR)), "channel1");
+										step2_3_regions, step_Instants[3], Duration.ofSeconds((long)((STEPS[3]-STEPS[2])/ACCELERATION_FACTOR)), "channel1");
 							} catch (Exception e) {
 								System.err.println("Step 3 alert publication failed with exception " + e);
 							}
@@ -210,10 +201,10 @@ public class CVMSimpleTest extends AbstractCVM {
 				new TestStep(
 					CLOCK_URI,
 					MS1_URI,
-					step4_Instant,
+					step_Instants[4],
 					owner -> {
 						try {
-							System.out.println("STEP 4/5 (150s) : MeteoStation1 sends wind data to 'channel0'");
+							System.out.println("STEP 4/"+(NBSTEPS-1)+" ("+STEPS[4]+"s) : MeteoStation1 sends wind data to 'channel0'");
 							((MeteoStationTest)owner).publishWindData(2.0, 2.0, "channel0", false);
 						} catch (Exception e) {
 							System.err.println("Step 4 wind data publication failed with exception " + e);
@@ -223,12 +214,12 @@ public class CVMSimpleTest extends AbstractCVM {
 				new TestStep(
 						CLOCK_URI,
 						MB_URI,
-						step5_Instant,
+						step_Instants[5],
 						owner -> {
 							try {
-								System.out.println("STEP 5/5 (180s) :  MeteoBureau sends a dangerous alert to 'channel1', not affecting the wind turbine region");
+								System.out.println("STEP 5/"+(NBSTEPS-1)+" ("+STEPS[5]+"s) :  MeteoBureau sends a dangerous alert to 'channel1', not affecting the wind turbine region");
 								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.RED, 
-										step5_regions, step5_Instant, Duration.ofSeconds((long)((STEP3-STEP2)/ACCELERATION_FACTOR)), "channel1");
+										step5_regions, step_Instants[5], Duration.ofSeconds((long)((STEPS[3]-STEPS[2])/ACCELERATION_FACTOR)), "channel1");
 							} catch (Exception e) {
 								System.err.println("Step 5 alert publication failed with exception " + e);
 							}
