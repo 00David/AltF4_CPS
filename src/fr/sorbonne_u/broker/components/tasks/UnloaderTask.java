@@ -138,6 +138,11 @@ public class UnloaderTask extends AbstractTask {
 			// If an unloading is interrupted, with for instance a channel destruction,
 			// it will still send unloaded messages currently in its map
 			createSendingTasks(targetsMessages);
+		} finally {
+			// Decreases the number of threads currently unloading the channel
+			synchronized(chanInfos.nbActiveUnloadersLock) {
+				chanInfos.nbActiveUnloaders--;
+			}
 		}
 	}
 	

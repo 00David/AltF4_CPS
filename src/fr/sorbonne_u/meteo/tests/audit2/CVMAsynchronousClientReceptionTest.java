@@ -2,8 +2,6 @@ package fr.sorbonne_u.meteo.tests.audit2;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import fr.sorbonne_u.broker.components.Broker;
@@ -22,7 +20,6 @@ import fr.sorbonne_u.filters.property.PropertiesFilter;
 import fr.sorbonne_u.filters.property.PropertyFilter;
 import fr.sorbonne_u.filters.time.JokerTimeFilter;
 import fr.sorbonne_u.meteo.data.PositionData;
-import fr.sorbonne_u.meteo.data.WindData;
 import fr.sorbonne_u.meteo.tests.MeteoStationTest;
 import fr.sorbonne_u.meteo.tests.WindTurbineTest;
 import fr.sorbonne_u.utils.aclocks.ClocksServer;
@@ -42,43 +39,37 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  *             <li>4 sending threads</li>
  *         </ul>
  *     </li>
- *     <li>1 (STANDARD) {@link WindTurbineTest} accepting everything, with 4 threads</li>
- *     <li>3 FREE {@link MeteoStationTest}, each with 4 threads</li>
- *     <li>3 STANDARD {@link MeteoStationTest}, each with 4 threads</li>
- *     <li>3 PREMIUM {@link MeteoStationTest}, each with 4 threads</li>
+ *     <li>1 {@link WindTurbineTest} accepting everything, with 4 threads</li>
+ *     <li>1 STANDARD {@link MeteoStationTest}</li>
  * </ul>
  * 
  * <p>
- * 	SCENARIO, FIRST PART : multi-thread publications
+ * 	Asynchronous client reception methods testing :
  * </p>
  * <ul>
- * 	<li> - After 20 seconds, <strong>all 3 FREE MeteoStations</strong> each send 30 wind datas to 'channel0'.</li>
- * 	<li> - After 40 seconds, <strong>WindTurbine</strong> checks that it has received 90 wind datas.</li>
- * 	<li> - After 60 seconds, <strong>all 3 STANDARD MeteoStations</strong> each send 30 wind datas to 'channel0'.</li>
- * 	<li> - After 80 seconds, <strong>WindTurbine</strong> checks that it has received a total of 180 wind datas.</li>
- * 	<li> - After 100 seconds, <strong>all 3 PREMIUM MeteoStations</strong> each send 30 wind datas to 'channel0'.</li>
- * 	<li> - After 120 seconds, <strong>WindTurbine</strong> checks that it has received a total of 270 wind datas.</li>
+ * 	<li> - After 20 seconds, <strong>WindTurbine</strong> waits a message from 'channel0'.</li>
+ * 	<li> - After 40 seconds, <strong>MeteoStation</strong> publishes a message on 'channel0'.</li>
+ * 	<li> - After 60 seconds, <strong>WindTurbine</strong> waits a message from 'channel0' with a 
+ * 			timeout ending after the next message reception (gets the message).</li>
+ * 	<li> - After 80 seconds, <strong>MeteoStation</strong> publishes a message on 'channel0'.</li>
+ * 	<li> - After 100 seconds, <strong>WindTurbine</strong> waits a message from 'channel0' with a 
+ * 			timeout ending without a message reception.</li>
+ * 	<li> - After 120 seconds, <strong>WindTurbine</strong> gets a message future for 'channel0', 
+ * 			sleeps and gets the result (blocking) before the next reception.</li>
+ * 	<li> - After 140 seconds, <strong>MeteoStation</strong> publishes a message on 'channel0'.</li>
+ * 	<li> - After 160 seconds, <strong>WindTurbine</strong> gets a message future for 'channel0', 
+ * 			sleeps and gets the result after the next reception.</li>
+ * 	<li> - After 180 seconds, <strong>MeteoStation</strong> publishes a message on 'channel0'.</li>
+ * 	<li> - After 200 seconds, <strong>WindTurbine</strong> waits a message from 'channel0.</li>
+ * 	<li> - After 220 seconds, <strong>WindTurbine</strong> gets a message future for 'channel0', 
+ * 			sleeps 0 seconds and blocks on getting the result.</li>
+ * 	<li> - After 240 seconds, <strong>MeteoStation</strong> publishes 3 messages on 'channel0', 
+ * 			each got by each possible reception method.</li>
  * </ul>
  * 
  * <p>
- * 	SECOND PART : multi-thread publications on different channels (depending creator registration classes)
+ * 	<strong>For each WindTurbine reception wait, it is done by a classic wind turbine thread</strong> (the test schedulable thread delegates it). 
  * </p>
- * <ul>
- * 	<li> - After 130 seconds, <strong>MeteoStation4 (STANDARD)</strong> creates 'testChannel0' 
- * 			+ <strong>MeteoStation7 (PREMIUM)</strong> creates 'testChannel1'.</li>
- * 	<li> - After 140 seconds, <strong>WindTurbine</strong> subscribes to 'testChannel0' and 'testChannel1'</li>
- * 	<li> - After 150 seconds, <strong>all 3 STANDARD MeteoStations</strong> each send 29 wind datas to 'testChannel0' (created by a STANDARD).</li>
- * 	<li> - After 170 seconds, <strong>WindTurbine</strong> checks that it has received a total of 357 wind datas.</li>
- * 	<li> - After 190 seconds, <strong>all 3 STANDARD MeteoStations</strong> each send 29 wind datas to 'testChannel1' (created by a PREMIUM).</li>
- * 	<li> - After 210 seconds, <strong>WindTurbine</strong> checks that it has received a total of 444 wind datas.</li>
- * </ul>
- * 
- * <p>
- * 	THIRD PART : asynchronous error management
- * </p>
- * <ul>
- * 	<li> - After 230 seconds, <strong>MeteoStation1</strong> tries publishing with a notification a message on a non existing channel, 'testChannel7'.</li>
- * </ul>
  * 
  * @author Kevin TANG
  * @author David VADIMON
@@ -91,17 +82,17 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 
 	public static String CLOCK_URI = "test-clock";
 	public static String START_INSTANT = "2026-01-30T09:00:00.00Z";
-	public static String END_INSTANT = "2026-01-30T09:04:00.00Z";
+	public static String END_INSTANT = "2026-01-30T09:04:10.00Z";
 
 	public static long DELAY_TO_START = 1000L;
-	public static long END_SLEEP_DURATION = 10000L;
+	public static long END_SLEEP_DURATION = 20000L;
 	public static double ACCELERATION_FACTOR = 2.0;
 	public static long EXECUTION_DURATION =
 		(long) (DELAY_TO_START + 1000L + ((Instant.parse(END_INSTANT).toEpochMilli() - Instant.parse(START_INSTANT).toEpochMilli())
 														/ACCELERATION_FACTOR));
 	
 	// Delay after the start when steps be executed, in seconds
-	public static long[] STEPS = new long[] {20, 40, 60, 80, 100, 120, 140, 160};
+	public static long[] STEPS = new long[] {20, 40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240};
 	public static final int NBSTEPS = STEPS.length;
 	
 	// -------------------------------------------------------------------------
@@ -114,7 +105,7 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 	protected static final int brokerNbUnloadersThreads = 4;
 	protected static final int brokerNbSendersThreads = 4;
 	
-	// MeteoStation general URIs
+	// MeteoStation URI
 	protected final static String MS_URI = "MeteoStation-URI";
 	protected final String MSReceivingInboundPortURI = "inbound-port-client-MS";
 	protected final String MSRegistrationOutboundPortURI = "registration-outbound-port-MS";
@@ -122,9 +113,7 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 	protected final String MSPrivilegedOutboundPortURI = "privileged-outbound-port-MS";
 	
 	protected static final int stationNbThreads = 4; // useless, meteo stations does not receive
-	protected static final PositionData FREEstationPosition = new PositionData(1, 2);
-	protected static final PositionData STANDARDstationPosition = new PositionData(2, 2);
-	protected static final PositionData PREMIUMstationPosition = new PositionData(3, 2);
+	protected static final PositionData stationPosition = new PositionData(1, 2);
 	
 	// WindTurbine
 	protected final static String WT_URI = "WindTurbine-URI";
@@ -162,121 +151,160 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 		Instant[] step_Instants = new Instant[NBSTEPS];
 		for (int i=0; i<NBSTEPS; i++) step_Instants[i] = startInstant.plusSeconds(STEPS[i]);
 		
-		List<WindData> ms1_winds = new ArrayList<>(); List<WindData> ms2_winds = new ArrayList<>(); List<WindData> ms3_winds = new ArrayList<>();
-		for (int j=0; j<20; j++) {
-			if (j<5) ms1_winds.add(new WindData(FREEstationPosition, j, j));
-			else if (j<10) ms2_winds.add(new WindData(FREEstationPosition, j, j));
-			else ms3_winds.add(new WindData(FREEstationPosition, j, j));
-		}
-		
-		List<WindData> ms4_winds = new ArrayList<>(); List<WindData> ms5_winds = new ArrayList<>(); List<WindData> ms6_winds = new ArrayList<>();
-		for (int j=0; j<20; j++) {
-			if (j<5) ms4_winds.add(new WindData(STANDARDstationPosition, j, j));
-			else if (j<10) ms5_winds.add(new WindData(STANDARDstationPosition, j, j));
-			else ms6_winds.add(new WindData(STANDARDstationPosition, j, j));
-		}
-		
-		List<WindData> ms7_winds = new ArrayList<>(); List<WindData> ms8_winds = new ArrayList<>(); List<WindData> ms9_winds = new ArrayList<>();
-		for (int j=0; j<20; j++) {
-			if (j<5) ms7_winds.add(new WindData(PREMIUMstationPosition, j, j));
-			else if (j<10) ms8_winds.add(new WindData(PREMIUMstationPosition, j, j));
-			else ms9_winds.add(new WindData(PREMIUMstationPosition, j, j));
-		}
-
-		
 		return new TestScenario(
 			CLOCK_URI,
 			startInstant,
 			endInstant,
 			new TestStepI[] {
-				
+				// WindTurbine waits a message from 'channel0'
 				new TestStep(
 					CLOCK_URI, WT_URI, step_Instants[0],
 					owner -> {
 						try {
-							System.out.println("STEP 0/"+(NBSTEPS-1)+" ("+STEPS[0]+"s) : WindTurbine gettingNextMessage message at 'channel0'");
-							((WindTurbineTest)owner).gettingNextMessage("channel0");
+							System.out.println("STEP 0/"+(NBSTEPS-1)+" ("+STEPS[0]+"s) : WindTurbine waits a message from 'channel0'");
+							owner.runTask(c -> ((WindTurbineTest)owner).waitMessage("channel0"));
 						} catch (Exception e) {
-							System.err.println("WindTurbine, step 0 wind failed with exception " + e);
+							System.err.println("WindTurbine, step 0 message waiting with exception " + e);
 						}
 					}),
+				// MeteoStation publishes a message on 'channel0'
 				new TestStep(
 						CLOCK_URI, MS_URI, step_Instants[1],
 						owner -> {
 							try {
-								System.out.println("STEP 1/"+(NBSTEPS-1)+" ("+STEPS[1]+"s) : MeteoStation publish message at 'channel0'");
+								System.out.println("STEP 1/"+(NBSTEPS-1)+" ("+STEPS[1]+"s) : MeteoStation publishes a message on 'channel0'");
 								((MeteoStationTest)owner).publishWindData(2, 2, "channel0", false);
 							} catch (Exception e) {
-								System.err.println("MeteoStation, step 1 wind datas publication failed with exception " + e);
+								System.err.println("MeteoStation, step 1 wind data publication failed with exception " + e);
 							}
 						}),
+				// WindTurbine waits a message from 'channel0' with a timeout ending after the next message reception (gets the message)
 				new TestStep(
 						CLOCK_URI, WT_URI, step_Instants[2],
 						owner -> {
 							try {
-								System.out.println("STEP 2/"+(NBSTEPS-1)+" ("+STEPS[2]+"s) : WindTurbine gettingNextMessageTime message at 'channel0'");
-								Duration d = Duration.ofSeconds(30);
-								((WindTurbineTest)owner).gettingNextMessageTime("channel0",d);
+								double tmp = 20/ACCELERATION_FACTOR;
+								Duration d = Duration.ofSeconds((long)(tmp+tmp/2));
+								System.out.println("STEP 2/"+(NBSTEPS-1)+" ("+STEPS[2]+"s) : WindTurbine waits a message from 'channel0',"
+										+ "\nwith a timeout of "+(d.getSeconds()*ACCELERATION_FACTOR)+" seconds, ending after the next message reception");
+								owner.runTask(c -> ((WindTurbineTest)owner).waitMessageTimeout("channel0",d));
 							} catch (Exception e) {
-								System.err.println("WindTurbine, step 2 wind failed with exception " + e);
+								System.err.println("WindTurbine, step 2 message waiting (timeout) with exception " + e);
 							}
 						}),
+				// MeteoStation publishes a message on 'channel0'
 				new TestStep(
 						CLOCK_URI, MS_URI, step_Instants[3],
 						owner -> {
 							try {
-								System.out.println("STEP 3/"+(NBSTEPS-1)+" ("+STEPS[3]+"s) : MeteoStation publish message at 'channel0'");
+								System.out.println("STEP 3/"+(NBSTEPS-1)+" ("+STEPS[3]+"s) : MeteoStation publishes a message on 'channel0'");
 								((MeteoStationTest)owner).publishWindData(2, 2, "channel0", false);
 							} catch (Exception e) {
-								System.err.println("MeteoStation, step 3 wind failed with exception " + e);
+								System.err.println("MeteoStation, step 3 wind data publication failed with exception " + e);
 							}
 						}),
+				// WindTurbine waits a message from 'channel0' with a timeout ending without a message reception
 				new TestStep(
 						CLOCK_URI, WT_URI, step_Instants[4],
 						owner -> {
 							try {
-								System.out.println("STEP 4/"+(NBSTEPS-1)+" ("+STEPS[4]+"s) : WindTurbine gettingNextMessageFuture future message at 'channel0'");
-								((WindTurbineTest)owner).gettingNextMessageFuture("channel0");
+								double tmp = 20/ACCELERATION_FACTOR;
+								Duration d = Duration.ofSeconds((long)(tmp-tmp/2));
+								System.out.println("STEP 4/"+(NBSTEPS-1)+" ("+STEPS[4]+"s) : WindTurbine waits a message from 'channel0',"
+										+ "\nwith a timeout of "+(d.getSeconds()*ACCELERATION_FACTOR)+" seconds, ending without a message reception");
+								owner.runTask(c -> ((WindTurbineTest)owner).waitMessageTimeout("channel0",d));
 							} catch (Exception e) {
-								System.err.println("WindTurbine, step 4 wind failed with exception " + e);
+								System.err.println("WindTurbine, step 4 message waiting (timeout) with exception " + e);
 							}
 						}),
+				// WindTurbine gets a message future for 'channel0', sleeps and gets the result (blocking) before the next reception
 				new TestStep(
-						CLOCK_URI, MS_URI, step_Instants[5],
+						CLOCK_URI, WT_URI, step_Instants[5],
 						owner -> {
 							try {
-								System.out.println("STEP 5/"+(NBSTEPS-1)+" ("+STEPS[5]+"s) : MeteoStation publish message at 'channel0'");
+								double tmp = 20/ACCELERATION_FACTOR;
+								Duration d = Duration.ofSeconds((long)(tmp/2));
+								System.out.println("STEP 5/"+(NBSTEPS-1)+" ("+STEPS[5]+"s) : WindTurbine gets a message future for 'channel0',"
+										+ "\nsleeps for "+(d.getSeconds()*ACCELERATION_FACTOR)+" seconds and gets the result (blocking) before the next reception");
+								owner.runTask(c -> ((WindTurbineTest)owner).waitMessageFuture("channel0",d));
+							} catch (Exception e) {
+								System.err.println("WindTurbine, step 5 message waiting (future) with exception " + e);
+							}
+						}),
+				// MeteoStation publishes a message on 'channel0'
+				new TestStep(
+						CLOCK_URI, MS_URI, step_Instants[6],
+						owner -> {
+							try {
+								System.out.println("STEP 6/"+(NBSTEPS-1)+" ("+STEPS[6]+"s) : MeteoStation publishes a message on 'channel0'");
 								((MeteoStationTest)owner).publishWindData(2, 2, "channel0", false);
 							} catch (Exception e) {
-								System.err.println("MeteoStation, step 5 wind failed with exception " + e);
+								System.err.println("MeteoStation, step 6 wind data publication failed with exception " + e);
 							}
 						}),
+				// WindTurbine gets a message future for 'channel0', sleeps and gets the result after the next reception
 				new TestStep(
-						CLOCK_URI, WT_URI, step_Instants[6],
+						CLOCK_URI, WT_URI, step_Instants[7],
 						owner -> {
 							try {
-								System.out.println("STEP 6/"+(NBSTEPS-1)+" ("+STEPS[6]+"s) : WindTurbine gettingNextMessageTime message at 'channel0'");
-								Duration d1 = Duration.ofSeconds(10);
-								((WindTurbineTest)owner).gettingNextMessageTime("channel0",d1);
+								double tmp = 20/ACCELERATION_FACTOR;
+								Duration d = Duration.ofSeconds((long)(tmp+tmp/2));
+								System.out.println("STEP 7/"+(NBSTEPS-1)+" ("+STEPS[7]+"s) : WindTurbine gets a message future for 'channel0',"
+										+ "\nsleeps for "+(d.getSeconds()*ACCELERATION_FACTOR)+" seconds and gets the result after the next reception");
+								owner.runTask(c -> ((WindTurbineTest)owner).waitMessageFuture("channel0",d));
 							} catch (Exception e) {
-								System.err.println("WindTurbine, step 6 wind datas publication failed with exception " + e);
+								System.err.println("WindTurbine, step 7 message waiting (future) with exception " + e);
 							}
 						}),
+				// MeteoStation publishes a message on 'channel0'
 				new TestStep(
-						CLOCK_URI, MS_URI, step_Instants[7],
+						CLOCK_URI, MS_URI, step_Instants[8],
 						owner -> {
 							try {
-								System.out.println("STEP 7/7 (160s) : MeteoStation publish message at 'channel0'");
+								System.out.println("STEP 8/"+(NBSTEPS-1)+" ("+STEPS[8]+"s) : MeteoStation publishes a message on 'channel0'");
 								((MeteoStationTest)owner).publishWindData(2, 2, "channel0", false);
 							} catch (Exception e) {
-								System.err.println("MeteoStation, step 7 wind failed with exception " + e);
+								System.err.println("MeteoStation, step 8 wind data publication failed with exception " + e);
+							}
+						}),
+				// WindTurbine waits a message from 'channel0'
+				new TestStep(
+						CLOCK_URI, WT_URI, step_Instants[9],
+						owner -> {
+							try {
+								System.out.println("STEP 9/"+(NBSTEPS-1)+" ("+STEPS[0]+"s) : WindTurbine waits a message from 'channel0'");
+								owner.runTask(c -> ((WindTurbineTest)owner).waitMessage("channel0"));
+							} catch (Exception e) {
+								System.err.println("WindTurbine, step 9 message waiting with exception " + e);
+							}
+						}),
+				// WindTurbine gets a message future for 'channel0', sleeps 0 seconds and blocks on getting the result
+				new TestStep(
+						CLOCK_URI, WT_URI, step_Instants[10],
+						owner -> {
+							try {
+								Duration d = Duration.ofSeconds(0);
+								System.out.println("STEP 10/"+(NBSTEPS-1)+" ("+STEPS[7]+"s) : WindTurbine gets a message future for 'channel0',"
+										+ "\nsleeps for "+(d.getSeconds()*ACCELERATION_FACTOR)+" seconds and blocks on getting the result");
+								owner.runTask(c -> ((WindTurbineTest)owner).waitMessageFuture("channel0",d));
+							} catch (Exception e) {
+								System.err.println("WindTurbine, step 10 message waiting (future) with exception " + e);
+							}
+						}),
+				// MeteoStation publishes 3 messages on 'channel0', each got by each possible reception method
+				new TestStep(
+						CLOCK_URI, MS_URI, step_Instants[11],
+						owner -> {
+							try {
+								System.out.println("STEP 11/"+(NBSTEPS-1)+" ("+STEPS[8]+"s) : MeteoStation publishes 3 messages on 'channel0', each got by each possible reception method");
+								((MeteoStationTest)owner).publishWindData(2, 2, "channel0", false);
+								((MeteoStationTest)owner).publishWindData(2, 2, "channel0", false);
+								((MeteoStationTest)owner).publishWindData(2, 2, "channel0", false);
+							} catch (Exception e) {
+								System.err.println("MeteoStation, step 11 wind datas publication failed with exception " + e);
 							}
 						}),
 			});
-				
-						
-					
-				
 	}
 
 	public CVMAsynchronousClientReceptionTest() throws Exception{
@@ -307,28 +335,11 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 		assert this.isDeployedComponent(broker_URI);
 		this.toggleTracing(broker_URI);
 		
-//		// Creation of 9 MeteoStations
-//		for (int id=1; id<10; id++) {
-//			
-//			RegistrationClass rc = id <= 3 ? RegistrationClass.FREE : (id <= 6 ? RegistrationClass.STANDARD : RegistrationClass.PREMIUM);
-//			PositionData pos = id <= 3 ? FREEstationPosition : (id <= 6 ? STANDARDstationPosition : PREMIUMstationPosition);
-//			
-//			String meteoStation_URI_verif = AbstractComponent.createComponent(
-//					MeteoStationTest.class.getCanonicalName(),
-//					new Object[] { MSReceivingInboundPortURI+id, MSRegistrationOutboundPortURI+id, MSPublishingOutboundPortURI+id, MSPrivilegedOutboundPortURI+id,
-//							rc, stationNbThreads, 1, pos, MS_URI+id, testScenario, id});
-//			assert (MS_URI+id).equals(meteoStation_URI_verif);
-//			assert this.isDeployedComponent(MS_URI+id);
-//			this.toggleTracing(MS_URI+id);
-//		}
-		
-		
-		RegistrationClass rc = RegistrationClass.STANDARD;
-		PositionData posD = STANDARDstationPosition;		String meteoStation_URI_verif = AbstractComponent.createComponent(
+		// Creation of 1 MeteoStation
+		String meteoStation_URI_verif = AbstractComponent.createComponent(
 				MeteoStationTest.class.getCanonicalName(),
 				new Object[] { MSReceivingInboundPortURI, MSRegistrationOutboundPortURI, MSPublishingOutboundPortURI, MSPrivilegedOutboundPortURI,
-						rc, stationNbThreads, 1, posD, MS_URI, testScenario, 1});
-		
+						RegistrationClass.STANDARD, stationNbThreads, 1, stationPosition, MS_URI, testScenario, 1});
 		assert (MS_URI).equals(meteoStation_URI_verif);
 		assert this.isDeployedComponent(MS_URI);
 		this.toggleTracing(MS_URI);

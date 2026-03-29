@@ -106,8 +106,13 @@ public class LoaderTask extends AbstractTask {
 				chanInfos.loadMessage(msg.copy());
 			}
 			
-			// Creates an unload task
-			broker.runTask(Broker.UNLOADERS_POOL_URI, new UnloaderTask(broker, clientsInfos, chanInfos, channel, nbMaxUnloadMessages));
+			synchronized(chanInfos.nbActiveUnloadersLock) {
+				if (chanInfos.nbActiveUnloaders < (broker.nbUnloadersThreads/2.0)) {
+					// Creates an unload task if less than half of unloading threads are already on it
+					broker.runTask(Broker.UNLOADERS_POOL_URI, new UnloaderTask(broker, clientsInfos, chanInfos, channel, nbMaxUnloadMessages));
+					chanInfos.nbActiveUnloaders++;
+				}
+			}
 			
 			//broker.logMessage("LOADER "+Thread.currentThread().getId()+" ended task") ;
 		} catch (UnknownChannelException e) {

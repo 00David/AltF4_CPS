@@ -5,6 +5,7 @@ import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.cvm.AbstractCVM;
 import fr.sorbonne_u.meteo.tests.audit1.CVMSimpleTest;
 import fr.sorbonne_u.meteo.tests.audit2.CVMAbnormalConcurrentPublicationsTest;
+import fr.sorbonne_u.meteo.tests.audit2.CVMAsynchronousClientReceptionTest;
 import fr.sorbonne_u.meteo.tests.audit2.CVMConcurrentPublicationsTest;
 import fr.sorbonne_u.meteo.tests.mid_semester.CVMCompleteTest;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
@@ -28,6 +29,8 @@ import fr.sorbonne_u.meteo.data.PositionData;
  * 			with concurrent publications.</li>
  * 		<li>{@link CVMAbnormalConcurrentPublicationsTest}, providing a prepared scenario for errors management
  * 			while doing concurrent publications.</li>
+ * 		<li>{@link CVMAsynchronousClientReceptionTest}, providing a prepared scenario for testing every
+ * 			asynchronous client reception method.</li>
  * 	</ul>
  * 
  * @author Kevin TANG

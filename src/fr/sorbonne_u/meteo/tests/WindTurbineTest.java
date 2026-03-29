@@ -1,6 +1,7 @@
 package fr.sorbonne_u.meteo.tests;
 
 import java.time.Duration;
+import java.util.concurrent.Future;
 
 import fr.sorbonne_u.components.utils.tests.TestScenario;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.LevelI;
@@ -266,32 +267,66 @@ public class WindTurbineTest extends WindTurbine {
 		}
 	}
 	
-	public void gettingNextMessage(String channel) {
-		//System.out.println("gettingNextMessage");
+	/**
+	 * Waits a message from {@code channel}.
+	 * 
+	 * <p><strong>Contract</strong></p>
+     * <pre>
+	 * pre	{@code true} // no precondition
+     * post {@code true} // no postcondition
+     * </pre>
+     * 
+	 * @param channel		The channel on which the wait is done.
+	 */
+	public void waitMessage(String channel) {
 		try {
 			MessageI mes = subscriptionPlugin.waitForNextMessage(channel);
 			System.out.println("waitForNextMessage ended, got message ? :"+(mes != null));
-			this.logMessage("Client received message '" + mes + "' from the channel : " + channel);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 	
-	public void gettingNextMessageTime(String channel,Duration d) {
-		//System.out.println("gettingNextMessageTime");
+	/**
+	 * Waits a message from {@code channel}, for a given timeout of duration {@code d}.
+	 * 
+	 * <p><strong>Contract</strong></p>
+     * <pre>
+	 * pre	{@code true} // no precondition
+     * post {@code true} // no postcondition
+     * </pre>
+     * 
+	 * @param channel		The channel on which the wait is done.
+	 * @param d				The timeout for the wait.
+	 */
+	public void waitMessageTimeout(String channel, Duration d) {
 		try {
 			MessageI mes = subscriptionPlugin.waitForNextMessage(channel, d);
-			System.out.println("waitForNextMessage timeout ended, got message ? :"+(mes != null));
+			System.out.println("waitForNextMessage (timeout) ended, got message ? :"+(mes != null));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 	
-	public void gettingNextMessageFuture(String channel) {
-		//System.out.println("gettingNextMessageFuture");
+	/**
+	 * Gets the future for getting a message from {@code channel}, 
+	 * sleeps during a {@code d} duration before getting the future content.
+	 * 
+	 * <p><strong>Contract</strong></p>
+     * <pre>
+	 * pre	{@code true} // no precondition
+     * post {@code true} // no postcondition
+     * </pre>
+     * 
+	 * @param channel					The channel for which the future is got.
+	 * @param d							The thread sleep time, between the future getting and the {@code get} on the future.
+	 */
+	public void waitMessageFuture(String channel, Duration d) {
 		try {
-			MessageI mes = subscriptionPlugin.getNextMessage(channel).get();
-			System.out.println("getNextMessage ended,  got message ? :"+(mes != null));
+			Future<MessageI> future = subscriptionPlugin.getNextMessage(channel);
+			Thread.sleep(d.toMillis());
+			MessageI mes = future.get();
+			System.out.println("getNextMessage (future) ended, got message ? :"+(mes != null));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

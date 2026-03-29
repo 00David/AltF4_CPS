@@ -41,14 +41,14 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  *             <li>4 sending threads</li>
  *         </ul>
  *     </li>
- *     <li>1 (STANDARD) {@link WindTurbineTest} accepting everything, with 4 threads</li>
+ *     <li>1 {@link WindTurbineTest} accepting everything, with 4 threads</li>
  *     <li>3 FREE {@link MeteoStationTest}</li>
  *     <li>3 STANDARD {@link MeteoStationTest}</li>
  *     <li>3 PREMIUM {@link MeteoStationTest}</li>
  * </ul>
  * 
  * <p>
- * 	SCENARIO, FIRST PART : multi-thread publications
+ * 	SCENARIO, FIRST PART : multi-thread publications :
  * </p>
  * <ul>
  * 	<li> - After 20 seconds, <strong>all 3 FREE MeteoStations</strong> each send 30 wind datas to 'channel0'.</li>
@@ -60,7 +60,7 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * </ul>
  * 
  * <p>
- * 	SECOND PART : multi-thread publications on different channels (depending creator registration class)
+ * 	SECOND PART : multi-thread publications on different channels (depending creator registration class) :
  * </p>
  * <ul>
  * 	<li> - After 130 seconds, <strong>MeteoStation4 (STANDARD)</strong> creates 'testChannel0' 
@@ -86,7 +86,7 @@ public class CVMConcurrentPublicationsTest extends AbstractCVM {
 	public static String END_INSTANT = "2026-01-30T09:03:30.00Z";
 
 	public static long DELAY_TO_START = 1000L;
-	public static long END_SLEEP_DURATION = 10000L;
+	public static long END_SLEEP_DURATION = 20000L;
 	public static double ACCELERATION_FACTOR = 2.0;
 	public static long EXECUTION_DURATION =
 		(long) (DELAY_TO_START + 1000L + ((Instant.parse(END_INSTANT).toEpochMilli() - Instant.parse(START_INSTANT).toEpochMilli())

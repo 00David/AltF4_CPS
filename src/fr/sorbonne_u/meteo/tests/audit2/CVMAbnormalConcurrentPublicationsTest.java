@@ -41,12 +41,12 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  *             <li>4 sending threads</li>
  *         </ul>
  *     </li>
- *     <li>1 (STANDARD) {@link WindTurbineTest} accepting everything, with 4 threads</li>
+ *     <li>1 {@link WindTurbineTest} accepting everything, with 4 threads</li>
  *     <li>2 STANDARD {@link MeteoStationTest}</li>
  * </ul>
  * 
  * <p>
- * 	Asynchronous error management, while publishing on a channel.
+ * 	Asynchronous error management, while publishing on a channel :
  * </p>
  * <ul>
  * <li> - After 5 seconds, <strong>MeteoStation1 (STANDARD)</strong> creates 'testChannel0' and 'testChannel1'.</li>
@@ -79,7 +79,7 @@ public class CVMAbnormalConcurrentPublicationsTest extends AbstractCVM {
 	public static String END_INSTANT = "2026-01-30T09:01:30.00Z";
 
 	public static long DELAY_TO_START = 1000L;
-	public static long END_SLEEP_DURATION = 10000L;
+	public static long END_SLEEP_DURATION = 20000L;
 	public static double ACCELERATION_FACTOR = 2.0;
 	public static long EXECUTION_DURATION =
 		(long) (DELAY_TO_START + 1000L + ((Instant.parse(END_INSTANT).toEpochMilli() - Instant.parse(START_INSTANT).toEpochMilli())

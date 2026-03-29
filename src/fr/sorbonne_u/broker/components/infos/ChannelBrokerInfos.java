@@ -33,6 +33,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
  * 	<li> - The client port that created the channel, or {@code null} if it was created by the {@link Broker}.
  * 	<li> - The regular expression defining the accepted client port URIs for this channel.
  * 	<li> - A FIFO queue of {@link MessageI} pending on the channel (to be sent).
+ * 	<li> - A counter indicating the number of threads currently unloading the channel, with its lock (both public).
  * </ul>
  * 
  * <p><strong>Invariants</strong></p>
@@ -41,6 +42,8 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
  * invariant	{@code subscribers != null}
  * invariant	{@code authorizedUsers != null}
  * invariant	{@code messages != null}
+ * invariant	{@code nbActiveUnloaders != null}
+ * invariant	{@code nbActiveUnloadersLock != null}
  * </pre>
  * 
  * @author Kevin Tang
@@ -68,6 +71,15 @@ public class ChannelBrokerInfos {
     
     /** A FIFO queue of messages pending on the channel (to be sent). */
     private final Queue<MessageI> messages;
+    
+    /** 
+     * A counter indicating the number of threads currently unloading the channel, 
+     * must be manipulated in a critical section synchronized on {@code nbActiveUnloadersLock}. 
+     */
+    public int nbActiveUnloaders = 0;
+    
+    /** {@code nbActiveUnloaders} lock. */
+    public final Object nbActiveUnloadersLock = new Object();
 
     /**
      * Constructs the information associated with a channel registered on the {@link Broker}.

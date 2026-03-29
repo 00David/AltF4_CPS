@@ -172,19 +172,19 @@ public class Broker extends AbstractComponent{
 	public static final String	FREE_LOADERS_POOL_URI = "free-loaders-pool" ;
 	
 	/** Number of threads in the {@code FREE_LOADERS_POOL_URI} pool. */
-	private final int nbFreeLoadersThreads;
+	public final int nbFreeLoadersThreads;
 	
 	/** URI of the pool of threads used to load messages into a channel, coming from a STANDARD client. */
 	public static final String	STD_LOADERS_POOL_URI = "std-loaders-pool" ;
 	
 	/** Number of threads in the {@code STD_LOADERS_POOL_URI} pool. 2 x {@code nbFreeLoadersThreads} */
-	private final int nbStdLoadersThreads;
+	public final int nbStdLoadersThreads;
 	
 	/** URI of the pool of threads used to load messages into a channel, coming from a PREMIUM client. */
 	public static final String	PREM_LOADERS_POOL_URI = "prem-loaders-pool" ;
 	
 	/** Number of threads in the {@code PREM_LOADERS_POOL_URI} pool. 4 x {@code nbFreeLoadersThreads} */
-	private final int nbPremLoadersThreads;
+	public final int nbPremLoadersThreads;
 	
 	// For unloading messages from channels + creating senders.
 	
@@ -192,7 +192,7 @@ public class Broker extends AbstractComponent{
 	public static final String	UNLOADERS_POOL_URI = "unloaders-pool" ;
 	
 	/** Number of threads in the {@code UNLOADERS_POOL_URI} pool. */
-	private final int nbUnloadersThreads;
+	public final int nbUnloadersThreads;
 	
 	// For sending unloaded messages to a targeted client.
 	
@@ -200,7 +200,7 @@ public class Broker extends AbstractComponent{
 	public static final String	SENDERS_POOL_URI = "senders-pool" ;
 	
 	/** Number of threads in the {@code SENDERS_POOL_URI} pool. */
-	private final int nbSendersThreads;
+	public final int nbSendersThreads;
 
 	//--------------------------------------------------------------------------
 	// Constructor

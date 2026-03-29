@@ -1,14 +1,13 @@
 package fr.sorbonne_u.clients.plugins;
 
 import java.time.Duration;
-import java.util.LinkedList;
-import java.util.Queue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
 import fr.sorbonne_u.clients.components.Client;
@@ -34,6 +33,7 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * <pre>
  * invariant	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
  * invariant	{@code registrationOutboundPort != null}
+ * invariant	{@code futureMessages != null}
  * </pre>
  * 
  * @author Kevin TANG
@@ -56,9 +56,8 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	/** Registration outbound port, owned by {@link ClientRegistrationPlugin} */
 	protected final ClientRegistrationOutboundPort registrationOutboundPort;
 	
-	//Queues for waiting the messages
-	protected ConcurrentHashMap<String, BlockingQueue<MessageI>> messagesQueue = new ConcurrentHashMap<String, BlockingQueue<MessageI>>();
-	protected ConcurrentHashMap<String, Queue<CompletableFuture<MessageI>>> futureQueues = new ConcurrentHashMap<String, Queue<CompletableFuture<MessageI>>>();
+	/** Mapping : channel name -> a queue of futures, each waiting a message from the channel. */
+	protected final ConcurrentHashMap<String, ConcurrentLinkedQueue<CompletableFuture<MessageI>>> futureMessages = new ConcurrentHashMap<>();
 	
 	/**
 	 * Creates a {@link Client} subscription + reception plugin.
@@ -210,7 +209,6 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 		client.logMessage("------------------------------\n"
 				+ "Thread "+Thread.currentThread().getId()+": Client received message '" + message + "' from the channel : " + channel 
 				+ "\n------------------------------");
-		enqueueMessage(channel, message);
 	}
 	
 	/**
@@ -225,7 +223,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre	{@code channel != null && !channel.isEmpty()}
-	 * pre	{@code messages != null && messages.size() > 0}
+	 * pre	{@code messages != null && messages.length > 0}
 	 * pre	{@code Stream.of(messages).allMatch(m -> m != null)}
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
@@ -244,106 +242,143 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 		client.logMessage("------------------------------\n"
 				+ "Thread "+Thread.currentThread().getId()+": Client received "+ messages.length +" messages from the channel : " + channel 
 				+ "\n------------------------------");
-		for (int i=0; i<messages.length; i++) {
+		/*for (int i=0; i<messages.length; i++) {
 			MessageI message = messages[i];
-			enqueueMessage(channel, message);
-			//client.logMessage("Message " + i + " '" + message + "'");
-		}
+			client.logMessage("Message " + i + " '" + message + "'");
+		}*/
 	}
 
 	@Override
 	public MessageI waitForNextMessage(String channel) throws UnknownClientException, UnknownChannelException,
 			UnauthorisedClientException, NotSubscribedChannelException {
+		// Precondition check
+		assert(channel != null && !channel.isEmpty());
 		
 		Client client = (Client)this.getOwner();
-		client.logMessage("Waiting next message on channel " + channel);
+		client.logMessage("Thread "+Thread.currentThread().getId()+": Waiting next message from channel '" + channel + "'");
+		
+		// Locks the whole map to ensure that the future queue for the channel exists
+		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = null;
+		synchronized(futureMessages) {
+			channelFutureMessagesQueue = futureMessages.get(channel);
+			if (channelFutureMessagesQueue == null) {
+				channelFutureMessagesQueue = new ConcurrentLinkedQueue<>();
+				futureMessages.put(channel, channelFutureMessagesQueue);
+			}
+		}
+		
+		// Creates and inserts the future into the queue
+		CompletableFuture<MessageI> future = new CompletableFuture<>();
+		channelFutureMessagesQueue.add(future);
 		
 		try {
-			//Retrieve a message from the queue if queue is not empty 
-			//else wait for a message is added in the queue
-	        return messagesQueue.get(channel).take();
-	    } catch (InterruptedException e) {
-	        Thread.currentThread().interrupt();
-	        return null;
-	    }
+			MessageI message =  future.get(); // Returns its result when got (the future is removed from the queue by the thread completing it)
+			client.logMessage("------------------------------\n"
+					+ "Thread "+Thread.currentThread().getId()+": Client waited and got message '" + message + "' from the channel : " + channel 
+					+ "\n------------------------------");
+			return message;
+		} catch (InterruptedException | ExecutionException e) {
+			channelFutureMessagesQueue.remove(future); // If an error occurs, removes the future from the queue if present in it
+			client.logMessage("------------------------------\n"
+					+ "Thread "+Thread.currentThread().getId()+": Client waited and got an error : " + e.getMessage() 
+					+ "\n------------------------------");
+			return null;
+		}
 	}
 	
 	
 	@Override
 	public MessageI waitForNextMessage(String channel, Duration d) throws UnknownClientException,
 			UnknownChannelException, UnauthorisedClientException, NotSubscribedChannelException {
+		// Precondition checks
+		assert(channel != null && !channel.isEmpty());
+		assert(d != null);
+		assert(!d.isZero());
+		assert(!d.isNegative());
 		
 		Client client = (Client)this.getOwner();
-		client.logMessage("Waiting next message on channel " + channel + "for " + d.getSeconds() + " sec");
+		client.logMessage("Thread "+Thread.currentThread().getId()+": Waiting next message with a timeout ("+d.getSeconds()+"s) from channel '" + channel + "'");
+		
+		// Locks the whole map to ensure that the future queue for the channel exists
+		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = null;
+		synchronized(futureMessages) {
+			channelFutureMessagesQueue = futureMessages.get(channel);
+			if (channelFutureMessagesQueue == null) {
+				channelFutureMessagesQueue = new ConcurrentLinkedQueue<>();
+				futureMessages.put(channel, channelFutureMessagesQueue);
+			}
+		}
+		
+		// Creates and inserts the future into the queue
+		CompletableFuture<MessageI> future = new CompletableFuture<>();
+		channelFutureMessagesQueue.add(future);
 		
 		try {
-			//Retrieve a message from the queue if queue is not empty 
-			//else wait for x sec for a message is added in the queue
-	        return messagesQueue.get(channel).poll(d.toMillis(), TimeUnit.MILLISECONDS);
-	    } catch (InterruptedException e) {
-	        Thread.currentThread().interrupt();
-	        return null;
-	    }
+			MessageI message =  future.get(d.getSeconds(), TimeUnit.SECONDS); // Returns its result when got (the future is removed from the queue by the thread completing it)
+			client.logMessage("------------------------------\n"
+					+ "Thread "+Thread.currentThread().getId()+": Client waited and got message '" + message + "' from the channel : " + channel 
+					+ "\n------------------------------");
+			return message;
+		} catch (TimeoutException e) {
+			channelFutureMessagesQueue.remove(future); // If the timeout has expired, removes the future from the queue
+			client.logMessage("------------------------------\n"
+					+ "Thread "+Thread.currentThread().getId()+": Client waited but timeout has expired"
+					+ "\n------------------------------");
+			return null;
+		} catch (InterruptedException | ExecutionException e) {
+			channelFutureMessagesQueue.remove(future); // If an error, removes the future from the queue if present in it
+			client.logMessage("------------------------------\n"
+					+ "Thread "+Thread.currentThread().getId()+": Client waited and got an error : " + e.getMessage() 
+					+ "\n------------------------------");
+			return null;
+		}
 	}
 
 	@Override
 	public Future<MessageI> getNextMessage(String channel) throws UnknownClientException, UnknownChannelException,
 			UnauthorisedClientException, NotSubscribedChannelException {
-		
-		//if message queue of the channel don't exists then add the queue.
-		BlockingQueue<MessageI> q =
-		        messagesQueue.computeIfAbsent(channel, k -> new LinkedBlockingQueue<>());
+		// Precondition check
+		assert(channel != null && !channel.isEmpty());
 		
 		Client client = (Client)this.getOwner();
-		client.logMessage("Waiting future next message on channel " + channel);
-
+		client.logMessage("Thread "+Thread.currentThread().getId()+": Creates a message future for the channel '" + channel + "'");
 		
-			//Retrieve the head of the message queue if not empty 
-			//else wait for a message to be added in the queue
-		    MessageI msg = q.poll();
-		    if (msg != null) {
-		        return CompletableFuture.completedFuture(msg);
-		    }
-		    
-		    //Create the future
-		    CompletableFuture<MessageI> future = new CompletableFuture<>();
-
-		    //Create the queue for the future message
-		    Queue<CompletableFuture<MessageI>> fq =
-		        futureQueues.computeIfAbsent(channel, k -> new LinkedList<>());
-
-		    //add the future in the future message queue
-		    fq.add(future);
-
-		    return future;
+		// Locks the whole map to ensure that the future queue for the channel exists
+		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = null;
+		synchronized(futureMessages) {
+			channelFutureMessagesQueue = futureMessages.get(channel);
+			if (channelFutureMessagesQueue == null) {
+				channelFutureMessagesQueue = new ConcurrentLinkedQueue<>();
+				futureMessages.put(channel, channelFutureMessagesQueue);
+			}
+		}
+		
+		// Creates and inserts the future into the queue
+		CompletableFuture<MessageI> future = new CompletableFuture<>();
+		channelFutureMessagesQueue.add(future);
+		
+		// Postcondition verified by construction 
+		return future;
 	}
 	
+	// -------------------------------------------------------------------------
+	// Plug-in getter for the future queues
+	// -------------------------------------------------------------------------
 	
 	/**
-	 * Enqueue a message in the internal queues of {@code channel}
+	 * Returns a mapping : channel name -> a queue of futures, each future waiting a message from the channel.<br>
+	 * Used by the {@link ClientReceivingPluginInboundPort}.
+	 * 
 	 * <p><strong>Contract</strong></p>
-		<pre>
-		pre none
-		post none
-		</pre>
-		@param channel name of the channel
-		@param mes  message to enqueue
+	 * <pre>
+	 * pre	{@code true} // no precondition
+	 * post	{@code return != null}
+	 * </pre>
+	 * 
+	 * @return	a mapping : channel name -> a queue of futures, each future waiting a message from the channel.
 	 */
-	public synchronized void enqueueMessage(String channel, MessageI mes) {
-		
-		System.out.println("enqueueMessage");
-		
-		//We prioritize the queue of future
-	    Queue<CompletableFuture<MessageI>> fq = futureQueues.get(channel);
-	    
-	    if (fq != null && !fq.isEmpty()) {
-	        fq.poll().complete(mes);
-	    }
-
-	    BlockingQueue<MessageI> q =
-	        messagesQueue.computeIfAbsent(channel, k -> new LinkedBlockingQueue<>());
-
-	    q.offer(mes);
+	public ConcurrentHashMap<String, ConcurrentLinkedQueue<CompletableFuture<MessageI>>> getFutureMessages() {
+		return futureMessages;
 	}
 	
 }
