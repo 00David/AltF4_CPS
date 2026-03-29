@@ -170,11 +170,17 @@ public class MessageTest{
 	@Test
 	public void testCopy() {
 		Message message = new Message();
-		WindData exemple = new WindData(new PositionData(0, 0), 0, 0);
-		message.setPayload(exemple);
+		LocationData data = new LocationData("10248773", "6437392729");
+		message.putProperty("location", data);
+		message.setPayload(data);
 		
 		Message copy = (Message) message.copy();
+		PropertyI[] properties = copy.getProperties();
 		
-		assertEquals(copy.getPayload(), message.getPayload());
+		assertEquals(message.getPayload(), copy.getPayload());
+		assertEquals(1, properties.length);
+		assertTrue(copy.propertyExists("location"));
+		PropertyI p = properties[0];
+		assertEquals(data, p.getValue());
 	}
 }

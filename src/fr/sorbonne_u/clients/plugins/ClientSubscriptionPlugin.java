@@ -1,7 +1,14 @@
 package fr.sorbonne_u.clients.plugins;
 
 import java.time.Duration;
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import fr.sorbonne_u.clients.components.Client;
@@ -48,6 +55,10 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	
 	/** Registration outbound port, owned by {@link ClientRegistrationPlugin} */
 	protected final ClientRegistrationOutboundPort registrationOutboundPort;
+	
+	//Queues for waiting the messages
+	protected ConcurrentHashMap<String, BlockingQueue<MessageI>> messagesQueue = new ConcurrentHashMap<String, BlockingQueue<MessageI>>();
+	protected ConcurrentHashMap<String, Queue<CompletableFuture<MessageI>>> futureQueues = new ConcurrentHashMap<String, Queue<CompletableFuture<MessageI>>>();
 	
 	/**
 	 * Creates a {@link Client} subscription + reception plugin.
@@ -199,6 +210,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 		client.logMessage("------------------------------\n"
 				+ "Thread "+Thread.currentThread().getId()+": Client received message '" + message + "' from the channel : " + channel 
 				+ "\n------------------------------");
+		enqueueMessage(channel, message);
 	}
 	
 	/**
@@ -232,31 +244,106 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 		client.logMessage("------------------------------\n"
 				+ "Thread "+Thread.currentThread().getId()+": Client received "+ messages.length +" messages from the channel : " + channel 
 				+ "\n------------------------------");
-		/*for (int i=0; i<messages.length; i++) {
+		for (int i=0; i<messages.length; i++) {
 			MessageI message = messages[i];
-			client.logMessage("Message " + i + " '" + message + "'");
-		}*/
+			enqueueMessage(channel, message);
+			//client.logMessage("Message " + i + " '" + message + "'");
+		}
 	}
 
 	@Override
 	public MessageI waitForNextMessage(String channel) throws UnknownClientException, UnknownChannelException,
 			UnauthorisedClientException, NotSubscribedChannelException {
-		// TODO
-		return null;
+		
+		Client client = (Client)this.getOwner();
+		client.logMessage("Waiting next message on channel " + channel);
+		
+		try {
+			//Retrieve a message from the queue if queue is not empty 
+			//else wait for a message is added in the queue
+	        return messagesQueue.get(channel).take();
+	    } catch (InterruptedException e) {
+	        Thread.currentThread().interrupt();
+	        return null;
+	    }
 	}
-
+	
+	
 	@Override
 	public MessageI waitForNextMessage(String channel, Duration d) throws UnknownClientException,
 			UnknownChannelException, UnauthorisedClientException, NotSubscribedChannelException {
-		// TODO
-		return null;
+		
+		Client client = (Client)this.getOwner();
+		client.logMessage("Waiting next message on channel " + channel + "for " + d.getSeconds() + " sec");
+		
+		try {
+			//Retrieve a message from the queue if queue is not empty 
+			//else wait for x sec for a message is added in the queue
+	        return messagesQueue.get(channel).poll(d.toMillis(), TimeUnit.MILLISECONDS);
+	    } catch (InterruptedException e) {
+	        Thread.currentThread().interrupt();
+	        return null;
+	    }
 	}
 
 	@Override
 	public Future<MessageI> getNextMessage(String channel) throws UnknownClientException, UnknownChannelException,
 			UnauthorisedClientException, NotSubscribedChannelException {
-		// TODO
-		return null;
+		
+		//if message queue of the channel don't exists then add the queue.
+		BlockingQueue<MessageI> q =
+		        messagesQueue.computeIfAbsent(channel, k -> new LinkedBlockingQueue<>());
+		
+		Client client = (Client)this.getOwner();
+		client.logMessage("Waiting future next message on channel " + channel);
+
+		
+			//Retrieve the head of the message queue if not empty 
+			//else wait for a message to be added in the queue
+		    MessageI msg = q.poll();
+		    if (msg != null) {
+		        return CompletableFuture.completedFuture(msg);
+		    }
+		    
+		    //Create the future
+		    CompletableFuture<MessageI> future = new CompletableFuture<>();
+
+		    //Create the queue for the future message
+		    Queue<CompletableFuture<MessageI>> fq =
+		        futureQueues.computeIfAbsent(channel, k -> new LinkedList<>());
+
+		    //add the future in the future message queue
+		    fq.add(future);
+
+		    return future;
+	}
+	
+	
+	/**
+	 * Enqueue a message in the internal queues of {@code channel}
+	 * <p><strong>Contract</strong></p>
+		<pre>
+		pre none
+		post none
+		</pre>
+		@param channel name of the channel
+		@param mes  message to enqueue
+	 */
+	public synchronized void enqueueMessage(String channel, MessageI mes) {
+		
+		System.out.println("enqueueMessage");
+		
+		//We prioritize the queue of future
+	    Queue<CompletableFuture<MessageI>> fq = futureQueues.get(channel);
+	    
+	    if (fq != null && !fq.isEmpty()) {
+	        fq.poll().complete(mes);
+	    }
+
+	    BlockingQueue<MessageI> q =
+	        messagesQueue.computeIfAbsent(channel, k -> new LinkedBlockingQueue<>());
+
+	    q.offer(mes);
 	}
 	
 }

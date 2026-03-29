@@ -1,4 +1,4 @@
-package fr.sorbonne_u.meteo.tests;
+package fr.sorbonne_u.meteo.tests.audit1;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -25,6 +25,9 @@ import fr.sorbonne_u.filters.time.GreaterOrEqualTimeFilter;
 import fr.sorbonne_u.filters.value.meteo.PositionInRegionsValueFilter;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.RegionData;
+import fr.sorbonne_u.meteo.tests.MeteoBureauTest;
+import fr.sorbonne_u.meteo.tests.MeteoStationTest;
+import fr.sorbonne_u.meteo.tests.WindTurbineTest;
 import fr.sorbonne_u.utils.aclocks.ClocksServer;
 
 /**

@@ -76,8 +76,11 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * <p>
  * Each provided service is multi-thread safe : it either explicitly takes the required client / channel locks, introducing critical sections,
  * or when a single operation needs to be performed on an internal map (clientsInfos or channelsInfos), it can do the operation
- * without taking explicitly the lock, but directly doing the operation on the map, implemented by a {@link ConcurrentHashMap}
- * so multi-thread safe for read/write operations on it.
+ * without taking explicitly the lock by directly doing the operation on the map, implemented by a {@link ConcurrentHashMap}
+ * so multi-thread safe for read/write operations on it.<br>
+ * For each critical section taken for a client / channel, it does a double check : it checks that the concerned data still exists
+ * in the system before taking the lock, and it does the same once it has taken the lock, in case of having another thread removing the data
+ * from the system while our thread waited the lock access.
  * </p>
  * 
  * <p><strong>Invariants</strong></p>

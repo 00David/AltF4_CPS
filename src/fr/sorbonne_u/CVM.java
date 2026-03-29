@@ -3,9 +3,10 @@ package fr.sorbonne_u;
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.cvm.AbstractCVM;
-import fr.sorbonne_u.meteo.tests.CVMSimpleTest;
-import fr.sorbonne_u.meteo.tests.CVMCompleteTest;
-import fr.sorbonne_u.meteo.tests.CVMConcurrentTest;
+import fr.sorbonne_u.meteo.tests.audit1.CVMSimpleTest;
+import fr.sorbonne_u.meteo.tests.audit2.CVMAbnormalConcurrentPublicationsTest;
+import fr.sorbonne_u.meteo.tests.audit2.CVMConcurrentPublicationsTest;
+import fr.sorbonne_u.meteo.tests.mid_semester.CVMCompleteTest;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.meteo.components.MeteoBureau;
@@ -23,8 +24,10 @@ import fr.sorbonne_u.meteo.data.PositionData;
  * 		<li>{@link CVMSimpleTest}, providing a simple prepared scenario of the system usage.</li>
  * 		<li>{@link CVMCompleteTest}, providing a more complex prepared scenario of the system usage, 
  * 			with components using different filters and privileged features.</li>
- * 		<li>{@link CVMConcurrentTest}, providing a prepared scenario of the system usage
- * 			with concurrent publications, and errors management linked to this usage.</li>
+ * 		<li>{@link CVMConcurrentPublicationsTest}, providing a prepared scenario of the system usage
+ * 			with concurrent publications.</li>
+ * 		<li>{@link CVMAbnormalConcurrentPublicationsTest}, providing a prepared scenario for errors management
+ * 			while doing concurrent publications.</li>
  * 	</ul>
  * 
  * @author Kevin TANG

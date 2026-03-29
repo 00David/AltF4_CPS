@@ -51,6 +51,66 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 	// Overrides default Client reception services
 	// -------------------------------------------------------------------------
 
+//	@Override
+//	public void receive(String channel, MessageI message) {
+//		// Precondition checks
+//		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
+//		assert(message != null) : new PreconditionException("message cannot be null");
+//		
+//		WindTurbine windTurbine = (WindTurbine)this.getOwner();
+//		
+//		windTurbine.logMessage("------------------------------\n"
+//				+ "Thread "+Thread.currentThread().getId()+": WindTurbine received message '" + message + "' from the channel : " + channel 
+//				+ "\n------------------------------");
+//		Serializable payload = message.getPayload();
+//
+//		// Handling of received wind data delegated to the WindTurbine
+//		if (payload instanceof WindData && !windTurbine.inSafeMode()) {
+//			windTurbine.considerNewWindData((WindData) payload);
+//		
+//		// Handling of received meteo alert delegated to the WindTurbine
+//		} else if (payload instanceof MeteoAlert) {
+//			windTurbine.considerNewAlert((MeteoAlert) payload);
+//			
+//		// Handling of received wind data while in safe mode (nothing)
+//		} else {
+//			
+//		}
+//	}
+//
+//	@Override
+//	public void receive(String channel, MessageI[] messages) {
+//		// Precondition checks
+//		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
+//		assert(messages != null && messages.length > 0) : new PreconditionException("messages container cannot be null or empty");
+//		assert(Stream.of(messages).allMatch(m -> m != null)) : new PreconditionException("a message received cannot be null");
+//		
+//		WindTurbine windTurbine = (WindTurbine)this.getOwner();
+//		
+//		windTurbine.logMessage("------------------------------\n"
+//				+ "Thread "+Thread.currentThread().getId()+": WindTurbine received "+ messages.length +" messages from the channel : " + channel 
+//				+ "\n------------------------------");
+//		for (int i=0; i<messages.length; i++) {
+//			
+//			MessageI message = messages[i];
+//			//windTurbine.logMessage("Message " + i + " '" + message + "'");
+//			Serializable payload = message.getPayload();
+//			
+//			// Handling of received wind data delegated to the WindTurbine
+//			if (payload instanceof WindData && !windTurbine.inSafeMode()) {
+//				windTurbine.considerNewWindData((WindData) payload);
+//			
+//			// Handling of received meteo alert delegated to the WindTurbine
+//			} else if (payload instanceof MeteoAlert) {
+//				windTurbine.considerNewAlert((MeteoAlert) payload);
+//				
+//			// Handling of received wind data while in safe mode (nothing)
+//			} else {
+//				
+//			}
+//		}
+//	}
+	
 	@Override
 	public void receive(String channel, MessageI message) {
 		// Precondition checks
@@ -62,20 +122,22 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 		windTurbine.logMessage("------------------------------\n"
 				+ "Thread "+Thread.currentThread().getId()+": WindTurbine received message '" + message + "' from the channel : " + channel 
 				+ "\n------------------------------");
-		Serializable payload = message.getPayload();
-
-		// Handling of received wind data delegated to the WindTurbine
-		if (payload instanceof WindData && !windTurbine.inSafeMode()) {
-			windTurbine.considerNewWindData((WindData) payload);
+		//Serializable payload = message.getPayload();
 		
-		// Handling of received meteo alert delegated to the WindTurbine
-		} else if (payload instanceof MeteoAlert) {
-			windTurbine.considerNewAlert((MeteoAlert) payload);
-			
-		// Handling of received wind data while in safe mode (nothing)
-		} else {
-			
-		}
+		enqueueMessage(channel, message);
+
+//		// Handling of received wind data delegated to the WindTurbine
+//		if (payload instanceof WindData && !windTurbine.inSafeMode()) {
+//			windTurbine.considerNewWindData((WindData) payload);
+//		
+//		// Handling of received meteo alert delegated to the WindTurbine
+//		} else if (payload instanceof MeteoAlert) {
+//			windTurbine.considerNewAlert((MeteoAlert) payload);
+//			
+//		// Handling of received wind data while in safe mode (nothing)
+//		} else {
+//			
+//		}
 	}
 
 	@Override
@@ -94,20 +156,22 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 			
 			MessageI message = messages[i];
 			//windTurbine.logMessage("Message " + i + " '" + message + "'");
-			Serializable payload = message.getPayload();
+			//Serializable payload = message.getPayload();
 			
-			// Handling of received wind data delegated to the WindTurbine
-			if (payload instanceof WindData && !windTurbine.inSafeMode()) {
-				windTurbine.considerNewWindData((WindData) payload);
+			enqueueMessage(channel, message);
 			
-			// Handling of received meteo alert delegated to the WindTurbine
-			} else if (payload instanceof MeteoAlert) {
-				windTurbine.considerNewAlert((MeteoAlert) payload);
-				
-			// Handling of received wind data while in safe mode (nothing)
-			} else {
-				
-			}
+//			// Handling of received wind data delegated to the WindTurbine
+//			if (payload instanceof WindData && !windTurbine.inSafeMode()) {
+//				windTurbine.considerNewWindData((WindData) payload);
+//			
+//			// Handling of received meteo alert delegated to the WindTurbine
+//			} else if (payload instanceof MeteoAlert) {
+//				windTurbine.considerNewAlert((MeteoAlert) payload);
+//				
+//			// Handling of received wind data while in safe mode (nothing)
+//			} else {
+//				
+//			}
 		}
 	}
 }

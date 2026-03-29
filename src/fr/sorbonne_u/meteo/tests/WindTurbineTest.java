@@ -1,11 +1,14 @@
 package fr.sorbonne_u.meteo.tests;
 
+import java.time.Duration;
+
 import fr.sorbonne_u.components.utils.tests.TestScenario;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.LevelI;
 import fr.sorbonne_u.meteo.components.WindTurbine;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.utils.aclocks.ClocksServer;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
+import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
@@ -260,6 +263,37 @@ public class WindTurbineTest extends WindTurbine {
 	public int getNbWindDatasReceived() {
 		synchronized (this.datas) {
 			return this.datas.size();
+		}
+	}
+	
+	public void gettingNextMessage(String channel) {
+		//System.out.println("gettingNextMessage");
+		try {
+			MessageI mes = subscriptionPlugin.waitForNextMessage(channel);
+			System.out.println("waitForNextMessage ended, got message ? :"+(mes != null));
+			this.logMessage("Client received message '" + mes + "' from the channel : " + channel);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public void gettingNextMessageTime(String channel,Duration d) {
+		//System.out.println("gettingNextMessageTime");
+		try {
+			MessageI mes = subscriptionPlugin.waitForNextMessage(channel, d);
+			System.out.println("waitForNextMessage timeout ended, got message ? :"+(mes != null));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public void gettingNextMessageFuture(String channel) {
+		//System.out.println("gettingNextMessageFuture");
+		try {
+			MessageI mes = subscriptionPlugin.getNextMessage(channel).get();
+			System.out.println("getNextMessage ended,  got message ? :"+(mes != null));
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 	
