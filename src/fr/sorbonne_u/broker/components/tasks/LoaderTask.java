@@ -13,7 +13,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
- * Created by the {@link Broker}, handles loading messages into a specific channel, 
+ * Created by the {@link Broker}, handles loading (copies of) messages into a specific channel, 
  * and submits an {@link UnloaderTask} for unloading those messages.
  * 
  * <p><strong>Invariants</strong></p>
@@ -47,6 +47,16 @@ public class LoaderTask extends AbstractTask {
 	
 	/**
 	 * Broker publication task handling loading received messages into a specific channel.
+	 * 
+	 * <pre>
+	 * pre	{@code broker != null}
+	 * pre	{@code clientsInfos != null}
+	 * pre	{@code channelsInfos != null}
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * pre	{@code messagesToLoad != null}
+	 * post class invariants satisfied
+	 * </pre>
+	 * 
 	 * @param broker			The broker component having the task.
 	 * @param clientsInfos		{@code broker} mapping : client inbound port (URI) -> its informations.
 	 * @param channelsInfos		{@code broker} mapping : channel name -> its informations.
@@ -72,6 +82,7 @@ public class LoaderTask extends AbstractTask {
 	@Override
 	public void run() {
 		try {
+			//broker.logMessage("LOADER "+Thread.currentThread().getId()+" starts loading into '"+channel+"'") ;
 			
 			ChannelBrokerInfos chanInfos = channelsInfos.get(channel);
 			if (chanInfos == null) throw new UnknownChannelException("Channel "+channel+" doesn't exist anymore.");
@@ -90,14 +101,17 @@ public class LoaderTask extends AbstractTask {
 				}
 			}
 			
-			// Puts messages into the channel
-			chanInfos.loadMessages(messagesToLoad);
+			// Puts copies of original messages into the channel (for not spreading shared references)
+			for(MessageI msg : messagesToLoad) {
+				chanInfos.loadMessage(msg.copy());
+			}
 			
 			// Creates an unload task
 			broker.runTask(Broker.UNLOADERS_POOL_URI, new UnloaderTask(broker, clientsInfos, chanInfos, channel, nbMaxUnloadMessages));
 			
-		} catch (Exception e) {
-			e.printStackTrace();
+			//broker.logMessage("LOADER "+Thread.currentThread().getId()+" ended task") ;
+		} catch (UnknownChannelException e) {
+			System.err.println("Thread "+Thread.currentThread().getId()+": Loader error : "+e.getMessage());
 		}
 	}
 }

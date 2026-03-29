@@ -23,8 +23,6 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
 /**
  * Test class representing a {@link MeteoBureau} following a predefined scenario.
  * 
- * <p>The scenario is described in the {@link CVMSimpleTest} class.</p>
- * 
  * <p>The class does extend {@link MeteoBureau} because it keeps the same setup, while adding personalized actions for a test scenario.</p>
  * 
  * @author Kevin TANG

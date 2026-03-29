@@ -24,7 +24,7 @@ import fr.sorbonne_u.meteo.data.PositionData;
  * 		<li>{@link CVMCompleteTest}, providing a more complex prepared scenario of the system usage, 
  * 			with components using different filters and privileged features.</li>
  * 		<li>{@link CVMConcurrentTest}, providing a prepared scenario of the system usage
- * 			with concurrent publications.</li>
+ * 			with concurrent publications, and errors management linked to this usage.</li>
  * 	</ul>
  * 
  * @author Kevin TANG

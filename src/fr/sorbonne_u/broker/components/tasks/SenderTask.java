@@ -42,6 +42,16 @@ public class SenderTask extends AbstractTask {
 	
 	/**
 	 * Broker publication task handling unloading messages from a specific channel.
+	 * 
+	 * <pre>
+	 * pre	{@code broker != null}
+	 * pre	{@code clientsInfos != null}
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * pre	{@code targetPortURI != null}
+	 * pre	{@code messagesToSend != null}
+	 * post class invariants satisfied
+	 * </pre>
+	 * 
 	 * @param broker			The broker component having the task.
 	 * @param clientsInfos		{@code broker} mapping : client inbound port (URI) -> its informations.
 	 * @param channel			The channel from where {@code messagesToSend} has been unloaded.
@@ -67,20 +77,21 @@ public class SenderTask extends AbstractTask {
 	@Override
 	public void run() {
 		try {
+			//broker.logMessage("SENDER "+Thread.currentThread().getId()+" starts sending from'"+channel+"' to '"+targetPortURI+"'") ;
 			
 			// Takes the client lock
 			ClientBrokerInfos client = clientsInfos.get(targetPortURI);
 			synchronized(client) {
-				// Checks that the targeted client is still registered and subscribed to the channel
-				// If it is okay, sends messages.
-				if (broker.registeredService(targetPortURI) && broker.subscribedService(targetPortURI, channel)) {
-					broker.logMessage("Broker sending "+messagesToSend.length+" message(s) to '" + targetPortURI + "'") ;
+				// Checks that the targeted client is still registered. If it is okay, sends messages.
+				if (broker.registeredService(targetPortURI)) {
+					broker.logMessage("Thread "+Thread.currentThread().getId()+": Broker sending "+messagesToSend.length+" message(s) to '" + targetPortURI + "'") ;
 					client.getOutboundPort().receive(channel, messagesToSend);
 				}
 			}
 
+			//broker.logMessage("SENDER "+Thread.currentThread().getId()+" ended task") ;
 		} catch (Exception e) {
-			e.printStackTrace();
+			System.err.println("Thread "+Thread.currentThread().getId()+": Sender error : "+e.getMessage());
 		}
 	}
 }

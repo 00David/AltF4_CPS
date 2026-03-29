@@ -2,12 +2,10 @@ package fr.sorbonne_u.meteo.components;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.components.AbstractComponent;
-import fr.sorbonne_u.components.tasks_management.interfaces.AbnormalTerminationNotificationCI;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.LevelI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.PropertyFilterI;
@@ -38,6 +36,14 @@ import fr.sorbonne_u.exceptions.PostconditionException;
  * </p>
  * 
  * <p>
+ * Multi-tread safeness is guaranteed by the usage of 2 locks :
+ * 	<ul>
+ * 		<li>The {@code datas} reference lock, when accessing the list of considered wind datas for the orientation computation.</li>
+ * 		<li>The {@code safeModeLock}, for accessing the current state of {@code safeMode} .</li>
+ * 	</ul>
+ * </p>
+ * 
+ * <p>
  * A Wind Turbine can have a privileged registration class, allowing it to interact with privileged channels on the {@link Broker},
  * however instead of {@link MeteoBureau} and {@link MeteoStation} components, it does not automatically creates the
  * privileged plugin on creation.
@@ -49,6 +55,7 @@ import fr.sorbonne_u.exceptions.PostconditionException;
  * invariant	{@code pos != null}
  * invariant	{@code orientation != null}
  * invariant	{@code maxWorkingLevel != null}
+ * invariant	{@code safeModeLock != null}
  * invariant	{@code subscriptionPlugin != null && subscriptionPlugin.isInitialised()}
  * </pre>
  * 
@@ -61,10 +68,10 @@ public class WindTurbine extends Client {
 	protected final PositionData windTurbinePos;
 	
 	/** Stores wind data received from messages */
-	protected final ArrayList<WindData> datas;
+	protected final ArrayList<WindData> datas = new ArrayList<WindData>();
 
 	/** The orientation of the wind turbine. PositionData is used here as a vector, for the WindTurbine orientation */
-	protected PositionData orientation;
+	protected PositionData orientation = new PositionData(0, 0);
 	
 	/** 
 	 * Maximum alert level (inclusive) at which the turbine operates.<br>
@@ -73,7 +80,10 @@ public class WindTurbine extends Client {
 	protected final LevelI maxWorkingLevel;
 
 	/** Indicates whether the turbine is in safety mode or not (false by default) */
-	protected AtomicBoolean safeMode;
+	protected boolean safeMode = false;
+	
+	/** {@code safeMode} lock, used when the safemode is accessed for reading/writing */
+	protected final Object safeModeLock = new Object();
 	
 	// SUBSCRIPTION + RECEPTION
 	
@@ -83,9 +93,9 @@ public class WindTurbine extends Client {
 	
 	/** 
 	 * Indicates if the wind turbine must register itself with default filters on channels "channel0" and "channel1".<br>
-	 * Test sub-classes can set this boolean at false, otherwise it is set à true by default.
+	 * Test sub-classes can set this boolean at false in their constructor, otherwise it is set à true by default.
 	 */
-	protected boolean defaultReceptionOnExec;
+	protected boolean defaultReceptionOnExec = true;
 
 	//--------------------------------------------------------------------------
 	// Constructors
@@ -125,11 +135,7 @@ public class WindTurbine extends Client {
 		assert (maxWorkingLevel != null) : new PreconditionException("max working level cannot be null");	
 
 		this.windTurbinePos = windTurbinePos;
-		this.datas = new ArrayList<WindData>();
-		this.orientation = new PositionData(0, 0);
-		this.safeMode = new AtomicBoolean(false);
 		this.maxWorkingLevel = maxWorkingLevel;
-		this.defaultReceptionOnExec = true;
 		
 		// Install the subscription + reception plugin (Wind turbine version)
 		this.subscriptionPlugin = new WindTurbineReceptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
@@ -193,11 +199,7 @@ public class WindTurbine extends Client {
 		assert (maxWorkingLevel != null) : new PreconditionException("max working level cannot be null");	
 
 		this.windTurbinePos = windTurbinePos;
-		this.datas = new ArrayList<WindData>();
-		this.orientation = new PositionData(0, 0);
-		this.safeMode = new AtomicBoolean(false);
 		this.maxWorkingLevel = maxWorkingLevel;
-		this.defaultReceptionOnExec = true;
 		
 		// Install the subscription + reception plugin (Wind turbine version)
 		this.subscriptionPlugin = new WindTurbineReceptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
@@ -294,7 +296,9 @@ public class WindTurbine extends Client {
 	 * @return true		if wind turbine is in safe mode, otherwise it operates normally.
 	 */
 	public boolean inSafeMode() {
-		return safeMode.get();
+		synchronized(safeModeLock) {
+			return safeMode;
+		}
 	}
 
     /**
@@ -344,16 +348,11 @@ public class WindTurbine extends Client {
 		    y = -y;
 
 			this.orientation = new PositionData(x, y);
-			this.logMessage("WindTurbine has changed orientation : now = " + this.orientation);
-			this.logMessage("------------------------------");
+			this.logMessage("Thread "+Thread.currentThread().getId()+": WindTurbine has changed orientation : now = " + this.orientation);
 			
 			// Postcondition check
-			assert(datas.contains(newWindData)) : new PostconditionException("New wind data must be considered");
-			
-		}
-		
-		
-		
+			assert(datas.contains(newWindData)) : new PostconditionException("New wind data must be considered");	
+		}	
 	}
 	
     /**
@@ -369,24 +368,26 @@ public class WindTurbine extends Client {
      */
 	public void considerNewAlert(MeteoAlert alert) {
 		if (alert == null) {
-			this.logMessage("------------------------------");
 			return;
 		}
 		
 		MeteoAlertI.Level maxLevel = (MeteoAlertI.Level) this.maxWorkingLevel;
 		MeteoAlertI.Level alertLevel = (MeteoAlertI.Level) alert.getLevel();
 
-		if (alertLevel.ordinal() > maxLevel.ordinal() && (safeMode.get() == false)) {
-			goInSafeMode();
-			this.datas.clear(); // Erase previous wind datas
-		} else if (alertLevel.ordinal() <= maxLevel.ordinal() && (safeMode.get() == true)) {
-			goBacktoNormalMode();
-		
-		// Don't change anything, if we have :
-		// - received an alert above the maximum operating level while already in safe mode
-		// - received an alert within the operating range while already in normal operation (safeMode == false)
-		} else {
-			this.logMessage("------------------------------");
+		synchronized(safeModeLock) {
+			if (alertLevel.ordinal() > maxLevel.ordinal() && !safeMode) {
+				goInSafeMode();
+				synchronized (this.datas) {
+					this.datas.clear(); // Erase previous wind datas
+				}
+			} else if (alertLevel.ordinal() <= maxLevel.ordinal() && safeMode) {
+				goBacktoNormalMode();
+			
+			} else {
+				// Don't change anything, if we have :
+				// - received an alert above the maximum operating level while already in safe mode
+				// - received an alert within the operating range while already in normal operation (safeMode == false)
+			}
 		}
 	}
 	
@@ -425,13 +426,14 @@ public class WindTurbine extends Client {
 	 * </pre>
 	 */
 	protected void goInSafeMode() {
-		if (this.safeMode.get() == false) {
-			this.logMessage("WindTurbine going into security mode.");
-			this.logMessage("------------------------------");
-			this.safeMode.set(true);
+		synchronized(safeModeLock) {
+			if (!safeMode) {
+				this.logMessage("Thread "+Thread.currentThread().getId()+": WindTurbine going into security mode.");
+				safeMode = true;
+			}
+			// Postcondition check
+			assert(safeMode) : new PostconditionException("Safe mode must be turned on");
 		}
-		// Postcondition check
-		assert(this.safeMode.get() == true) : new PostconditionException("Safe mode must be turned on");
 	}
 
 	/**
@@ -444,12 +446,13 @@ public class WindTurbine extends Client {
 	 * </pre>
 	 */
 	protected void goBacktoNormalMode() {
-		if (this.safeMode.get() == true) {
-			this.logMessage("WindTurbine returning to normal operation.");
-			this.logMessage("------------------------------");
-			this.safeMode.set(false);
+		synchronized(safeModeLock) {
+			if (safeMode) {
+				this.logMessage("Thread "+Thread.currentThread().getId()+": WindTurbine returning to normal operation.");
+				safeMode = false;
+			}
+			// Postcondition check
+			assert(!safeMode) : new PostconditionException("Safe mode must be turned off");
 		}
-		// Postcondition check
-		assert(this.safeMode.get() == false) : new PostconditionException("Safe mode must be turned off");
 	}
 }

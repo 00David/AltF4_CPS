@@ -63,7 +63,7 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * 	FIRST HALF : focus on FILTER TESTS
  * </p>
  * <ul>
- *     <li>After 20 seconds, <strong>MeteoBureau n°2</strong> sends wind data only on <strong>WindTurbine n°1</strong> exact position.</li>
+ *     <li>After 20 seconds, <strong>MeteoBureau n°2</strong> sends a wind alert only on <strong>WindTurbine n°1</strong> exact position.</li>
  *     <li>After 40 seconds, <strong>MeteoStation n°2</strong> sends wind data with high force, 
  *         not being accepted by <strong>WindTurbine n°1</strong>'s filter on wind force
  *         nor <strong>WindTurbine 3</strong>'s filter on time.</li>
@@ -111,19 +111,10 @@ public class CVMCompleteTest extends AbstractCVM {
 		(long) (DELAY_TO_START + 1000L + ((Instant.parse(END_INSTANT).toEpochMilli() - Instant.parse(START_INSTANT).toEpochMilli())
 														/ACCELERATION_FACTOR));
 	
-	// Delay after the start when the step will be executed, in seconds
-	public static long STEP0 = 20;
-	public static long STEP1 = 40;
-	public static long STEP2 = 60;
-	public static long STEP3 = 80;
-	public static long STEP4 = 100;
-	public static long STEP5 = 120;
-	public static long STEP6 = 140;
-	public static long STEP7 = 160;
-	public static long STEP8 = 180;
-	public static long STEP9 = 200;
-	public static long STEP10 = 220;
-	public static long STEP11 = 240;
+	// Delay after the start when steps will be executed, in seconds
+	public static long[] STEPS = new long[] {20, 40, 60, 80, 100, 120, 140, 160, 180, 200,
+			220, 240};
+	public static final int NBSTEPS = STEPS.length;
 	
 	// -------------------------------------------------------------------------
 	// Component datas
@@ -200,7 +191,7 @@ public class CVMCompleteTest extends AbstractCVM {
 	protected static final MeteoAlertI.Level maxWorkingLevelWT3 = MeteoAlertI.Level.ORANGE; // inclusive
 	
 	// Time constraint, filters accepts messages 80 (=STEP3) seconds after the start of the scenario
-	protected final static TimeFilterI WT3timeFilterGE = new GreaterOrEqualTimeFilter(Instant.now().plusSeconds((long)(STEP3/ACCELERATION_FACTOR)));
+	protected final static TimeFilterI WT3timeFilterGE = new GreaterOrEqualTimeFilter(Instant.now().plusSeconds((long)(STEPS[3]/ACCELERATION_FACTOR)));
 	// Accepts every wind data
 	protected final MessageFilterI WT3Windfilters =  new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], WT3timeFilterGE);
 	// On alerts received, filter keeps only alerts with a region containing wind turbine's position
@@ -236,19 +227,8 @@ public class CVMCompleteTest extends AbstractCVM {
 		Instant endInstant = Instant.parse(END_INSTANT);
 
 		// Scenario instants
-		
-		Instant step0_Instant = startInstant.plusSeconds(STEP0);
-		Instant step1_Instant = startInstant.plusSeconds(STEP1);
-		Instant step2_Instant = startInstant.plusSeconds(STEP2);
-		Instant step3_Instant = startInstant.plusSeconds(STEP3);
-		Instant step4_Instant = startInstant.plusSeconds(STEP4);
-		Instant step5_Instant = startInstant.plusSeconds(STEP5);
-		Instant step6_Instant = startInstant.plusSeconds(STEP6);
-		Instant step7_Instant = startInstant.plusSeconds(STEP7);
-		Instant step8_Instant = startInstant.plusSeconds(STEP8);
-		Instant step9_Instant = startInstant.plusSeconds(STEP9);
-		Instant step10_Instant = startInstant.plusSeconds(STEP10);
-		Instant step11_Instant = startInstant.plusSeconds(STEP11);
+		Instant[] step_Instants = new Instant[NBSTEPS];
+		for (int i=0; i<NBSTEPS; i++) step_Instants[i] = startInstant.plusSeconds(STEPS[i]);
 
 		// MeteoBureau alert regions
 		
@@ -275,12 +255,12 @@ public class CVMCompleteTest extends AbstractCVM {
 				new TestStep(
 						CLOCK_URI,
 						MB2_URI,
-						step0_Instant,
+						step_Instants[0],
 						owner -> {
 							try {
-								System.out.println("STEP 0/11 (20s) : MeteoBureau2 sends wind data only on WindTubine1 exact position");
+								System.out.println("STEP 0/"+(NBSTEPS-1)+" ("+STEPS[0]+"s) : MeteoBureau2 sends a wind alert on WindTubine1 exact position");
 								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.FLOODING, MeteoAlertI.Level.ORANGE, 
-										WT1_region, step0_Instant, Duration.ofSeconds(5), "channel1");
+										WT1_region, step_Instants[0], Duration.ofSeconds(5), "channel1");
 							} catch (Exception e) {
 								System.err.println("Step 0 alert publication failed with exception " + e);
 							}
@@ -289,11 +269,11 @@ public class CVMCompleteTest extends AbstractCVM {
 				new TestStep(
 					CLOCK_URI,
 					MS2_URI,
-					step1_Instant,
+					step_Instants[1],
 					owner -> {
 						try {
-							System.out.println("STEP 1/11 (40s) : MeteoStation2 sends wind data with light force, only taken into account by WindTubine2");
-							((MeteoStationTest)owner).publishWindData(10.0, 10.0, "channel0");
+							System.out.println("STEP 1/"+(NBSTEPS-1)+" ("+STEPS[1]+"s) : MeteoStation2 sends wind data with light force, only taken into account by WindTubine2");
+							((MeteoStationTest)owner).publishWindData(10.0, 10.0, "channel0", false);
 						} catch (Exception e) {
 							System.err.println("Step 1 wind data publication failed with exception " + e);
 						}
@@ -303,12 +283,12 @@ public class CVMCompleteTest extends AbstractCVM {
 				new TestStep(
 						CLOCK_URI,
 						MB2_URI,
-						step2_Instant,
+						step_Instants[2],
 						owner -> {
 							try {
-								System.out.println("STEP 2/11 (60s) : MeteoBureau2 sends a dangerous alert exactly to WindTurbine3's position (not taken into account, too early for time filter)");
+								System.out.println("STEP 2/"+(NBSTEPS-1)+" ("+STEPS[2]+"s) : MeteoBureau2 sends a dangerous alert exactly to WindTurbine3's position (not taken into account, too early for time filter)");
 								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.RED, 
-										WT3_region, step2_Instant, Duration.ofSeconds(5), "channel1");
+										WT3_region, step_Instants[2], Duration.ofSeconds(5), "channel1");
 							} catch (Exception e) {
 								System.err.println("Step 2 alert publication failed with exception " + e);
 							}
@@ -318,12 +298,12 @@ public class CVMCompleteTest extends AbstractCVM {
 				new TestStep(
 						CLOCK_URI,
 						MB2_URI,
-						step3_Instant,
+						step_Instants[3],
 						owner -> {
 							try {
-								System.out.println("STEP 3/11 (80s) : MeteoBureau2 sends again a dangerous alert exactly to WindTurbine3's position (taken into account)");
+								System.out.println("STEP 3/"+(NBSTEPS-1)+" ("+STEPS[3]+"s) : MeteoBureau2 sends again a dangerous alert exactly to WindTurbine3's position (taken into account)");
 								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.ICY_STORM, MeteoAlertI.Level.SCARLET, 
-										WT3_region, step3_Instant, Duration.ofSeconds(5), "channel1");
+										WT3_region, step_Instants[3], Duration.ofSeconds(5), "channel1");
 							} catch (Exception e) {
 								System.err.println("Step 3 alert publication failed with exception " + e);
 							}
@@ -332,10 +312,10 @@ public class CVMCompleteTest extends AbstractCVM {
 				new TestStep(
 					CLOCK_URI,
 					WT3_URI,
-					step4_Instant,
+					step_Instants[4],
 					owner -> {
 						try {
-							System.out.println("STEP 4/11 (100s) : WindTurbine3 unregisters itself from the system");
+							System.out.println("STEP 4/"+(NBSTEPS-1)+" ("+STEPS[4]+"s) : WindTurbine3 unregisters itself from the system");
 							((WindTurbineTest)owner).unregisterFromSystem();
 						} catch (Exception e) {
 							System.err.println("Step 4 unregistration failed with exception " + e);
@@ -345,10 +325,10 @@ public class CVMCompleteTest extends AbstractCVM {
 				new TestStep(
 						CLOCK_URI,
 						MB1_URI,
-						step5_Instant,
+						step_Instants[5],
 						owner -> {
 							try {
-								System.out.println("STEP 5/11 (120s) : MeteoBureau1 creates a new channel : 'testChannel'");
+								System.out.println("STEP 5/"+(NBSTEPS-1)+" ("+STEPS[5]+"s) : MeteoBureau1 creates a new channel : 'testChannel'");
 								((MeteoBureauTest)owner).createNewChannel("testChannel", ".*");
 							} catch (Exception e) {
 								System.err.println("Step 5 new channel creation failed with exception " + e);
@@ -358,10 +338,10 @@ public class CVMCompleteTest extends AbstractCVM {
 				new TestStep(
 						CLOCK_URI,
 						WT1_URI,
-						step6_Instant,
+						step_Instants[6],
 						owner -> {
 							try {
-								System.out.println("STEP 6/11 (140s) : WindTurbine1 unsubscribes from channels 'channel0' and 'channel1',\nWindTurbine1 + WindTurbine2 subscribe to channel 'testChannel'");
+								System.out.println("STEP 6/"+(NBSTEPS-1)+" ("+STEPS[6]+"s) : WindTurbine1 unsubscribes from channels 'channel0' and 'channel1',\nWindTurbine1 + WindTurbine2 subscribe to channel 'testChannel'");
 								((WindTurbineTest)owner).unsubscibeFromChannel("channel0");
 								((WindTurbineTest)owner).unsubscibeFromChannel("channel1");
 								((WindTurbineTest)owner).subscibeToChannel("testChannel", accept_all_filter);
@@ -373,7 +353,7 @@ public class CVMCompleteTest extends AbstractCVM {
 				new TestStep(
 						CLOCK_URI,
 						WT2_URI,
-						step6_Instant,
+						step_Instants[6],
 						owner -> {
 							try {
 								((WindTurbineTest)owner).subscibeToChannel("testChannel", accept_all_filter);
@@ -385,11 +365,11 @@ public class CVMCompleteTest extends AbstractCVM {
 				new TestStep(
 						CLOCK_URI,
 						MS1_URI,
-						step7_Instant,
+						step_Instants[7],
 						owner -> {
 							try {
-								System.out.println("STEP 7/11 (160s) : MeteoStation1 sends wind on 'channel0', \nwith only WindTurbine2 still subscribed to it");
-								((MeteoStationTest)owner).publishWindData(1.0, 1.0, "channel0");
+								System.out.println("STEP 7/"+(NBSTEPS-1)+" ("+STEPS[7]+"s) : MeteoStation1 sends wind on 'channel0', \nwith only WindTurbine2 still subscribed to it");
+								((MeteoStationTest)owner).publishWindData(1.0, 1.0, "channel0", false);
 							} catch (Exception e) {
 								System.err.println("Step 7 wind data publication failed with exception " + e);
 							}
@@ -398,11 +378,11 @@ public class CVMCompleteTest extends AbstractCVM {
 				new TestStep(
 						CLOCK_URI,
 						MS1_URI,
-						step8_Instant,
+						step_Instants[8],
 						owner -> {
 							try {
-								System.out.println("STEP 8/11 (180s) : MeteoStation1 sends wind on 'testChannel', \nwith both WindTurbine 1 and 2 subscribed to it");
-								((MeteoStationTest)owner).publishWindData(2.0, 2.0, "testChannel");
+								System.out.println("STEP 8/"+(NBSTEPS-1)+" ("+STEPS[8]+"s) : MeteoStation1 sends wind on 'testChannel', \nwith both WindTurbine 1 and 2 subscribed to it");
+								((MeteoStationTest)owner).publishWindData(2.0, 2.0, "testChannel", false);
 							} catch (Exception e) {
 								System.err.println("Step 8 wind data publication failed with exception " + e);
 							}
@@ -411,10 +391,10 @@ public class CVMCompleteTest extends AbstractCVM {
 				new TestStep(
 						CLOCK_URI,
 						MB1_URI,
-						step9_Instant,
+						step_Instants[9],
 						owner -> {
 							try {
-								System.out.println("STEP 9/11 (200s) : MeteoBureau1 changes 'testChannel' authorized users for exactly WindTurbine1 URI,\nimplicitly unsubsrcribing WindTurbine2");
+								System.out.println("STEP 9/"+(NBSTEPS-1)+" ("+STEPS[9]+"s) : MeteoBureau1 changes 'testChannel' authorized users for exactly WindTurbine1 URI,\nimplicitly unsubsrcribing WindTurbine2");
 								((MeteoBureauTest)owner).modifyAuthorizedUsers("testChannel", "^"+WT1ReceivingInboundPortURI+"$"); // inbound receiving port used on the broker
 							} catch (Exception e) {
 								System.err.println("Step 9 authorized users modification failed with exception " + e);
@@ -424,12 +404,12 @@ public class CVMCompleteTest extends AbstractCVM {
 				new TestStep(
 						CLOCK_URI,
 						MB1_URI,
-						step10_Instant,
+						step_Instants[10],
 						owner -> {
 							try {
-								System.out.println("STEP 10/11 (220s) : MeteoBureau1 sends a GREEN alert on the 'testChannel', received only by WindTurbine1");
+								System.out.println("STEP 10/"+(NBSTEPS-1)+" ("+STEPS[10]+"s) : MeteoBureau1 sends a GREEN alert on the 'testChannel', received only by WindTurbine1");
 								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.GREEN, 
-										all_regions, step10_Instant, Duration.ofSeconds(5), "testChannel");
+										all_regions, step_Instants[10], Duration.ofSeconds(5), "testChannel");
 							} catch (Exception e) {
 								System.err.println("Step 10 alert publication failed with exception " + e);
 							}
@@ -438,13 +418,13 @@ public class CVMCompleteTest extends AbstractCVM {
 				new TestStep(
 						CLOCK_URI,
 						MB1_URI,
-						step11_Instant,
+						step_Instants[11],
 						owner -> {
 							try {
-								System.out.println("STEP 11/11 (240s) : MeteoBureau1 destroys its 'testChannel' and verifies that it is has been deleted");
+								System.out.println("STEP 11/"+(NBSTEPS-1)+" ("+STEPS[11]+"s) : MeteoBureau1 destroys its 'testChannel' and verifies that it is has been deleted");
 								((MeteoBureauTest)owner).destroyChannelAndVerifies("testChannel");
 							} catch (Exception e) {
-								System.err.println("Step 11 \"testChannel\" destruction + verification failed with exception " + e);
+								System.err.println("Step 11 'testChannel' destruction + verification failed with exception " + e);
 							}
 						})
 				});

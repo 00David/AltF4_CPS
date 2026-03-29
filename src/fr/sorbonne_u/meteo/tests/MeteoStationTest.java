@@ -21,8 +21,6 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
 /**
  * Class representing a {@link MeteoStation} emitting wind data following a predefined scenario.
  * 
- * <p>The scenario is described in the {@link CVMSimpleTest} class.</p>
- * 
  * <p>The class does extend {@link MeteoStation} because it keeps the same setup, while adding personalized actions for a test scenario.</p>
  * 
  * @author Kevin TANG
@@ -111,9 +109,10 @@ public class MeteoStationTest extends MeteoStation {
 	 * @param xWind 		The X component of the wind vector.
 	 * @param yWind			The Y component of the wind vector.
 	 * @param channel		The channel on which it must publish the wind data.
+	 * @param notify		Indicates if the publishing service with notification must be called or not.
 	 * @throws Exception	If an error occurs while publishing.
 	 */
-	public void publishWindData(double xWind, double yWind, String channel) throws Exception {
+	public void publishWindData(double xWind, double yWind, String channel, boolean notify) throws Exception {
 		// Precondition checks
 		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");	
 		
@@ -128,7 +127,11 @@ public class MeteoStationTest extends MeteoStation {
 		this.logMessage("MeteoStation sending wind data "+wd+"\nto channel : '"+channel+"'");
 		this.logMessage("------------------------------");
 		
-		publicationPlugin.publish(channel, msg);
+		if (notify) {
+			publicationPlugin.asyncPublishAndNotify(channel, msg);
+		} else {
+			publicationPlugin.publish(channel, msg);
+		}
 	}
 	
 	/**
@@ -143,9 +146,10 @@ public class MeteoStationTest extends MeteoStation {
 	 * 
 	 * @param windDatas 	Wind datas to publish on the {@code channel}.
 	 * @param channel		The channel on which it must publish the wind data.
+	 * @param notify		Indicates if the publishing service with notification must be called or not.
 	 * @throws Exception	If an error occurs while publishing.
 	 */
-	public void publishWindDatas(List<WindData> windDatas, String channel) throws Exception {
+	public void publishWindDatas(List<WindData> windDatas, String channel, boolean notify) throws Exception {
 		// Precondition checks
 		assert(windDatas != null) : new PreconditionException("windDatas cannot be null");	
 		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");	
@@ -164,7 +168,11 @@ public class MeteoStationTest extends MeteoStation {
 		this.logMessage("MeteoStation sending "+messages.size()+" wind datas to channel : '"+channel+"'");
 		this.logMessage("------------------------------");
 		
-		publicationPlugin.publish(channel, messages);
+		if (notify) {
+			publicationPlugin.asyncPublishAndNotify(channel, messages);
+		} else {
+			publicationPlugin.publish(channel, messages);
+		}
 	}
 	
 	/**
@@ -196,5 +204,41 @@ public class MeteoStationTest extends MeteoStation {
 		
 		// Postcondition check
 		assert(publicationPlugin.channelExist(channel)) : new PostconditionException("new channel '"+channel+"' should exist");
+	}
+	
+	/**
+	 * Modifies authorized users of the {@code channel}.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * pre	{@code registrationClass == (RegistrationClass.STANDARD || RegistrationClass.PREMIUM)}
+	 * post	{@code !publicationPlugin.channelExist(channel)}
+	 * </pre>
+	 * 
+	 * @param channel 			The channel to destroy.
+	 * @param now				Indicates if we destroy NOW the channel, without sending to clients unloaded messages.
+	 * @throws Exception		If an error occurs while destroying the channel, or verifying the deletion.
+	 */
+	public void destroyChannelAndVerifies(String channel, boolean now) throws Exception {
+		// Precondition checks
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
+		assert(registrationClass == RegistrationClass.STANDARD ||  registrationClass == RegistrationClass.PREMIUM) : 
+			new PreconditionException("client must be privileged");
+		
+		if (now) {
+			privilegedPlugin.destroyChannelNow(channel);
+		} else {
+			privilegedPlugin.destroyChannel(channel);
+		}
+		
+		this.logMessage("Meteo Bureau has destroyed its channel : "+channel);
+		
+		boolean verif = subscriptionPlugin.channelExist(channel);
+		this.logMessage("Channel still exists ? "+verif);
+		
+		// Postcondition check
+		assert(!verif) : new PostconditionException("channel '"+channel+"' should not exist anymore");
 	}
 }

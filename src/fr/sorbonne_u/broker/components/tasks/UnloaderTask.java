@@ -58,6 +58,15 @@ public class UnloaderTask extends AbstractTask {
 	
 	/**
 	 * Broker publication task handling unloading messages from a specific channel.
+	 * 
+	 * <pre>
+	 * pre	{@code broker != null}
+	 * pre	{@code clientsInfos != null}
+	 * pre	{@code chanInfos != null}
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * post class invariants satisfied
+	 * </pre>
+	 * 
 	 * @param broker				The broker component having the task.
 	 * @param clientsInfos			{@code broker} mapping : client inbound port (URI) -> its informations.
 	 * @param chanInfos				A channel informations, from where messages will be unloaded.
@@ -81,15 +90,19 @@ public class UnloaderTask extends AbstractTask {
 
 	@Override
 	public void run() {
+		// Mapping : client target port URI -> messages to send to this target
+		Map<String, List<MessageI>> targetsMessages = null;
+		
 		try {
+			//broker.logMessage("UNLOADER "+Thread.currentThread().getId()+" starts unloading from'"+channel+"'") ;
 
 			boolean isUnloading = true;
 			
 			// Unloads messages from the channel. Stops when no messages.
 			while (isUnloading) {
 				
-				// Mapping : client target port URI -> messages to send to this target
-				Map<String, List<MessageI>> targetsMessages = new HashMap<>();
+				// Map reseted for each unloading
+				targetsMessages = new HashMap<>();
 				
 				int nbMessages = 0;
 				// Unloads messages until it reaches the 'nbMaxUnloadMessages' or there is no messages (isUnloading == false)
@@ -115,21 +128,42 @@ public class UnloaderTask extends AbstractTask {
 				}
 				
 				// For each target : creates a send task, sending to the target its list of targeted messages (converted to an array)
-				for (Map.Entry<String, List<MessageI>> e : targetsMessages.entrySet()) {
-					String targetPortURI = e.getKey();
-					List<MessageI> listMessagesToSend = e.getValue();
-					
-					int l = listMessagesToSend.size();
-					MessageI[] messagesToSend = new MessageI[l];
-					for(int i=0; i<l; i++) messagesToSend[i] = listMessagesToSend.get(i);
-					
-					broker.runTask(Broker.SENDERS_POOL_URI, new SenderTask(broker, clientsInfos, channel, targetPortURI, messagesToSend));
-				}
-				
+				createSendingTasks(targetsMessages);
 			}
 
-		} catch (Exception e) {
-			e.printStackTrace();
+			//broker.logMessage("UNLOADER "+Thread.currentThread().getId()+" ended task") ;
+		} catch (UnknownChannelException e) {
+			System.err.println("Thread "+Thread.currentThread().getId()+": Unloader error : "+e.getMessage());
+			
+			// If an unloading is interrupted, with for instance a channel destruction,
+			// it will still send unloaded messages currently in its map
+			createSendingTasks(targetsMessages);
+		}
+	}
+	
+	/**
+	 * For each target : creates a send task, sending to the target its list of targeted messages (converted to an array).
+	 * 
+	 * <pre>
+	 * pre	{@code targetsMessages != null}
+	 * post {@code true} // no postcondition
+	 * </pre>
+	 * 
+	 * @param targetsMessages	Mapping : client target port URI -> messages to send to this target.
+	 */
+	private void createSendingTasks(Map<String, List<MessageI>> targetsMessages) {
+		// Precondition check
+		assert(targetsMessages != null) : new PreconditionException("targetsMessages cannot be null");
+		
+		for (Map.Entry<String, List<MessageI>> e : targetsMessages.entrySet()) {
+			String targetPortURI = e.getKey();
+			List<MessageI> listMessagesToSend = e.getValue();
+			
+			int l = listMessagesToSend.size();
+			MessageI[] messagesToSend = new MessageI[l];
+			for(int i=0; i<l; i++) messagesToSend[i] = listMessagesToSend.get(i);
+			
+			broker.runTask(Broker.SENDERS_POOL_URI, new SenderTask(broker, clientsInfos, channel, targetPortURI, messagesToSend));
 		}
 	}
 }

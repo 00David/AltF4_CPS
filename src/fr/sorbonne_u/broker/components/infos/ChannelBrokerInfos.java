@@ -310,28 +310,6 @@ public class ChannelBrokerInfos {
     }
 
     /**
-     * Loads multiple {@link MessageI} instances into the channel.
-     * 
-     * <p><strong>Contract</strong></p>
-     * <pre>
-     * pre  {@code msgs != null && !msgs.isEmpty()}
-     * post {@code messages.containsAll(msgs)}
-     * </pre>
-     * 
-     * @param msgs						a list of messages to load into the channel.
-     * @throws IllegalArgumentException if {@code msgs} is null or empty.
-     */
-    public synchronized void loadMessages(List<MessageI> msgs) {
-    	// Precondition checks
-    	if (msgs == null || msgs.isEmpty()) throw new IllegalArgumentException("Messages cannot be null or empty");
-        
-        messages.addAll(msgs);
-        
-        // Postcondition check
-        assert messages.containsAll(msgs);
-    }
-
-    /**
      * Unloads the next {@link MessageI} from the channel.
      * 
      * <p>It returns {@code null} if no message is available on the channel.</p>

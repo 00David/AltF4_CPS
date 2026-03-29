@@ -4,7 +4,6 @@ import fr.sorbonne_u.components.utils.tests.TestScenario;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.LevelI;
 import fr.sorbonne_u.meteo.components.WindTurbine;
 import fr.sorbonne_u.meteo.data.PositionData;
-import fr.sorbonne_u.meteo.plugins.WindTurbineReceptionPlugin;
 import fr.sorbonne_u.utils.aclocks.ClocksServer;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
@@ -16,8 +15,6 @@ import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
  * Test class representing a {@link WindTurbine}, following a predefined scenario.
- * 
- * <p>The scenario is described in the {@link CVMSimpleTest} class.</p>
  * 
  * <p>The class does extend {@link WindTurbine} because instead of only listening by default, here it has also defined actions to make.</p>
  * 
@@ -141,11 +138,11 @@ public class WindTurbineTest extends WindTurbine {
 		
         // Wind data subscription
         subscriptionPlugin.subscribe("channel0", filterChannel0);
-        this.logMessage("WindTurbine subscribed to channel0");
+        this.logMessage("Thread "+Thread.currentThread().getId()+": WindTurbine subscribed to channel0");
 
         // Alert data subscription
         subscriptionPlugin.subscribe("channel1", filterChannel1);
-        this.logMessage("WindTurbine subscribed to channel1");
+        this.logMessage("Thread "+Thread.currentThread().getId()+": WindTurbine subscribed to channel1");
 		
 		if (testScenario != null) {
 			// Initialization of the clock
@@ -230,7 +227,7 @@ public class WindTurbineTest extends WindTurbine {
 	}
 	
 	/**
-	 * Verifies that the wind turbine has received {@code expectedNb} messages since its start.
+	 * Verifies that the wind turbine has received {@code expectedNb} wind datas since its start.
 	 * 
 	 * <p><strong>Contract</strong></p>
      * <pre>
@@ -238,16 +235,32 @@ public class WindTurbineTest extends WindTurbine {
      * post {@code true} // no postcondition
      * </pre>
 	 * 
-	 * @param expectedNb	The expected number of messages received on the wind turbine.
+	 * @param expectedNb	The expected number of wind datas received on the wind turbine.
 	 */
-	public void verifyNbMessagesReceived(int expectedNb) {
-		WindTurbineReceptionPlugin plugin = (WindTurbineReceptionPlugin)this.getPlugin("subscription");
-		int nbReceived = plugin.getNbMessagesReceived();
+	public void verifyNbWindDatasReceived(int expectedNb) {
+		int nbReceived;
 		synchronized (this.datas) {
-			assert(nbReceived == this.datas.size());
+			nbReceived = this.datas.size();
 		}
-		
-		this.logMessage("WindTurbine expected "+expectedNb+" messages, correct");
+		assert(nbReceived == expectedNb);
+		this.logMessage("WindTurbine expected "+expectedNb+" wind datas and got them : correct");
+	}
+	
+	/**
+	 * Gets the number of wind datas the wind turbine has received since its start.
+	 * 
+	 * <p><strong>Contract</strong></p>
+     * <pre>
+	 * pre	{@code true} // no precondition
+     * post {@code true} // no postcondition
+     * </pre>
+     * 
+	 * @return		The number of wind datas the wind turbine has received since its start.
+	 */
+	public int getNbWindDatasReceived() {
+		synchronized (this.datas) {
+			return this.datas.size();
+		}
 	}
 	
 }

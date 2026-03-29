@@ -5,10 +5,14 @@ import java.util.ArrayList;
 
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.components.ComponentI;
+import fr.sorbonne_u.components.exceptions.BCMRuntimeException;
 import fr.sorbonne_u.components.interfaces.OfferedCI;
 import fr.sorbonne_u.components.ports.AbstractInboundPort;
 import fr.sorbonne_u.components.tasks_management.BCM4JavaComponentThread;
 import fr.sorbonne_u.components.tasks_management.connection.AbnormalTerminationNotificationOutboundPort;
+import fr.sorbonne_u.cps.pubsub.exceptions.UnauthorisedClientException;
+import fr.sorbonne_u.cps.pubsub.exceptions.UnknownChannelException;
+import fr.sorbonne_u.cps.pubsub.exceptions.UnknownClientException;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.exceptions.PreconditionException;
@@ -137,6 +141,8 @@ implements	PublishingCI {
 									"asyncPublishAndNotify",
 									new Serializable[]{receptionPortURI, channel, messages});
 						((Broker)owner).publishService(receptionPortURI, channel, messages);
+					} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException e) {
+						throw new BCMRuntimeException(e);
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
@@ -157,6 +163,8 @@ implements	PublishingCI {
 									"asyncPublishAndNotify",
 									new Serializable[]{receptionPortURI, channel, messages});
 						((Broker)owner).publishService(receptionPortURI, channel, messages);
+					} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException e) {
+						throw new BCMRuntimeException(e);
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
