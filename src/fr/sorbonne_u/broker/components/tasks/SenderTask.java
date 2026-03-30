@@ -79,14 +79,11 @@ public class SenderTask extends AbstractTask {
 		try {
 			//broker.logMessage("SENDER "+Thread.currentThread().getId()+" starts sending from'"+channel+"' to '"+targetPortURI+"'") ;
 			
-			// Takes the client lock
 			ClientBrokerInfos client = clientsInfos.get(targetPortURI);
-			synchronized(client) {
-				// Checks that the targeted client is still registered. If it is okay, sends messages.
-				if (broker.registeredService(targetPortURI)) {
-					broker.logMessage("Thread "+Thread.currentThread().getId()+": Broker sending "+messagesToSend.length+" message(s) to '" + targetPortURI + "'") ;
-					client.getOutboundPort().receive(channel, messagesToSend);
-				}
+			// Checks that the targeted client is still registered right now. If it is okay, sends messages.
+			if (broker.registeredService(targetPortURI)) {
+				broker.logMessage("Thread "+Thread.currentThread().getId()+": Broker sending "+messagesToSend.length+" message(s) to '" + targetPortURI + "'") ;
+				client.getOutboundPort().receive(channel, messagesToSend);
 			}
 
 			//broker.logMessage("SENDER "+Thread.currentThread().getId()+" ended task") ;
