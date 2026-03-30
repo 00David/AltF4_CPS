@@ -116,7 +116,7 @@ public class LoaderTask extends AbstractTask {
 			
 			//broker.logMessage("LOADER "+Thread.currentThread().getId()+" ended task") ;
 		} catch (UnknownChannelException e) {
-			System.err.println("Thread "+Thread.currentThread().getId()+": Loader error : "+e.getMessage());
+			System.err.println("Thread "+Thread.currentThread().getId()+": Loader UnknownChannelException : "+e.getMessage());
 		}
 	}
 }

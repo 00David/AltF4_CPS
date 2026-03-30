@@ -111,8 +111,8 @@ implements	RegistrationCI {
 	}
 
 	@Override
-	public boolean modifyFilter(String receptionPortURI, String channel, MessageFilterI filter) throws Exception {
-		return this.getOwner().handleRequest(
+	public void modifyFilter(String receptionPortURI, String channel, MessageFilterI filter) throws Exception {
+		this.getOwner().handleRequest(
 				owner -> ((Broker)owner).modifyFilterService(receptionPortURI, channel, filter));
 	}
 

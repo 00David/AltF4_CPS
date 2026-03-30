@@ -91,7 +91,7 @@ public class SenderTask extends AbstractTask {
 
 			//broker.logMessage("SENDER "+Thread.currentThread().getId()+" ended task") ;
 		} catch (Exception e) {
-			System.err.println("Thread "+Thread.currentThread().getId()+": Sender error : "+e.getMessage());
+			System.err.println("Thread "+Thread.currentThread().getId()+": Sender Exception : "+e.getMessage());
 		}
 	}
 }

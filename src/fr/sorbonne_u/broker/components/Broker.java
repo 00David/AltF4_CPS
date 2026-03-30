@@ -825,12 +825,12 @@ public class Broker extends AbstractComponent{
 	 * @param receptionPortURI	                 URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel		                 	 name of an existing channel.
 	 * @param filter			                 filter that accepts the message the component wants to receive.
-	 * @return					                 true if the modification has been performed, otherwise false.
+	 * @return					                 Void
 	 * @throws UnknownClientException	     	 If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException           If the {@code channel} doesn't exist.
 	 * @throws NotSubscribedChannelException     If {@code receptionPortURI} is not subscribed to the {@code channel}.
 	 */
-	public boolean modifyFilterService(String receptionPortURI, String channel, MessageFilterI filter) 
+	public Void modifyFilterService(String receptionPortURI, String channel, MessageFilterI filter) 
 			throws UnknownClientException, UnknownChannelException, NotSubscribedChannelException {
 		// Precondition checks
 		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
@@ -857,7 +857,7 @@ public class Broker extends AbstractComponent{
 			}
 		}
 		
-		return true;
+		return null;
 	}
 	
 	// PUBLICATIONS

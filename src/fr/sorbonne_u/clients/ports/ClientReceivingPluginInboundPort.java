@@ -63,17 +63,10 @@ public class ClientReceivingPluginInboundPort extends AbstractInboundPort implem
 		assert(message != null);
 		
 		ClientSubscriptionPlugin csp = (ClientSubscriptionPlugin) this.getOwnerPlugin(this.pluginURI);
-		ConcurrentHashMap<String, ConcurrentLinkedQueue<CompletableFuture<MessageI>>> futureMessages = csp.getFutureMessages();
+		ConcurrentHashMap<String, ConcurrentLinkedQueue<CompletableFuture<MessageI>>> futureQueues = csp.getFutureQueues();
 		
 		// Locks the whole map to ensure that the future queue for the channel exists
-		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = null;
-		synchronized(futureMessages) {
-			channelFutureMessagesQueue = futureMessages.get(channel);
-			if (channelFutureMessagesQueue == null) {
-				channelFutureMessagesQueue = new ConcurrentLinkedQueue<>();
-				futureMessages.put(channel, channelFutureMessagesQueue);
-			}
-		}
+		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = csp.getOrCreateChannelFutureQueue(futureQueues, channel);
 		
 		// If there is a future waiting a message into the channel future queue : completes and retrieves the future from the queue
 		// Otherwise : redirects the message to the the appropriate 'receive' method
@@ -94,17 +87,10 @@ public class ClientReceivingPluginInboundPort extends AbstractInboundPort implem
 		assert(Stream.of(messages).allMatch(m -> m != null));
 		
 		ClientSubscriptionPlugin csp = (ClientSubscriptionPlugin) this.getOwnerPlugin(this.pluginURI);
-		ConcurrentHashMap<String, ConcurrentLinkedQueue<CompletableFuture<MessageI>>> futureMessages = csp.getFutureMessages();
+		ConcurrentHashMap<String, ConcurrentLinkedQueue<CompletableFuture<MessageI>>> futureQueues = csp.getFutureQueues();
 		
 		// Locks the whole map to ensure that the future queue for the channel exists
-		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = null;
-		synchronized(futureMessages) {
-			channelFutureMessagesQueue = futureMessages.get(channel);
-			if (channelFutureMessagesQueue == null) {
-				channelFutureMessagesQueue = new ConcurrentLinkedQueue<>();
-				futureMessages.put(channel, channelFutureMessagesQueue);
-			}
-		}
+		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = csp.getOrCreateChannelFutureQueue(futureQueues, channel);
 		
 		// While there is still a future waiting a message into the channel future queue : completes and retrieves the futures from the queue
 		// When there is no more futures : redirects remaining messages to consider to the the appropriate 'receive' method

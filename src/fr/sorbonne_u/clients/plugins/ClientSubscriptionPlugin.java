@@ -57,7 +57,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	protected final ClientRegistrationOutboundPort registrationOutboundPort;
 	
 	/** Mapping : channel name -> a queue of futures, each waiting a message from the channel. */
-	protected final ConcurrentHashMap<String, ConcurrentLinkedQueue<CompletableFuture<MessageI>>> futureMessages = new ConcurrentHashMap<>();
+	protected final ConcurrentHashMap<String, ConcurrentLinkedQueue<CompletableFuture<MessageI>>> futureQueues = new ConcurrentHashMap<>();
 	
 	/**
 	 * Creates a {@link Client} subscription + reception plugin.
@@ -258,14 +258,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 		client.logMessage("Thread "+Thread.currentThread().getId()+": Waiting next message from channel '" + channel + "'");
 		
 		// Locks the whole map to ensure that the future queue for the channel exists
-		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = null;
-		synchronized(futureMessages) {
-			channelFutureMessagesQueue = futureMessages.get(channel);
-			if (channelFutureMessagesQueue == null) {
-				channelFutureMessagesQueue = new ConcurrentLinkedQueue<>();
-				futureMessages.put(channel, channelFutureMessagesQueue);
-			}
-		}
+		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = getOrCreateChannelFutureQueue(futureQueues, channel);
 		
 		// Creates and inserts the future into the queue
 		CompletableFuture<MessageI> future = new CompletableFuture<>();
@@ -300,14 +293,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 		client.logMessage("Thread "+Thread.currentThread().getId()+": Waiting next message with a timeout ("+d.getSeconds()+"s) from channel '" + channel + "'");
 		
 		// Locks the whole map to ensure that the future queue for the channel exists
-		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = null;
-		synchronized(futureMessages) {
-			channelFutureMessagesQueue = futureMessages.get(channel);
-			if (channelFutureMessagesQueue == null) {
-				channelFutureMessagesQueue = new ConcurrentLinkedQueue<>();
-				futureMessages.put(channel, channelFutureMessagesQueue);
-			}
-		}
+		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = getOrCreateChannelFutureQueue(futureQueues, channel);
 		
 		// Creates and inserts the future into the queue
 		CompletableFuture<MessageI> future = new CompletableFuture<>();
@@ -344,14 +330,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 		client.logMessage("Thread "+Thread.currentThread().getId()+": Creates a message future for the channel '" + channel + "'");
 		
 		// Locks the whole map to ensure that the future queue for the channel exists
-		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = null;
-		synchronized(futureMessages) {
-			channelFutureMessagesQueue = futureMessages.get(channel);
-			if (channelFutureMessagesQueue == null) {
-				channelFutureMessagesQueue = new ConcurrentLinkedQueue<>();
-				futureMessages.put(channel, channelFutureMessagesQueue);
-			}
-		}
+		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = getOrCreateChannelFutureQueue(futureQueues, channel);
 		
 		// Creates and inserts the future into the queue
 		CompletableFuture<MessageI> future = new CompletableFuture<>();
@@ -362,7 +341,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	}
 	
 	// -------------------------------------------------------------------------
-	// Plug-in getter for the future queues
+	// Plug-in getters for the future queues
 	// -------------------------------------------------------------------------
 	
 	/**
@@ -377,8 +356,42 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	 * 
 	 * @return	a mapping : channel name -> a queue of futures, each future waiting a message from the channel.
 	 */
-	public ConcurrentHashMap<String, ConcurrentLinkedQueue<CompletableFuture<MessageI>>> getFutureMessages() {
-		return futureMessages;
+	public ConcurrentHashMap<String, ConcurrentLinkedQueue<CompletableFuture<MessageI>>> getFutureQueues() {
+		return futureQueues;
+	}
+	
+	/**
+	 * Returns a queue of futures, each future waiting a message from the {@code channel}.<br>
+	 * Used by the {@link ClientReceivingPluginInboundPort}.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * pre	{@code futureQueues != null}
+	 * post	{@code return != null}
+	 * </pre>
+	 * 
+	 * @param futureQueues		a queue of futures, each future waiting a message from the {@code channel}.
+	 * @param channel			name of the channel from which a message is waited to be received.
+	 * 
+	 * @return	a mapping : channel name -> a queue of futures, each future waiting a message from the channel.
+	 */
+	public ConcurrentLinkedQueue<CompletableFuture<MessageI>> getOrCreateChannelFutureQueue
+		(ConcurrentHashMap<String, ConcurrentLinkedQueue<CompletableFuture<MessageI>>> futureQueues, String channel) {
+		// Precondition checks
+		assert(channel != null && !channel.isEmpty());
+		assert(futureQueues != null);
+		
+		synchronized(futureQueues) {
+			ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = futureQueues.get(channel);
+			if (channelFutureMessagesQueue == null) {
+				channelFutureMessagesQueue = new ConcurrentLinkedQueue<>();
+				futureQueues.put(channel, channelFutureMessagesQueue);
+			}
+			
+			// Postcondition verified by construction 
+			return channelFutureMessagesQueue;
+		}
 	}
 	
 }

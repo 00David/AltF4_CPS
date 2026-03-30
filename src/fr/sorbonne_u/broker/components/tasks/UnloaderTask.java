@@ -133,7 +133,7 @@ public class UnloaderTask extends AbstractTask {
 
 			//broker.logMessage("UNLOADER "+Thread.currentThread().getId()+" ended task") ;
 		} catch (UnknownChannelException e) {
-			System.err.println("Thread "+Thread.currentThread().getId()+": Unloader error : "+e.getMessage());
+			System.err.println("Thread "+Thread.currentThread().getId()+": Unloader UnknownChannelException : "+e.getMessage());
 			
 			// If an unloading is interrupted, with for instance a channel destruction,
 			// it will still send unloaded messages currently in its map

@@ -77,7 +77,7 @@ public class ClientRegistrationServiceConnector extends AbstractConnector implem
 	}
 
 	@Override
-	public boolean modifyFilter(String receptionPortURI, String channel, MessageFilterI filter) throws Exception {
-		return ((RegistrationCI)this.offering).modifyFilter(receptionPortURI, channel, filter);
+	public void modifyFilter(String receptionPortURI, String channel, MessageFilterI filter) throws Exception {
+		((RegistrationCI)this.offering).modifyFilter(receptionPortURI, channel, filter);
 	}
 }
