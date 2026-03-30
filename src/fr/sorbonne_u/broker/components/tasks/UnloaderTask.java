@@ -47,8 +47,8 @@ public class UnloaderTask extends AbstractTask {
 	/** The maximum number of messages to unload from {@code channel}. */
 	private int nbMaxUnloadMessages;
 	
-	/** The maximum number of unloaded messages when the {@code channel} creator is the {@code broker}, or has unregistered from the system, or is FREE. */
-	public static final int NB_MAX_UNLOAD_MSG_FREE_CHANNEL = 1;
+	/** The maximum number of unloaded messages when the {@code channel} creator is the {@code broker}, or has unregistered from the system. */
+	public static final int NB_MAX_UNLOAD_MSG_NORMAL_CHANNEL = 1;
 	
 	/** The maximum number of unloaded messages when the {@code channel} creator is STANDARD. */
 	public static final int NB_MAX_UNLOAD_MSG_STD_CHANNEL = 5;

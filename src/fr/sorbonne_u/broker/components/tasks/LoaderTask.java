@@ -88,7 +88,7 @@ public class LoaderTask extends AbstractTask {
 			if (chanInfos == null) throw new UnknownChannelException("Channel "+channel+" doesn't exist anymore.");
 			
 			// The maximum number of messages to unload, PER UNLOADER
-			int nbMaxUnloadMessages = UnloaderTask.NB_MAX_UNLOAD_MSG_FREE_CHANNEL;
+			int nbMaxUnloadMessages = UnloaderTask.NB_MAX_UNLOAD_MSG_NORMAL_CHANNEL;
 			
 			// If the creator is still registered on the system, and is standard or premium, then the maximum number increases
 			String channelCreator = chanInfos.getCreator();

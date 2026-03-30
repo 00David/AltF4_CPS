@@ -1121,7 +1121,7 @@ public class Broker extends AbstractComponent{
 				if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist."); // if the channel has been destroyed while waiting for the lock
 				if (!channelAuthorisedService(receptionPortURI, channel)) throw new UnauthorisedClientException("Client "+receptionPortURI+" not authorized");
 				
-				this.logMessage("Thread "+Thread.currentThread().getId()+": Broker destroying channel '" + channel + "'") ;
+				this.logMessage("Thread "+Thread.currentThread().getId()+"(destroyChannel): Broker destroying channel '" + channel + "'") ;
 				
 				// Removal of the channel mapping
 				channelsInfos.remove(channel);
@@ -1177,7 +1177,7 @@ public class Broker extends AbstractComponent{
 			synchronized(targetClient) {
 				// Checks that the targeted client is still registered. If it is okay, sends messages.
 				if (registeredService(targetPortURI)) {
-					logMessage("Thread "+Thread.currentThread().getId()+": Broker sending "+messagesToSend.length+" message(s) to '" + targetPortURI + "'") ;
+					logMessage("Thread "+Thread.currentThread().getId()+" (destroyChannel): Broker sending "+messagesToSend.length+" message(s) to '" + targetPortURI + "'") ;
 					try {
 						targetClient.getOutboundPort().receive(channel, messagesToSend);
 					} catch (Exception e) {
@@ -1235,7 +1235,7 @@ public class Broker extends AbstractComponent{
 				if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist."); // if the channel has been destroyed while waiting for the lock
 				if (!channelAuthorisedService(receptionPortURI, channel)) throw new UnauthorisedClientException("Client "+receptionPortURI+" not authorized");
 				
-				this.logMessage("Thread "+Thread.currentThread().getId()+": Broker destroying NOW channel '" + channel + "'") ;
+				this.logMessage("Thread "+Thread.currentThread().getId()+"(destroyChannelNOW): Broker destroying channel '" + channel + "'") ;
 				
 				// Removal of the channel mapping
 				channelsInfos.remove(channel);

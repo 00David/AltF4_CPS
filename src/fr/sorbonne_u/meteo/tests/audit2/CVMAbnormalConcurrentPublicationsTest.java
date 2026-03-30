@@ -54,15 +54,22 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * <li> - After 20 seconds, <strong>MeteoStation1</strong> attempts to publish a message with a notification to a non-existing channel, 'testChannel7'.</li>
  * <li> - After 40 seconds, <strong>MeteoStation1</strong> sends {@code NBTOOMUCHWINDS} wind datas (20000 by default) to 'testChannel0'.</li>
  * <li> - After 41 seconds, <strong>MeteoStation2</strong> destroys 'testChannel0', interrupting publishing.</li>
- * <li> - After 50 seconds, <strong>WindTurbine</strong> prints its current number of wind datas (impossible to predict).</li>
- * <li> - After 70 seconds, <strong>MeteoStation1</strong> sends {@code NBTOOMUCHWINDS} wind datas (20000 by default) to 'testChannel1'.</li>
- * <li> - After 71 seconds, <strong>MeteoStation2</strong> destroys NOW 'testChannel1', interrupting publishing.</li>
+ * <li> - After 60 seconds, <strong>MeteoStation1</strong> sends {@code NBTOOMUCHWINDS} wind datas (20000 by default) to 'testChannel1'.</li>
+ * <li> - After 61 seconds, <strong>MeteoStation2</strong> destroys NOW 'testChannel1', interrupting publishing.</li>
  * <li> - After 80 seconds, <strong>WindTurbine</strong> prints its current number of wind datas (impossible to predict).</li>
  * </ul>
  * 
  * <p>
  * 	{@code NBTOOMUCHWINDS} has been chosen in order to have a sufficient number of wind datas that will make Broker loader/unloader 
- * 	threads interrupted by the channel destruction, <strong>if there is no "Unloader error" appearing on the console, you can increase it</strong>.
+ * 	threads interrupted by <strong>both</strong> channel destructions, <strong>if there is no "UnknownChannelException" appearing on the console, you can increase it</strong>.
+ * </p>
+ * 
+ * <p>
+ * 	It is also possible that the number of WindTurbine wind datas received at the end is exactly {@code NBTOOMUCHWINDS} :
+ * 	this case happens when the first sending has been completely sent, and the second channel destruction (now) happens before any
+ * 	unloader has unloaded anything from the channel.<br>
+ * 	(If the first channel destruction (normal) also happens before any unloader has unloaded anything from the channel, 
+ * 	then all channel datas are unloaded and sent by the Broker thread destroying the channel)
  * </p>
  * 
  * @author Kevin TANG
@@ -86,7 +93,7 @@ public class CVMAbnormalConcurrentPublicationsTest extends AbstractCVM {
 														/ACCELERATION_FACTOR));
 	
 	// Delay after the start when steps be executed, in seconds
-	public static long[] STEPS = new long[] {5, 10, 20, 40, 41, 50, 70, 71, 80};
+	public static long[] STEPS = new long[] {5, 10, 20, 40, 41, 60, 61, 80};
 	public static final int NBSTEPS = STEPS.length;
 	
 	public static final int NBTOOMUCHWINDS = 20000;
@@ -193,7 +200,7 @@ public class CVMAbnormalConcurrentPublicationsTest extends AbstractCVM {
 								System.err.println("Step 2 wind data publishing failed with exception " + e);
 							}
 						}),
-				// MeteoStation1 sends 10000 wind datas to 'testChannel0'
+				// MeteoStation1 sends 20000 wind datas to 'testChannel0'
 				new TestStep(
 						CLOCK_URI, MS_URI+1, step_Instants[3],
 						owner -> {
@@ -215,53 +222,44 @@ public class CVMAbnormalConcurrentPublicationsTest extends AbstractCVM {
 								System.err.println("Step 4 channel destruction failed with exception " + e);
 							}
 						}),
-				// WindTurbine prints its current number of wind datas (impossible to predict).
+				// MeteoStation1 sends 20000 wind datas to 'testChannel1'
 				new TestStep(
-						CLOCK_URI, WT_URI, step_Instants[5],
+						CLOCK_URI, MS_URI+1, step_Instants[5],
 						owner -> {
 							try {
-								System.out.println("STEP 5/"+(NBSTEPS-1)+" ("+STEPS[5]+"s) : we print WindTurbine current number of wind datas (impossible to predict)");
-								int nbWTdatas = ((WindTurbineTest)owner).getNbWindDatasReceived();
-								System.out.println("WindTurbine has "+nbWTdatas+" wind datas, got everything since start ? "+(nbWTdatas == NBTOOMUCHWINDS));
-							} catch (Exception e) {
-								System.err.println("Step 5 wind datas number check failed with exception " + e);
-							}
-						}),
-				// MeteoStation1 sends 10000 wind datas to 'testChannel1'
-				new TestStep(
-						CLOCK_URI, MS_URI+1, step_Instants[6],
-						owner -> {
-							try {
-								System.out.println("STEP 6/"+(NBSTEPS-1)+" ("+STEPS[6]+"s) : MeteoStation1 sends "+NBTOOMUCHWINDS+" wind datas to 'testChannel1'");
+								System.out.println("STEP 5/"+(NBSTEPS-1)+" ("+STEPS[5]+"s) : MeteoStation1 sends "+NBTOOMUCHWINDS+" wind datas to 'testChannel1'");
 								((MeteoStationTest)owner).publishWindDatas(ms1_too_much_winds, "testChannel1", false);
 							} catch (Exception e) {
-								System.err.println("Step 6 wind data publishing failed with exception " + e);
+								System.err.println("Step 5 wind data publishing failed with exception " + e);
 							}
 						}),
 				// MeteoStation2 almost simultaneously destroys 'testChannel1', interrupting publishing
 				new TestStep(
-						CLOCK_URI, MS_URI+2, step_Instants[7],
+						CLOCK_URI, MS_URI+2, step_Instants[6],
 						owner -> {
 							try {
-								System.out.println("STEP 7/"+(NBSTEPS-1)+" ("+STEPS[7]+"s) : MeteoStation2 almost simultaneously destroys NOW 'testChannel1', interrupting publishing");
+								System.out.println("STEP 6/"+(NBSTEPS-1)+" ("+STEPS[6]+"s) : MeteoStation2 almost simultaneously destroys NOW 'testChannel1', interrupting publishing");
 								((MeteoStationTest)owner).destroyChannelAndVerifies("testChannel1", true);
 							} catch (Exception e) {
-								System.err.println("Step 7 channel destruction failed with exception " + e);
+								System.err.println("Step 6 channel destruction failed with exception " + e);
 							}
 						}),
 				// WindTurbine prints its current number of wind datas (impossible to predict).
 				new TestStep(
-						CLOCK_URI, WT_URI, step_Instants[6],
+						CLOCK_URI, WT_URI, step_Instants[7],
 						owner -> {
 							try {
-								System.out.println("STEP 8/"+(NBSTEPS-1)+" ("+STEPS[8]+"s) : we print WindTurbine current number of wind datas (impossible to predict)");
+								System.out.println("STEP 7/"+(NBSTEPS-1)+" ("+STEPS[7]+"s) : we print WindTurbine current number of wind datas (impossible to predict)");
 								int nbWTdatas = ((WindTurbineTest)owner).getNbWindDatasReceived();
-								System.out.println("WindTurbine has "+nbWTdatas+" wind datas, got everything since start ? "+(nbWTdatas == (2*NBTOOMUCHWINDS)));
+								System.out.println("WindTurbine has "+nbWTdatas+" wind datas,\n"
+										+ "got everything for the first sending ? "+(nbWTdatas >= NBTOOMUCHWINDS)+"\n"
+										+ "got everything whith the second sending ? "+(nbWTdatas == 2*NBTOOMUCHWINDS));
 							} catch (Exception e) {
-								System.err.println("Step 8 wind datas number check failed with exception " + e);
+								System.err.println("Step 7 wind datas number check failed with exception " + e);
 							}
-						})
-				});
+						}),
+			});
+				
 	}
 
 	public CVMAbnormalConcurrentPublicationsTest() throws Exception{
@@ -304,7 +302,7 @@ public class CVMAbnormalConcurrentPublicationsTest extends AbstractCVM {
 		String meteoStation2_URI_verif = AbstractComponent.createComponent(
 				MeteoStationTest.class.getCanonicalName(),
 				new Object[] { MSReceivingInboundPortURI+2, MSRegistrationOutboundPortURI+2, MSPublishingOutboundPortURI+2, MSPrivilegedOutboundPortURI+2,
-						RegistrationClass.STANDARD, stationNbThreads, 1, stationPosition1, MS_URI+2, testScenario, 2});
+						RegistrationClass.STANDARD, stationNbThreads, 1, stationPosition2, MS_URI+2, testScenario, 2});
 		assert (MS_URI+2).equals(meteoStation2_URI_verif);
 		assert this.isDeployedComponent(MS_URI+2);
 		this.toggleTracing(MS_URI+2);
