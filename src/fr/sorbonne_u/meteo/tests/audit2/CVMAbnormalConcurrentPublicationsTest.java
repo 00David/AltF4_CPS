@@ -222,7 +222,7 @@ public class CVMAbnormalConcurrentPublicationsTest extends AbstractCVM {
 							try {
 								System.out.println("STEP 5/"+(NBSTEPS-1)+" ("+STEPS[5]+"s) : we print WindTurbine current number of wind datas (impossible to predict)");
 								int nbWTdatas = ((WindTurbineTest)owner).getNbWindDatasReceived();
-								System.out.println("WindTurbine has "+nbWTdatas+" wind datas, got everything ? "+(nbWTdatas == NBTOOMUCHWINDS));
+								System.out.println("WindTurbine has "+nbWTdatas+" wind datas, got everything since start ? "+(nbWTdatas == NBTOOMUCHWINDS));
 							} catch (Exception e) {
 								System.err.println("Step 5 wind datas number check failed with exception " + e);
 							}
@@ -251,12 +251,12 @@ public class CVMAbnormalConcurrentPublicationsTest extends AbstractCVM {
 						}),
 				// WindTurbine prints its current number of wind datas (impossible to predict).
 				new TestStep(
-						CLOCK_URI, WT_URI, step_Instants[8],
+						CLOCK_URI, WT_URI, step_Instants[6],
 						owner -> {
 							try {
 								System.out.println("STEP 8/"+(NBSTEPS-1)+" ("+STEPS[8]+"s) : we print WindTurbine current number of wind datas (impossible to predict)");
 								int nbWTdatas = ((WindTurbineTest)owner).getNbWindDatasReceived();
-								System.out.println("WindTurbine has "+nbWTdatas+" wind datas, got everything ? "+(nbWTdatas == (2*NBTOOMUCHWINDS)));
+								System.out.println("WindTurbine has "+nbWTdatas+" wind datas, got everything since start ? "+(nbWTdatas == (2*NBTOOMUCHWINDS)));
 							} catch (Exception e) {
 								System.err.println("Step 8 wind datas number check failed with exception " + e);
 							}

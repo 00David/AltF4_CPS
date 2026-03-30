@@ -1,11 +1,11 @@
 package fr.sorbonne_u.broker.components.infos;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
@@ -107,11 +107,11 @@ public class ChannelBrokerInfos {
         if (authorizedUsers == null) throw new IllegalArgumentException("The regex for authorised users cannot be null");
 
         this.channel = channel;
-        this.subscribers = new ConcurrentHashMap<>();
+        this.subscribers = new HashMap<>();
         this.onlyPrivileged = onlyPrivileged;
         this.authorizedUsers = authorizedUsers;
         this.clientCreator = clientCreator;
-        this.messages = new ConcurrentLinkedQueue<>();
+        this.messages = new LinkedList<>();
     }
 
     // -------------------------------------------------------------------------
