@@ -5,7 +5,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Stream;
 
-import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
 import fr.sorbonne_u.components.ComponentI;
@@ -14,7 +13,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 
 /**
- * Inbound port of a {@link Broker}, allowing the handling of messages reception.<br>
+ * Inbound port of a {@link Client}, allowing the handling of messages reception.<br>
  * Redirects messages received to the {@link ClientSubscriptionPlugin}, by either completing futures waiting those messages into
  * the plugin, or by delegating the reception to the {@code receive} plugin method (through {@code runTask}).
  * 

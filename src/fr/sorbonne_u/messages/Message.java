@@ -98,7 +98,7 @@ public class Message implements MessageI {
 		if (name == null || name.isEmpty()) throw new IllegalArgumentException("A name cannot be null or empty");
 		
 		if (propertyExists(name)) {
-			return this.properties.get(name);
+			return this.properties.get(name).getValue();
 		} else {
 			throw new UnknownPropertyException("Cannot get value of '" + name + "' property because it does not exists");
 		}
