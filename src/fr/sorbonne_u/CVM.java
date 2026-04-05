@@ -1,5 +1,7 @@
 package fr.sorbonne_u;
 
+import java.util.ArrayList;
+
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.cvm.AbstractCVM;
@@ -107,7 +109,8 @@ public class CVM extends AbstractCVM {
 		int nbMaxChannelsPREM = 4;
 		this.uriBroker = AbstractComponent.createComponent(
 				Broker.class.getCanonicalName(),
-				new Object[] {2, nbMaxChannelsSTD, nbMaxChannelsPREM, 1, 0, 1, 1, 1});
+				new Object[] {2, nbMaxChannelsSTD, nbMaxChannelsPREM, 1, 0, 1, 1, 1, 
+						"BrokerGossipInboundPortURI", new ArrayList<>(), new ArrayList<>()}); // Gossip protocol unused here
 		assert this.isDeployedComponent(this.uriBroker);
 		this.toggleTracing(this.uriBroker);
 

@@ -40,19 +40,19 @@ public class GossipMessageTest {
 		
 		// attributes initialization
 		assertEquals(emitterURI, msg1.emitterURI);
-		assertNotNull(msg1.messageURI);
-		assertTrue(msg1.messageURI.startsWith(emitterURI + "_"));
+		assertNotNull(msg1.gossipMessageURI());
+		assertTrue(msg1.gossipMessageURI().startsWith(emitterURI + "_"));
 		assertEquals(Action.NOTHING, msg1.messageAction());
 		assertNull(msg1.message());
 		assertNotNull(msg1.timestamp());
 		
 		// messageURI format: emitterURI + "_" + 20 random characters
 		int expectedLength = emitterURI.length() + 1 + 20;
-		assertEquals(expectedLength, msg1.messageURI.length());
+		assertEquals(expectedLength, msg1.gossipMessageURI().length());
 		
 		// Uniqueness
 		GossipMessage msg2 = new GossipMessage(emitterURI);
-		assertNotEquals(msg1.messageURI, msg2.messageURI);
+		assertNotEquals(msg1.gossipMessageURI(), msg2.gossipMessageURI());
 		
 		// Timestamp check
 		assertFalse(msg1.timestamp().isBefore(before));
@@ -70,13 +70,13 @@ public class GossipMessageTest {
 	@Test
 	public void testGossipMessageURI() {
 		GossipMessage gossipMessage = new GossipMessage("broker-1");
-		assertEquals(gossipMessage.messageURI, gossipMessage.gossipMessageURI());
+		assertEquals(gossipMessage.gossipMessageURI(), gossipMessage.gossipMessageURI());
 	}
 	
 	@Test
 	public void testTimestamp() {
 		GossipMessage gossipMessage = new GossipMessage("broker-1");
-		assertEquals(gossipMessage.timestamp, gossipMessage.timestamp());
+		assertEquals(gossipMessage.timestamp(), gossipMessage.timestamp());
 	}
 	
 	@Test
@@ -98,12 +98,11 @@ public class GossipMessageTest {
 	@Test
 	public void testCopyWithNewEmitterURI() {
 		GossipMessage original = new GossipMessage("broker-1");
-		String newEmitterURI = "broker-2";
 		
-		GossipMessageI copy = original.copyWithNewEmitterURI(newEmitterURI);
+		GossipMessageI copy = original.copyWithNewEmitterURI("broker-2");
 		
-		assertEquals(newEmitterURI, ((GossipMessage) copy).emitterURI);
-		assertEquals(original.messageURI, copy.gossipMessageURI()); // Same messageURI
+		assertEquals("broker-2", ((GossipMessage) copy).emitterURI);
+		assertEquals(original.gossipMessageURI(), copy.gossipMessageURI()); // Same messageURI
 		assertEquals(original.messageAction(), ((GossipMessage) copy).messageAction());
 	}
 	
@@ -111,13 +110,12 @@ public class GossipMessageTest {
 	public void testCopyWithNewEmitterURIWithMessage() {
 		GossipMessage original = new GossipMessage("broker-1");
 		original.setRegisterMessage("reception-port-1", RegistrationClass.FREE);
-		String newEmitterURI = "broker-2";
 		
-		GossipMessageI copy = original.copyWithNewEmitterURI(newEmitterURI);
+		GossipMessageI copy = original.copyWithNewEmitterURI("broker-2");
 		
 		assertNotNull(((GossipMessage) copy).message());
-		assertEquals(newEmitterURI, ((GossipMessage) copy).emitterURI);
-		assertEquals(original.messageURI, copy.gossipMessageURI()); // Same messageURI
+		assertEquals("broker-2", ((GossipMessage) copy).emitterURI);
+		assertEquals(original.gossipMessageURI(), copy.gossipMessageURI()); // Same messageURI
 		assertEquals(original.messageAction(), ((GossipMessage) copy).messageAction());
 	}
 	
@@ -128,6 +126,20 @@ public class GossipMessageTest {
 		assertThrows(IllegalArgumentException.class, () -> original.copyWithNewEmitterURI(null));
 		assertThrows(IllegalArgumentException.class, () -> original.copyWithNewEmitterURI(""));
 	}
+	
+	// --------------------------------------------------------------------------
+	// Equality test
+	// --------------------------------------------------------------------------
+	
+    @Test
+    void testEqualsAndHashCode() {
+		GossipMessage original = new GossipMessage("broker-1");
+		GossipMessageI copy = original.copyWithNewEmitterURI("broker-2");
+
+        // Equality ok because of same message URI
+        assertEquals(original, copy);
+        assertEquals(original.hashCode(), copy.hashCode());
+    }
 	
 	// --------------------------------------------------------------------------
 	// setPublishMessages tests

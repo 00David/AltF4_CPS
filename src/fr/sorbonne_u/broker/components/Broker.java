@@ -13,6 +13,7 @@ import fr.sorbonne_u.broker.components.tasks.LoaderTask;
 import fr.sorbonne_u.broker.components.tasks.SenderTask;
 import fr.sorbonne_u.broker.components.tasks.UnloaderTask;
 import fr.sorbonne_u.broker.connectors.BrokerReceivingServiceConnector;
+import fr.sorbonne_u.broker.plugin.BrokerGossipPlugin;
 import fr.sorbonne_u.broker.ports.BrokerReceivingOutboundPort;
 import fr.sorbonne_u.broker.ports.BrokerPrivilegedInboundPort;
 import fr.sorbonne_u.broker.ports.BrokerPublishingInboundPort;
@@ -24,6 +25,9 @@ import fr.sorbonne_u.components.exceptions.ComponentShutdownException;
 import fr.sorbonne_u.components.exceptions.ComponentStartException;
 import fr.sorbonne_u.components.tasks_management.connection.AbnormalTerminationNotificationOutboundPort;
 import fr.sorbonne_u.components.tasks_management.interfaces.AbnormalTerminationNotificationCI;
+import fr.sorbonne_u.cps.gossip.interfaces.GossipMessageI;
+import fr.sorbonne_u.cps.gossip.interfaces.GossipReceiverCI;
+import fr.sorbonne_u.cps.gossip.interfaces.GossipSenderCI;
 import fr.sorbonne_u.cps.pubsub.exceptions.AlreadyExistingChannelException;
 import fr.sorbonne_u.cps.pubsub.exceptions.AlreadyRegisteredException;
 import fr.sorbonne_u.cps.pubsub.exceptions.ChannelQuotaExceededException;
@@ -41,6 +45,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.exceptions.InvariantException;
 import fr.sorbonne_u.exceptions.PostconditionException;
 import fr.sorbonne_u.exceptions.PreconditionException;
+import fr.sorbonne_u.messages.GossipMessage;
 
 /**
  * Component implementing the publish/subscribe system.
@@ -85,6 +90,7 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
+ * invariant	{@code gossipPlugin != null}
  * invariant	{@code notificationPort != null}
  * invariant	{@code registrationPortURI != null && !registrationPortURI.isEmpty()}
  * invariant	{@code registrationPort != null}
@@ -113,6 +119,11 @@ public class Broker extends AbstractComponent{
 	//--------------------------------------------------------------------------
 	// Internal datas
 	//--------------------------------------------------------------------------
+	
+	// GOSSIP PROTOCOL PLUGIN
+	
+	/** Broker's gossip protocol plugin, every Broker has it initialized in its constructor. */
+	private final BrokerGossipPlugin gossipPlugin;
 	
 	// NOTIFICATION
 	
@@ -220,18 +231,23 @@ public class Broker extends AbstractComponent{
 	 * post {@code ClientBrokerInfos.nbMaxChannelsStd >= 0 && ClientBrokerInfos.nbMaxChannelsPrem >= 0}
 	 * </pre>
 	 * 
-	 * @param N						The number of default channels in the Broker (from 'channel0' to 'channel[N-1]').
-	 * @param nbMaxChannelsStd		The maximum number of channels that can be managed by a standard privileged client.
-	 * @param nbMaxChannelsPrem		The maximum number of channels that can be managed by a premium privileged client.
-	 * @param nbThreads				Number of threads to be created in the component pool.
-	 * @param nbSchedulableThreads	Number of threads to be created in the component schedulable pool.
-	 * @param nbFreeLoadersThreads	Number of threads to be created in the free loaders pool. It is x2 for standard clients, and x4 for premium clients.
-	 * @param nbUnloadersThreads	Number of threads to be created in the unloaders pool.
-	 * @param nbSendersThreads		Number of threads to be created in the senders pool.
-	 * @throws Exception			If there is a problem while publishing a port.
+	 * @param N							The number of default channels in the Broker (from 'channel0' to 'channel[N-1]').
+	 * @param nbMaxChannelsStd			The maximum number of channels that can be managed by a standard privileged client.
+	 * @param nbMaxChannelsPrem			The maximum number of channels that can be managed by a premium privileged client.
+	 * @param nbThreads					Number of threads to be created in the component pool.
+	 * @param nbSchedulableThreads		Number of threads to be created in the component schedulable pool.
+	 * @param nbFreeLoadersThreads		Number of threads to be created in the free loaders pool. It is x2 for standard clients, and x4 for premium clients.
+	 * @param nbUnloadersThreads		Number of threads to be created in the unloaders pool.
+	 * @param nbSendersThreads			Number of threads to be created in the senders pool.
+	 * @param gossipInboundPortURI		The {@link Broker} inbound port URI offering {@link GossipReceiverCI} interface.
+	 * @param gossipOutboundPortURIs	{@link Broker} outbound port URIs requiring {@link GossipSenderCI} interface.
+	 * @param otherBrokersToConnectURIs	Other {@link Broker}s gossip inbound port URIs, a URI at an index i in {@code gossipOutboundPortURIs} 
+	 * 									connects to the port URI with the same index in {@code portsToConnect}.
+	 * @throws Exception				If there is a problem while publishing a port.
 	 */
 	protected Broker(int N, int nbMaxChannelsStd, int nbMaxChannelsPrem, int nbThreads, int nbSchedulableThreads,
-			int nbFreeLoadersThreads, int nbUnloadersThreads, int nbSendersThreads) throws Exception {
+			int nbFreeLoadersThreads, int nbUnloadersThreads, int nbSendersThreads,
+			String gossipInboundPortURI, List<String> gossipOutboundPortURIs, List<String> otherBrokersToConnectURIs) throws Exception {
 		super(nbThreads, nbSchedulableThreads);
 		// Precondition checks
 		assert(N>=2) : new PreconditionException("Broker's number of default channels must be at least 2 ('channel0' for wind datas, 'channel1' for meteo alerts)");
@@ -275,6 +291,11 @@ public class Broker extends AbstractComponent{
 		this.privilegedPort = new BrokerPrivilegedInboundPort(privilegedPortURI, this, this.notificationPort);
 		this.privilegedPort.publishPort();
 		
+		// Install the gossip plug-in.
+		this.gossipPlugin = new BrokerGossipPlugin(gossipInboundPortURI, gossipOutboundPortURIs, otherBrokersToConnectURIs);
+		this.gossipPlugin.setPluginURI("gossip");
+		this.installPlugin(this.gossipPlugin);
+		
 		// Invariant checks
 		assert	this.isOfferedInterface(RegistrationCI.class) :
 			new InvariantException("The Broker component should offer the interface RegistrationCI!");
@@ -317,6 +338,23 @@ public class Broker extends AbstractComponent{
 			new PostconditionException("The component must have a port with implemented interface PrivilegedClientCI");
 		assert	this.findPortFromURI(privilegedPortURI).isPublished() : 
 			new PostconditionException("The component must have a port published with URI " + privilegedPortURI);
+		
+		assert gossipPlugin.isInitialised() : 
+			new PostconditionException("Gossip plugin must be initialized");
+		assert	this.isPortExisting(gossipInboundPortURI) : 
+			new PostconditionException("The component must have a port with URI " + gossipInboundPortURI);
+		assert	this.findPortFromURI(gossipInboundPortURI).getImplementedInterface().equals(GossipReceiverCI.class) : 
+			new PostconditionException("The component must have a port with implemented interface GossipReceiverCI");
+		assert	this.findPortFromURI(gossipInboundPortURI).isPublished() :
+			new PostconditionException("The component must have a port published with URI " + gossipInboundPortURI);
+		for (String gossipOutboundPortURI : gossipOutboundPortURIs) {
+			assert	this.isPortExisting(gossipOutboundPortURI) : 
+				new PostconditionException("The component must have a port with URI " + gossipOutboundPortURI);
+			assert	this.findPortFromURI(gossipOutboundPortURI).getImplementedInterface().equals(GossipSenderCI.class) : 
+				new PostconditionException("The component must have a port with implemented interface GossipSenderCI");
+			assert	this.findPortFromURI(gossipOutboundPortURI).isPublished() :
+				new PostconditionException("The component must have a port published with URI " + gossipOutboundPortURI);
+		}
 		
 		assert ClientBrokerInfos.nbMaxChannelsStd >= 0 : 
 			new PostconditionException("The max number of channels for standard clients must be properly initialized");
@@ -435,13 +473,14 @@ public class Broker extends AbstractComponent{
 	 * post	{@code registeredService(receptionPortURI, rc)}
 	 * </pre>
 	 *
-	 * @param receptionPortURI	          URI of the inbound port offering the component interface {@code ReceivingCI}.
-	 * @param rc				          the required registration class.
-	 * @return					          an URI of an inbound port offering the component interface {@code PublishingCI}.
-	 * @throws AlreadyRegisteredException If the client has already been registered.
-	 * @throws UnknownClientException      If the {@code receptionPortURI} is not registered.
+	 * @param receptionPortURI	          	URI of the inbound port offering the component interface {@code ReceivingCI}.
+	 * @param rc				          	the required registration class.
+	 * @param gossipMessageToPropagate		a message received through the gossip protocol, containing the call parameters, that will be propagated at the end of the service if no error occurs.
+	 * @return					          	an URI of an inbound port offering the component interface {@code PublishingCI}.
+	 * @throws AlreadyRegisteredException 	If the client has already been registered.
+	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 */
-	public String registerService(String receptionPortURI, RegistrationClass rc) 
+	public String registerService(String receptionPortURI, RegistrationClass rc, GossipMessageI gossipMessageToPropagate) 
 			throws AlreadyRegisteredException, UnknownClientException {
 		// Precondition checks
 		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
@@ -472,10 +511,20 @@ public class Broker extends AbstractComponent{
 			// Postcondition checks
 			assert(registeredService(receptionPortURI));
 			assert(registeredService(receptionPortURI, rc));
-
-			if (rc == RegistrationClass.FREE) return publishingPortURI;
-			else return privilegedPortURI;
 		}
+		
+		// Gossip sending
+		GossipMessageI[] toSend = new GossipMessageI[1];
+		if (gossipMessageToPropagate == null) { // The case for a call incoming from the same JVM
+			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
+			message.setRegisterMessage(receptionPortURI, rc);
+			gossipMessageToPropagate = message;
+		}
+		toSend[0] = gossipMessageToPropagate;
+		gossipPlugin.send(toSend);
+		
+		if (rc == RegistrationClass.FREE) return publishingPortURI;
+		else return privilegedPortURI;
 	}
 
 	/**
@@ -491,11 +540,12 @@ public class Broker extends AbstractComponent{
 	 *
 	 * @param receptionPortURI	            URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param rc				            the required registration class.
+	 * @param gossipMessageToPropagate		a message received through the gossip protocol, containing the call parameters, that will be propagated at the end of the service if no error occurs.
 	 * @return					            an URI of an inbound port offering the component interface {@code PublishingCI}.
 	 * @throws UnknownClientException       If the {@code receptionPortURI} is not registered at all.
 	 * @throws AlreadyRegisteredException   If the client has already been registered with the exact same {@code rc}.
 	 */
-	public String modifyServiceClassService(String receptionPortURI, RegistrationClass rc) 
+	public String modifyServiceClassService(String receptionPortURI, RegistrationClass rc, GossipMessageI gossipMessageToPropagate) 
 			throws UnknownClientException, AlreadyRegisteredException {
 		// Precondition checks
 		assert(receptionPortURI != null && !receptionPortURI.isEmpty()): new PreconditionException("receptionPortURI cannot be null or empty");
@@ -538,10 +588,20 @@ public class Broker extends AbstractComponent{
 	
 			// Postcondition check
 			assert(registeredService(receptionPortURI, rc));
-			
-			if (rc == RegistrationClass.FREE) return publishingPortURI;
-			else return privilegedPortURI;
 		}
+		
+		// Gossip sending
+		GossipMessageI[] toSend = new GossipMessageI[1];
+		if (gossipMessageToPropagate == null) { // The case for a call incoming from the same JVM
+			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
+			message.setUpdateClientClassMessage(receptionPortURI, rc);
+			gossipMessageToPropagate = message;
+		}
+		toSend[0] = gossipMessageToPropagate;
+		gossipPlugin.send(toSend);
+		
+		if (rc == RegistrationClass.FREE) return publishingPortURI;
+		else return privilegedPortURI;
 	}
 
 	/**
@@ -554,12 +614,13 @@ public class Broker extends AbstractComponent{
 	 * </pre>
 	 *
 	 * @param receptionPortURI	               	URI of the inbound port offering the component interface {@code ReceivingCI}.
+	 * @param gossipMessageToPropagate			a message received through the gossip protocol, containing the call parameters, that will be propagated at the end of the service if no error occurs.
 	 * @throws UnknownClientException          	If the {@code receptionPortURI} is not registered.
 	 * @throws Exception                       	If there is a problem while unpublishing the component's outbound port associated to the {@code receptionPortURI}.
 	 * @throws Exception                       	If there is a problem while disconnecting outbound port and {@code receptionPortURI}.
 	 * @return 									Void
 	 */
-	public Void unregisterService(String receptionPortURI) 
+	public Void unregisterService(String receptionPortURI, GossipMessageI gossipMessageToPropagate) 
 			throws UnknownClientException, Exception {
 		// Precondition checks
 		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
@@ -591,6 +652,16 @@ public class Broker extends AbstractComponent{
 			// Postcondition check
 			assert(!registeredService(receptionPortURI));
 		}
+		
+		// Gossip sending
+		GossipMessageI[] toSend = new GossipMessageI[1];
+		if (gossipMessageToPropagate == null) { // The case for a call incoming from the same JVM
+			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
+			message.setUnregisterMessage(receptionPortURI);
+			gossipMessageToPropagate = message;
+		}
+		toSend[0] = gossipMessageToPropagate;
+		gossipPlugin.send(toSend);
 		
 		return null;
 	}
@@ -723,12 +794,13 @@ public class Broker extends AbstractComponent{
 	 * @param receptionPortURI       		URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel			      		name of an existing channel.
 	 * @param filter			           	filter that accepts the message the component wants to receive.
-	 * @return 									Void
+	 * @param gossipMessageToPropagate		a message received through the gossip protocol, containing the call parameters, that will be propagated at the end of the service if no error occurs.
+	 * @return 								Void
 	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
 	 * @throws UnauthorisedClientException 	If {@code receptionPortURI} is not authorized to interact with the {@code channel}.
 	 */
-	public Void subscribeService(String receptionPortURI, String channel, MessageFilterI filter) 
+	public Void subscribeService(String receptionPortURI, String channel, MessageFilterI filter, GossipMessageI gossipMessageToPropagate) 
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
 		// Precondition checks
 		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
@@ -758,6 +830,16 @@ public class Broker extends AbstractComponent{
 			}
 		}
 		
+		// Gossip sending
+		GossipMessageI[] toSend = new GossipMessageI[1];
+		if (gossipMessageToPropagate == null) { // The case for a call incoming from the same JVM
+			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
+			message.setSubscribeClientMessage(receptionPortURI, channel, filter);
+			gossipMessageToPropagate = message;
+		}
+		toSend[0] = gossipMessageToPropagate;
+		gossipPlugin.send(toSend);
+		
 		return null;
 	}
 
@@ -773,12 +855,13 @@ public class Broker extends AbstractComponent{
 	 *
 	 * @param receptionPortURI	              	URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel			            	name of an existing channel.
+	 * @param gossipMessageToPropagate			a message received through the gossip protocol, containing the call parameters, that will be propagated at the end of the service if no error occurs.
 	 * @return 									Void
 	 * @throws UnknownClientException			If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException      	If the {@code channel} doesn't exist.
 	 * @throws NotSubscribedChannelException 	If {@code receptionPortURI} is not subscribed to the {@code channel}.
 	 */
-	public Void unsubscribeService(String receptionPortURI, String channel) 
+	public Void unsubscribeService(String receptionPortURI, String channel, GossipMessageI gossipMessageToPropagate) 
 			throws UnknownClientException, UnknownChannelException, NotSubscribedChannelException {
 		// Precondition checks
 		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
@@ -806,6 +889,16 @@ public class Broker extends AbstractComponent{
 				
 			}
 		}
+		
+		// Gossip sending
+		GossipMessageI[] toSend = new GossipMessageI[1];
+		if (gossipMessageToPropagate == null) { // The case for a call incoming from the same JVM
+			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
+			message.setUnsubscribeClientMessage(receptionPortURI, channel);
+			gossipMessageToPropagate = message;
+		}
+		toSend[0] = gossipMessageToPropagate;
+		gossipPlugin.send(toSend);
 		
 		return null;
 	}
@@ -877,12 +970,13 @@ public class Broker extends AbstractComponent{
 	 * @param receptionPortURI	           	URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel			           	name of the channel on which {@code message} must be published.
 	 * @param messages			           	list of messages to be published on {@code channel}. It can contain an only message.
+	 * @param gossipMessageToPropagate		a message received through the gossip protocol, containing the call parameters, that will be propagated at the end of the service if no error occurs.
 	 * @return 								Void
 	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
 	 * @throws UnauthorisedClientException 	If {@code receptionPortURI} is not authorized to interact with the {@code channel}.
 	 */
-	public Void publishService(String receptionPortURI, String channel, ArrayList<MessageI> messages) 
+	public Void publishService(String receptionPortURI, String channel, ArrayList<MessageI> messages, GossipMessageI gossipMessageToPropagate) 
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
 		// Precondition checks
 		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
@@ -916,6 +1010,17 @@ public class Broker extends AbstractComponent{
 				
 			}
 		}
+		
+		// Gossip sending
+		GossipMessageI[] toSend = new GossipMessageI[1];
+		if (gossipMessageToPropagate == null) { // The case for a call incoming from the same JVM
+			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
+			message.setPublishMessages(receptionPortURI, channel, messages);
+			gossipMessageToPropagate = message;
+		}
+		toSend[0] = gossipMessageToPropagate;
+		gossipPlugin.send(toSend);
+		
 		return null;
 	}
 	
@@ -994,12 +1099,13 @@ public class Broker extends AbstractComponent{
 	 * @param receptionPortURI						identifier of the requesting component <i>i.e.</i>, URI of its inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel								name of the channel to be created.
 	 * @param autorizedUsers						regular expression that matches the URIs of components that must be authorized to use the new channel.
+	 * @param gossipMessageToPropagate				a message received through the gossip protocol, containing the call parameters, that will be propagated at the end of the service if no error occurs.
 	 * @return 										Void
 	 * @throws UnknownClientException   			If the {@code receptionPortURI} is not registered.
 	 * @throws AlreadyExistingChannelException   	If the {@code channel} already exists.
 	 * @throws ChannelQuotaExceededException   		If the {@code receptionPortURI} cannot currently manage more channels.
 	 */
-	public Void createChannelService(String receptionPortURI, String channel, String autorizedUsers) 
+	public Void createChannelService(String receptionPortURI, String channel, String autorizedUsers, GossipMessageI gossipMessageToPropagate) 
 			throws UnknownClientException,  AlreadyExistingChannelException, ChannelQuotaExceededException{
 		// Precondition checks
 		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
@@ -1019,9 +1125,19 @@ public class Broker extends AbstractComponent{
 			
 			channelsInfos.put(channel, new ChannelBrokerInfos(channel, autorizedUsers, receptionPortURI, true));
 			client.decreaseRemainingChannels();
-			return null;
-			
 		}
+		
+		// Gossip sending
+		GossipMessageI[] toSend = new GossipMessageI[1];
+		if (gossipMessageToPropagate == null) { // The case for a call incoming from the same JVM
+			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
+			message.setCreateChannelMessage(receptionPortURI, channel, autorizedUsers);
+			gossipMessageToPropagate = message;
+		}
+		toSend[0] = gossipMessageToPropagate;
+		gossipPlugin.send(toSend);
+		
+		return null;
 	}
 
 	/**
@@ -1043,12 +1159,13 @@ public class Broker extends AbstractComponent{
 	 * @param receptionPortURI				identifier of the requesting component <i>i.e.</i>, URI of its inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel						name of the channel.
 	 * @param autorizedUsers				regular expression that matches the URIs of components that must be authorized to use the new channel.
+	 * @param gossipMessageToPropagate		a message received through the gossip protocol, containing the call parameters, that will be propagated at the end of the service if no error occurs.
 	 * @return 								Void
 	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
 	 * @throws UnauthorisedClientException  If the {@code receptionPortURI} is not the creator of the {@code channel}.
 	 */
-	public Void modifyAuthorisedUsersService(String receptionPortURI, String channel, String autorizedUsers)
+	public Void modifyAuthorisedUsersService(String receptionPortURI, String channel, String autorizedUsers, GossipMessageI gossipMessageToPropagate)
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
 		// Precondition checks
 		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
@@ -1076,6 +1193,17 @@ public class Broker extends AbstractComponent{
 				
 			}
 		}
+		
+		// Gossip sending
+		GossipMessageI[] toSend = new GossipMessageI[1];
+		if (gossipMessageToPropagate == null) { // The case for a call incoming from the same JVM
+			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
+			message.setUpdateChannelAuthURIsMessage(receptionPortURI, channel, autorizedUsers);
+			gossipMessageToPropagate = message;
+		}
+		toSend[0] = gossipMessageToPropagate;
+		gossipPlugin.send(toSend);
+		
 		return null;
 	}
 
@@ -1098,12 +1226,13 @@ public class Broker extends AbstractComponent{
 	 *
 	 * @param receptionPortURI				URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel						name of the channel to be destroyed.
+	 * @param gossipMessageToPropagate		a message received through the gossip protocol, containing the call parameters, that will be propagated at the end of the service if no error occurs.
 	 * @return 								Void
 	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
 	 * @throws UnauthorisedClientException  If the {@code receptionPortURI} is not allowed to interact with the {@code channel}.
 	 */
-	public Void destroyChannelService(String receptionPortURI, String channel) 
+	public Void destroyChannelService(String receptionPortURI, String channel, GossipMessageI gossipMessageToPropagate) 
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException{
 		// Precondition checks
 		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
@@ -1186,6 +1315,16 @@ public class Broker extends AbstractComponent{
 				}
 			}
 		}
+		
+		// Gossip sending
+		GossipMessageI[] toSend = new GossipMessageI[1];
+		if (gossipMessageToPropagate == null) { // The case for a call incoming from the same JVM
+			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
+			message.setDestroyChannelMessage(receptionPortURI, channel, false);
+			gossipMessageToPropagate = message;
+		}
+		toSend[0] = gossipMessageToPropagate;
+		gossipPlugin.send(toSend);
 
 		// Dans le cahier des charges il est mentionné que les ports entrants offrant ReceivingCI doivent être déconnectés après 
 		// destruction d'un channel, mais cela semble être trop pénalisant/pas naturel pour un tel système, du coup on fait le choix
@@ -1212,12 +1351,13 @@ public class Broker extends AbstractComponent{
 	 *
 	 * @param receptionPortURI				URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel						name of the channel to be destroyed.
+	 * @param gossipMessageToPropagate		a message received through the gossip protocol, containing the call parameters, that will be propagated at the end of the service if no error occurs.
 	 * @return 								Void
 	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
 	 * @throws UnauthorisedClientException  If the {@code receptionPortURI} is not allowed to interact with the {@code channel}.
 	 */
-	public Void destroyChannelNowService(String receptionPortURI, String channel) 
+	public Void destroyChannelNowService(String receptionPortURI, String channel, GossipMessageI gossipMessageToPropagate) 
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException{
 		// Precondition checks
 		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
@@ -1259,6 +1399,16 @@ public class Broker extends AbstractComponent{
 				}
 			}
 		}
+		
+		// Gossip sending
+		GossipMessageI[] toSend = new GossipMessageI[1];
+		if (gossipMessageToPropagate == null) { // The case for a call incoming from the same JVM
+			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
+			message.setDestroyChannelMessage(receptionPortURI, channel, true);
+			gossipMessageToPropagate = message;
+		}
+		toSend[0] = gossipMessageToPropagate;
+		gossipPlugin.send(toSend);
 		
 		// Dans le cahier des charges il est mentionné que les ports entrants offrant ReceivingCI doivent être déconnectés après 
 		// destruction d'un channel, mais cela semble être trop pénalisant/pas naturel pour un tel système, du coup on fait le choix

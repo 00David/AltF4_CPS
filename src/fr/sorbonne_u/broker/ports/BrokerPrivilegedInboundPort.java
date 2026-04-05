@@ -65,25 +65,25 @@ implements	PrivilegedClientCI {
 	@Override
 	public void createChannel(String receptionPortURI, String channel, String autorisedUsers) throws Exception {
 		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).createChannelService(receptionPortURI, channel, autorisedUsers));
+				owner -> ((Broker)owner).createChannelService(receptionPortURI, channel, autorisedUsers, null));
 	}
 
 	@Override
 	public void modifyAuthorisedUsers(String receptionPortURI, String channel, String autorisedUsers) throws Exception {
 		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).modifyAuthorisedUsersService(receptionPortURI, channel, autorisedUsers));
+				owner -> ((Broker)owner).modifyAuthorisedUsersService(receptionPortURI, channel, autorisedUsers, null));
 	}
 
 	@Override
 	public void destroyChannel(String receptionPortURI, String channel) throws Exception {
 		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).destroyChannelService(receptionPortURI, channel));
+				owner -> ((Broker)owner).destroyChannelService(receptionPortURI, channel, null));
 	}
 
 	@Override
 	public void destroyChannelNow(String receptionPortURI, String channel) throws Exception {
 		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).destroyChannelNowService(receptionPortURI, channel));
+				owner -> ((Broker)owner).destroyChannelNowService(receptionPortURI, channel, null));
 	}
 	
 }

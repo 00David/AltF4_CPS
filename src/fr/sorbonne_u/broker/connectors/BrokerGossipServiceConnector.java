@@ -1,6 +1,6 @@
 package fr.sorbonne_u.broker.connectors;
 
-import fr.sorbonne_u.broker.components.plugin.BrokerGossipPlugin;
+import fr.sorbonne_u.broker.plugin.BrokerGossipPlugin;
 import fr.sorbonne_u.components.connectors.AbstractConnector;
 import fr.sorbonne_u.cps.gossip.interfaces.GossipMessageI;
 import fr.sorbonne_u.cps.gossip.interfaces.GossipSenderCI;

@@ -1,8 +1,8 @@
 package fr.sorbonne_u.broker.ports;
 
 import fr.sorbonne_u.broker.components.Broker;
-import fr.sorbonne_u.broker.components.plugin.BrokerGossipPlugin;
 import fr.sorbonne_u.broker.connectors.BrokerGossipServiceConnector;
+import fr.sorbonne_u.broker.plugin.BrokerGossipPlugin;
 import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.components.ports.AbstractOutboundPort;
 import fr.sorbonne_u.cps.gossip.interfaces.GossipMessageI;

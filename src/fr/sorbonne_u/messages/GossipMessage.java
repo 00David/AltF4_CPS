@@ -14,9 +14,9 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
  * The Message class implementing a gossip message for the publication/subscription system.<br>
  * It does not necessarily carry publication messages.
  * 
- * <p>
- * Personalized methods in this class must be used to set the carried message. Thus they also define the protocol usage.
- * </p>
+ * <p>A GossipMessage is identified solely by its {@code messageURI}.</p>
+ * 
+ * <p>Personalized methods in this class must be used to set the carried message. Thus they also define the protocol usage.</p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -43,16 +43,16 @@ public class GossipMessage implements GossipMessageI{
 	public final String emitterURI;
 	
 	/** The URI of the gossip message, created by the {@code generateGossipMessageURI} method. */
-	public final String messageURI;
+	private final String messageURI;
 	
 	/** Gives the action needed for the carried {@code message}. */
-	public Action messageAction;
+	private Action messageAction;
 	
 	/** A carried message. In its properties it has all needed parameters for the linked Broker {@code action}. */
-	public MessageI message;
+	private MessageI message;
 	
 	/** The timestamp of when the gossip message is created (set in its constructor). */
-	public final Instant timestamp;
+	private final Instant timestamp;
 	
 	//--------------------------------------------------------------------------
 	// Constructors
@@ -130,6 +130,23 @@ public class GossipMessage implements GossipMessageI{
         
         return emitterURI+"_"+result.toString();
 	}
+	
+    // -------------------------------------------------------------------------
+    // EQUALITY (based solely on messageURI)
+    // -------------------------------------------------------------------------
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        GossipMessage that = (GossipMessage) o;
+        return messageURI.equals(that.messageURI);
+    }
+
+    @Override
+    public int hashCode() {
+        return messageURI.hashCode();
+    }
 	
 	//--------------------------------------------------------------------------
 	// Getters
@@ -211,7 +228,7 @@ public class GossipMessage implements GossipMessageI{
 	 * @param channel			           	Name of the channel on which {@code message} must be published.
 	 * @param messagesToPublish			    List of messages to be published on {@code channel}. It can contain an only message.
 	 * @throws IllegalArgumentException 	If a precondition fails.
-	 * @see Broker#publishService(String, String, ArrayList)
+	 * @see Broker#publishService(String, String, ArrayList, GossipMessageI)
 	 */
 	public void setPublishMessages(String receptionPortURI, String channel, ArrayList<MessageI> messagesToPublish) {
 		// Precondition checks
@@ -242,7 +259,7 @@ public class GossipMessage implements GossipMessageI{
 	 * @param receptionPortURI	          	URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param rc				          	The required registration class.
 	 * @throws IllegalArgumentException 	If a precondition fails.
-	 * @see Broker#registeredService(String, RegistrationClass)
+	 * @see Broker#registerService(String, RegistrationClass, GossipMessageI)
 	 */
 	public void setRegisterMessage(String receptionPortURI, RegistrationClass rc) {
 		// Precondition checks
@@ -270,7 +287,7 @@ public class GossipMessage implements GossipMessageI{
 	 * 
 	 * @param receptionPortURI				URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @throws IllegalArgumentException 	If a precondition fails.
-	 * @see Broker#unregisterService(String)
+	 * @see Broker#unregisterService(String, GossipMessageI)
 	 */
 	public void setUnregisterMessage(String receptionPortURI) {
 		// Precondition check
@@ -299,7 +316,7 @@ public class GossipMessage implements GossipMessageI{
 	 * @param channel						Name of the channel to be created.
 	 * @param autorizedUsers				Regular expression that matches the URIs of components that must be authorized to use the new channel.
 	 * @throws IllegalArgumentException 	If a precondition fails.
-	 * @see Broker#createChannelService(String, String, String)
+	 * @see Broker#createChannelService(String, String, String, GossipMessageI)
 	 */
 	public void setCreateChannelMessage(String receptionPortURI, String channel, String autorizedUsers) {
 		// Precondition checks
@@ -331,8 +348,8 @@ public class GossipMessage implements GossipMessageI{
 	 * @param channel						Name of the channel to be destroyed.
 	 * @param now							True if {@code destroyChannelNowService} is called. False if {@code destroyChannelService} is called.
 	 * @throws IllegalArgumentException 	If a precondition fails.
-	 * @see Broker#destroyChannelService(String, String)
-	 * @see Broker#destroyChannelNowService(String, String)
+	 * @see Broker#destroyChannelService(String, String, GossipMessageI)
+	 * @see Broker#destroyChannelNowService(String, String, GossipMessageI)
 	 */
 	public void setDestroyChannelMessage(String receptionPortURI, String channel, boolean now) {
 		// Precondition checks
@@ -364,7 +381,7 @@ public class GossipMessage implements GossipMessageI{
 	 * @param channel			      		Name of an existing channel.
 	 * @param filter			           	Filter that accepts the message the component wants to receive.
 	 * @throws IllegalArgumentException 	If a precondition fails.
-	 * @see Broker#subscribeService(String, String, MessageFilterI)
+	 * @see Broker#subscribeService(String, String, MessageFilterI, GossipMessageI)
 	 */
 	public void setSubscribeClientMessage(String receptionPortURI, String channel, MessageFilterI filter) {
 		// Precondition checks
@@ -395,7 +412,7 @@ public class GossipMessage implements GossipMessageI{
 	 * @param receptionPortURI				URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel			            Name of an existing channel.
 	 * @throws IllegalArgumentException 	If a precondition fails.
-	 * @see Broker#unsubscribeService(String, String)
+	 * @see Broker#unsubscribeService(String, String, GossipMessageI)
 	 */
 	public void setUnsubscribeClientMessage(String receptionPortURI, String channel) {
 		// Precondition checks
@@ -424,7 +441,7 @@ public class GossipMessage implements GossipMessageI{
 	 * @param receptionPortURI	            URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param rc				            The required registration class.
 	 * @throws IllegalArgumentException 	If a precondition fails.
-	 * @see Broker#modifyServiceClassService(String, RegistrationClass)
+	 * @see Broker#modifyServiceClassService(String, RegistrationClass, GossipMessageI)
 	 */
 	public void setUpdateClientClassMessage(String receptionPortURI, RegistrationClass rc)  {
 		// Precondition checks
@@ -455,7 +472,7 @@ public class GossipMessage implements GossipMessageI{
 	 * @param channel						Name of the channel.
 	 * @param autorizedUsers				Regular expression that matches the URIs of components that must be authorized to use the new channel.
 	 * @throws IllegalArgumentException 	If a precondition fails.
-	 * @see Broker#modifyAuthorisedUsersService(String, String, String)
+	 * @see Broker#modifyAuthorisedUsersService(String, String, String, GossipMessageI)
 	 */
 	public void setUpdateChannelAuthURIsMessage(String receptionPortURI, String channel, String autorizedUsers)  {
 		// Precondition checks

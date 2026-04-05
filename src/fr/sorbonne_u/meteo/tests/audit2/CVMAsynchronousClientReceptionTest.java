@@ -2,6 +2,7 @@ package fr.sorbonne_u.meteo.tests.audit2;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
 import fr.sorbonne_u.broker.components.Broker;
@@ -331,7 +332,8 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 		String broker_URI = AbstractComponent.createComponent(
 				Broker.class.getCanonicalName(),
 				new Object[] {2, nbMaxChannelsSTD, nbMaxChannelsPREM, brokerNbThreads, 0, 
-						brokerNbFreeLoadersThreads, brokerNbUnloadersThreads, brokerNbSendersThreads});
+						brokerNbFreeLoadersThreads, brokerNbUnloadersThreads, brokerNbSendersThreads, 
+						"BrokerGossipInboundPortURI", new ArrayList<>(), new ArrayList<>()}); // Gossip protocol unused here
 		assert this.isDeployedComponent(broker_URI);
 		this.toggleTracing(broker_URI);
 		
