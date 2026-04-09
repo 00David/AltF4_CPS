@@ -29,7 +29,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
  * <ul>
  *   <li>The URI of the client port.</li>
  *   <li>The {@link RegistrationClass} of the client.</li>
- *   <li>The {@link BrokerReceivingOutboundPort}, outbound port towards this client.</li>
+ *   <li>The {@link BrokerReceivingOutboundPort}, outbound port towards this client. {@code null} if the client is not in the same JVM as the Broker.</li>
  *   <li>The number of remaining channels the client can create. When one its channels is destroyed, the number is increased.</li>
  * </ul>
  * 
@@ -58,7 +58,7 @@ public class ClientBrokerInfos {
 	/** The registration class of the client */
 	private RegistrationClass rc;
 	
-	/** The outbound port towards this client */
+	/** The outbound port towards this client. {@code null} if the client is not in the same JVM as the Broker. */
 	private final BrokerReceivingOutboundPort clientOutboundPort;
 	
 	/** The number of remaining channels the client can create */
@@ -79,6 +79,7 @@ public class ClientBrokerInfos {
 	 * @param clientPortURI         				the URI of the client's inbound port offering the {@code ReceivingCI} component interface.
 	 * @param rc                    				the registration class of the client.
 	 * @param clientOutboundPort    				the outbound port of the {@link Broker} requiring the {@code ReceivingCI} interface, associated with the client.
+	 * 												{@code null} if the client is not in the same JVM as the Broker.
 	 * @throws IllegalArgumentException 			if a precondition is not satisfied, except for {@code nbMaxChannelsStd} and {@code nbMaxChannelsPrem}.
 	 * @throws ChannelNumberNotInitializedException	if {@code nbMaxChannelsStd} or {@code nbMaxChannelsPrem} have not yet been initialized by the {@link Broker}.
 	 */

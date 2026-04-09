@@ -122,8 +122,10 @@ public class UnloaderTask extends AbstractTask {
 					// Gets the channel clients targeted by this message AT THIS MOMENT + updates the map
 					List<String> targetClientsPortURI = chanInfos.targetSubscribers(msg);
 					for (String target : targetClientsPortURI) {
-						if (!targetsMessages.containsKey(target)) targetsMessages.put(target, new ArrayList<>());
-						targetsMessages.get(target).add(msg);
+						if (!targetsMessages.containsKey(target)) { // Creates an ArrayList for the target messages, if not yet existing
+							targetsMessages.put(target, new ArrayList<>());
+						}
+						targetsMessages.get(target).add(msg); // Puts the message in the target messages list
 					}
 				}
 				

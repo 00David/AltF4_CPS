@@ -65,19 +65,19 @@ implements	RegistrationCI {
 	@Override
 	public String register(String receptionPortURI, RegistrationClass rc) throws Exception {
 		return this.getOwner().handleRequest(
-				owner -> ((Broker)owner).registerService(receptionPortURI, rc, null));
+				owner -> ((Broker)owner).registerService(receptionPortURI, rc, true));
 	}
 
 	@Override
 	public String modifyServiceClass(String receptionPortURI, RegistrationClass rc) throws Exception {
 		return this.getOwner().handleRequest(
-				owner -> ((Broker)owner).modifyServiceClassService(receptionPortURI, rc, null));
+				owner -> ((Broker)owner).modifyServiceClassService(receptionPortURI, rc, true));
 	}
 
 	@Override
 	public void unregister(String receptionPortURI) throws Exception {
 		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).unregisterService(receptionPortURI, null));
+				owner -> ((Broker)owner).unregisterService(receptionPortURI, true));
 	}
 
 	@Override
@@ -101,13 +101,13 @@ implements	RegistrationCI {
 	@Override
 	public void subscribe(String receptionPortURI, String channel, MessageFilterI filter) throws Exception {
 		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).subscribeService(receptionPortURI, channel, filter, null));
+				owner -> ((Broker)owner).subscribeService(receptionPortURI, channel, filter, true));
 	}
 
 	@Override
 	public void unsubscribe(String receptionPortURI, String channel) throws Exception {
 		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).unsubscribeService(receptionPortURI, channel, null));
+				owner -> ((Broker)owner).unsubscribeService(receptionPortURI, channel, true));
 	}
 
 	@Override

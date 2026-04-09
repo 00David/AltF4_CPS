@@ -8,7 +8,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Stream;
 
 import fr.sorbonne_u.broker.components.Broker;
@@ -24,7 +23,6 @@ import fr.sorbonne_u.cps.gossip.interfaces.GossipSenderCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
-import fr.sorbonne_u.exceptions.PostconditionException;
 import fr.sorbonne_u.exceptions.PreconditionException;
 import fr.sorbonne_u.messages.GossipMessage;
 
@@ -38,7 +36,6 @@ import fr.sorbonne_u.messages.GossipMessage;
  * invariant	{@code gossipInboundPort != null && !gossipInboundPort.isEmpty()}
  * invariant	{@code gossipOutboundPorts != null}
  * invariant	{@code gossipMessages != null}
- * invariant	{@code gossipMessagesLock != null}
  * </pre>
  * 
  * @author Kevin TANG
@@ -76,11 +73,12 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 	
 	// GOSSIP PROTOCOL INFORMATIONS
 	
-	/** List of received {@link GossipMessage}s. To prevent simultaneous multi-thread accesses, its {@code gossipMessagesLock} is used. */
-	protected final Set<GossipMessage> gossipMessages = new HashSet<>();
-	
-	/** {@code gossipMessages} lock. */
-	protected final ReentrantReadWriteLock gossipMessagesLock = new ReentrantReadWriteLock();
+	/** 
+	 * List of received {@link GossipMessage}s. 
+	 * To prevent simultaneous multi-thread accesses, its synchronized(...) monitor lock is used.
+	 * (every time the monitor lock is taken, it is for a potential write in the set) 
+	 */
+	protected final Set<GossipMessage> receivedMessages = new HashSet<>();
 	
 	/** 
 	 * If the number of stored treated messages ({@code this.gossipMessages}) exceeds the threshold, 
@@ -183,8 +181,9 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 	// -------------------------------------------------------------------------
 	
 	/**
-	 * Marks the given gossip messages as locally treated (by putting them into {@code this.gossipMessages}) 
-	 * and sends them to another(s) {@link Broker}'s {@link BrokerGossipPluginInboundPort}.
+	 * Marks the given gossip messages as locally received (by putting them into {@code this.receivedMessages}) 
+	 * and sends them to another(s) {@link Broker}'s {@link BrokerGossipPluginInboundPort}.<br>
+	 * This method is only called by Broker services called by local clients (in the same Broker JVM).
 	 * 
 	 * <p>Messages will be sent to Brokers to which {@code gossipOutboundPort}s are currently connected.</p>
 	 * 
@@ -192,7 +191,7 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 	 * <pre>
 	 * pre	all messages in {@code gossipMessages} have been locally treated in the {@link Broker} owner. // informal
 	 * pre	{@code gossipMessages != null && gossipMessages.length > 0}
-	 * pre	{@code Stream.of(gossipMessages).allMatch(m -> m != null)}
+	 * pre	{@code Stream.of(gossipMessages).allMatch(m -> m != null && m instanceof GossipMessage))}
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 *
@@ -201,21 +200,13 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 	public void send(GossipMessageI[] gossipMessages){
 		// Precondition check
 		assert(gossipMessages != null && gossipMessages.length > 0) : new PreconditionException("gossipMessages cannot be null or empty");
-		assert(Stream.of(gossipMessages).allMatch(m -> m != null)) : new PreconditionException("a gossip message cannot be null");
+		assert(Stream.of(gossipMessages).allMatch(m -> m != null && m instanceof GossipMessage)) : new PreconditionException("Must contain only non null GossipMessage");
 		
-		// Keeps the write lock during the whole process of marking locally treated messages.
-		gossipMessagesLock.writeLock().lock();
-		try {
+		synchronized(this.receivedMessages) {
 			for (int i=0; i<gossipMessages.length; i++) {
-				if (gossipMessages[i] instanceof GossipMessage) {
-					GossipMessage gossipMessage = (GossipMessage)gossipMessages[i];
-					this.gossipMessages.add(gossipMessage);
-				} else {
-					System.err.println("Thread "+Thread.currentThread().getId()+": Gossip sending error : message not an instance of GossipMessage");
-				}
+				GossipMessage gossipMessage = (GossipMessage)gossipMessages[i];
+				this.receivedMessages.add(gossipMessage);
 			}
-		} finally {
-			gossipMessagesLock.writeLock().unlock();
 		}
 		
 		try {
@@ -229,8 +220,14 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 	}
 	
 	/**
-	 * Receives an array of gossip messages from another {@link Broker}, keeps gossip messages not marked as treated locally 
-	 * and delegates Broker updates to the {@code update} method.
+	 * Receives an array of gossip messages from another {@link Broker}.
+	 * 
+	 * <ul>
+	 * 	<li>First sorts {@code gossipMessages} by keeping only gossip messages not yet locally received, and in the same 
+	 * 		time marks every received gossip message as locally received from now, by adding them into {@code this.receivedMessages}.</li>
+	 * 	<li>Then delegates to other {@link Broker} threads the propagation of received messages not previously received (those kept in the sorted array).</li>
+	 * 	<li>Finally, delegates {@link Broker} updates through a call to the {@code update} method.</li>
+	 * <ul>
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
@@ -249,17 +246,52 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 		
 		Broker broker = (Broker)this.getOwner();
 		broker.logMessage("Thread "+Thread.currentThread().getId()+": "+gossipMessages.length+" gossip message(s) received");
-		update(keepNotTreatedMessages(gossipMessages));
+		
+		List<GossipMessage> messagesToKeep = new ArrayList<>(); // must be instances of 'GossipMessage'
+		
+		synchronized(this.receivedMessages) {
+			for (int i=0; i<gossipMessages.length; i++) {
+				GossipMessage gossipMessage = (GossipMessage)gossipMessages[i];
+				// if the message has not yet been locally received, keeps it
+				if (!(this.receivedMessages.contains(gossipMessage))) messagesToKeep.add(gossipMessage);
+				// marks the message as locally received
+				this.receivedMessages.add(gossipMessage);
+			}
+		}
+		
+		int l = messagesToKeep.size();
+		if (l > 0) {
+			
+			GossipMessageI[] keptGossipMessages = new GossipMessageI[l]; // List to Array
+			for (int j=0; j<l; j++) {
+				keptGossipMessages[j] = messagesToKeep.get(j);
+			}
+			
+			GossipMessageI[] messagesToSendToNeighbours = new GossipMessageI[l]; // Copies gossip messages before propagation
+			for (int j=0; j<l; j++) {
+				messagesToSendToNeighbours[j] = keptGossipMessages[j].copyWithNewEmitterURI(broker.getReflectionInboundPortURI());
+			}
+			
+			// Delegates propagation of messages previously not received to other Broker threads
+			for (Map.Entry<String, OutboundConnection> e : gossipOutboundPorts.entrySet()) {
+				BrokerGossipPluginOutboundPort gossipOutboundPort = e.getValue().gossipOutboundPort;
+				broker.handleRequest( owner -> {
+					gossipOutboundPort.send(messagesToSendToNeighbours);
+					return null;
+				});
+			}
+			
+			// Delegates Broker updates through a call to the update method
+			update(keptGossipMessages);
+		}
 	}
 
 	/**
-	 * Considers the given non null gossip messages received from another sender {@link Broker}, the current thread will :
+	 * Considers the given gossip messages received from another sender {@link Broker}, the current thread will :
 	 * 
 	 * <ul>
-	 * 	<li>Delegate the associated action of each gossip message {@code fromSender} to another {@link Broker} thread,
-	 * 			then the designated thread will call at the end of its Broker service the {@code send} method, marking the
-	 * 			gossip message as locally treated and propagating the gossip message to other connected Brokers.</li>
-	 * 	<li>Eventually clean old treated messages in {@code this.gossipMessages}, if the number of messages exceeds a certain threshold
+	 * 	<li>Delegate the associated action of each gossip message {@code fromSender} to another {@link Broker} thread.</li>
+	 * 	<li>Eventually clean old received messages in {@code this.receivedMessages}, if the number of messages exceeds a certain threshold
 	 * 			and some messages exceed maximum storage time.</li>
 	 * </ul>
 	 * 
@@ -267,6 +299,7 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre	{@code fromSender != null && fromSender.length > 0}
+	 * pre	{@code Stream.of(fromSender).allMatch(m -> m != null && m instanceof GossipMessage)}
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 *
@@ -277,149 +310,92 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 	public void update(GossipMessageI[] fromSender) {
 		// Precondition check
 		assert(fromSender != null && fromSender.length > 0) : new PreconditionException("fromSender cannot be null or empty");
-		
-		List<GossipMessageI> messagesToSendToNeighbours = new ArrayList<>();
-		
+		assert(Stream.of(fromSender).allMatch(m -> m != null && m instanceof GossipMessage)) : new PreconditionException("Must contain only non null GossipMessage");
 				
-		// Delegate the associated action of each gossip message {@code fromSender} to another {@link Broker} thread
+		// Delegate the associated action of each gossip message to another Broker thread
 		for (int i=0; i<fromSender.length; i++) {
-			if (fromSender[i] instanceof GossipMessage) {
-				GossipMessage gossipMessage = (GossipMessage)fromSender[i];
-				messagesToSendToNeighbours.add(gossipMessage);
-				MessageI parameters = gossipMessage.message();
-				try {
-					this.getOwner().handleRequest( owner -> {
-						Broker broker = (Broker)owner;
-						GossipMessageI messageCopy = gossipMessage.copyWithNewEmitterURI(broker.getReflectionInboundPortURI());
-						switch (gossipMessage.messageAction()) {
-							case CREATE_CHANNEL:
-								broker.createChannelService((String)parameters.getPropertyValue("receptionPortURI"), 
+			GossipMessage gossipMessage = (GossipMessage)fromSender[i];
+			MessageI parameters = gossipMessage.message();
+			try {
+				this.getOwner().handleRequest( owner -> {
+					Broker broker = (Broker)owner;
+					switch (gossipMessage.messageAction()) {
+						case CREATE_CHANNEL:
+							broker.createChannelService((String)parameters.getPropertyValue("receptionPortURI"), 
+									(String)parameters.getPropertyValue("channel"),
+									(String)parameters.getPropertyValue("autorizedUsers"),
+									false);
+							break;
+						case DESTROY_CHANNEL:
+							boolean now = (boolean)parameters.getPropertyValue("now");
+							if (now) {
+								broker.destroyChannelNowService((String)parameters.getPropertyValue("receptionPortURI"), 
 										(String)parameters.getPropertyValue("channel"),
-										(String)parameters.getPropertyValue("autorizedUsers"),
-										messageCopy);
-								break;
-							case DESTROY_CHANNEL:
-								boolean now = (boolean)parameters.getPropertyValue("now");
-								if (now) {
-									broker.destroyChannelNowService((String)parameters.getPropertyValue("receptionPortURI"), 
-											(String)parameters.getPropertyValue("channel"),
-											messageCopy);
-								} else {
-									broker.destroyChannelService((String)parameters.getPropertyValue("receptionPortURI"), 
-											(String)parameters.getPropertyValue("channel"),
-											messageCopy);
-								}
-								break;
-							case PUBLISH:
-								broker.publishService((String)parameters.getPropertyValue("receptionPortURI"), 
+										false);
+							} else {
+								broker.destroyChannelService((String)parameters.getPropertyValue("receptionPortURI"), 
 										(String)parameters.getPropertyValue("channel"),
-										(ArrayList<MessageI>)parameters.getPayload(),
-										messageCopy);
-								break;
-							case REGISTER_CLIENT:
-								broker.registerService((String)parameters.getPropertyValue("receptionPortURI"), 
-										(RegistrationClass)parameters.getPropertyValue("rc"),
-										messageCopy);
-								break;
-							case SUBSCRIBE_CLIENT_CHANNEL:
-								broker.subscribeService((String)parameters.getPropertyValue("receptionPortURI"), 
-										(String)parameters.getPropertyValue("channel"),
-										(MessageFilterI)parameters.getPropertyValue("filter"),
-										messageCopy);
-								break;
-							case UNREGISTER_CLIENT:
-								broker.unregisterService((String)parameters.getPropertyValue("receptionPortURI"), 
-										messageCopy);
-								break;
-							case UNSUBSCRIBE_CLIENT_CHANNEL:
-								broker.unsubscribeService((String)parameters.getPropertyValue("receptionPortURI"), 
-										(String)parameters.getPropertyValue("channel"),
-										messageCopy);
-								break;
-							case UPDATE_CHANNEL_AUTHORIZED_URIS:
-								broker.modifyAuthorisedUsersService((String)parameters.getPropertyValue("receptionPortURI"), 
-										(String)parameters.getPropertyValue("channel"),
-										(String)parameters.getPropertyValue("autorizedUsers"),
-										messageCopy);
-								break;
-							case UPDATE_CLIENT_SERVICE_CLASS:
-								broker.modifyServiceClassService((String)parameters.getPropertyValue("receptionPortURI"), 
-										(RegistrationClass)parameters.getPropertyValue("rc"),
-										messageCopy);
-								break;
-							default: // case NOTHING
-								break;
-						}
-						return null;
-					});
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-
-			} else {
-				System.err.println("Thread "+Thread.currentThread().getId()+": Gossip update error : message not an instance of GossipMessage");
+										false);
+							}
+							break;
+						case PUBLISH:
+							broker.publishService((String)parameters.getPropertyValue("receptionPortURI"), 
+									(String)parameters.getPropertyValue("channel"),
+									(ArrayList<MessageI>)parameters.getPayload(),
+									false);
+							break;
+						case REGISTER_CLIENT:
+							broker.registerService((String)parameters.getPropertyValue("receptionPortURI"), 
+									(RegistrationClass)parameters.getPropertyValue("rc"),
+									false);
+							break;
+						case SUBSCRIBE_CLIENT_CHANNEL:
+							broker.subscribeService((String)parameters.getPropertyValue("receptionPortURI"), 
+									(String)parameters.getPropertyValue("channel"),
+									(MessageFilterI)parameters.getPropertyValue("filter"),
+									false);
+							break;
+						case UNREGISTER_CLIENT:
+							broker.unregisterService((String)parameters.getPropertyValue("receptionPortURI"), 
+									false);
+							break;
+						case UNSUBSCRIBE_CLIENT_CHANNEL:
+							broker.unsubscribeService((String)parameters.getPropertyValue("receptionPortURI"), 
+									(String)parameters.getPropertyValue("channel"),
+									false);
+							break;
+						case UPDATE_CHANNEL_AUTHORIZED_URIS:
+							broker.modifyAuthorisedUsersService((String)parameters.getPropertyValue("receptionPortURI"), 
+									(String)parameters.getPropertyValue("channel"),
+									(String)parameters.getPropertyValue("autorizedUsers"),
+									false);
+							break;
+						case UPDATE_CLIENT_SERVICE_CLASS:
+							broker.modifyServiceClassService((String)parameters.getPropertyValue("receptionPortURI"), 
+									(RegistrationClass)parameters.getPropertyValue("rc"),
+									false);
+							break;
+						default: // case NOTHING
+							break;
+					}
+					return null;
+				});
+			} catch (Exception e) {
+				e.printStackTrace();
 			}
 		}
 		
-		gossipMessagesLock.writeLock().lock();
-		try {
-			
-			// Eventually clean old treated messages
-			if (this.gossipMessages.size() > GOSSIP_MESSAGES_THRESHOLD) {
+		synchronized(this.receivedMessages) {
+			// Eventually clean old received messages
+			if (this.receivedMessages.size() > GOSSIP_MESSAGES_THRESHOLD) {
 				Instant iNow = Instant.now();
-				this.gossipMessages.removeIf(msg -> {
+				this.receivedMessages.removeIf(msg -> {
 					Duration duration = Duration.between(msg.timestamp(), iNow);
 					return duration.toMillis() > MAX_SECONDS_DIFF;
 				});
 			}
-			
-		} finally {
-			gossipMessagesLock.writeLock().unlock();
 		}
 		
-	}
-	
-	/**
-	 * 'Cleans' the given gossip messages array, by returning a new array with only gossip messages 
-	 * instances of {@link GossipMessage}, and not marked as treated here (not in {@code this.gossipMessages}).
-
-	 * <p><strong>Contract</strong></p>
-	 * <pre>
-	 * pre	{@code gossipMessagesToClean != null}
-	 * post	{@code return != null && Stream.of(return).allMatch(m -> m != null && m instanceof GossipMessage)}
-	 * </pre>
-	 *
-	 * @param gossipMessagesToClean		Gossip messages received from the sender in the gossip protocol.
-	 * @return							A new array with only gossip messages not marked as treated here.
-	 */
-	private GossipMessageI[] keepNotTreatedMessages(GossipMessageI[] gossipMessagesToClean) {
-		// Precondition check
-		assert(gossipMessagesToClean != null) : new PreconditionException("gossipMessagesToClean cannot be null or empty");
-		
-		List<GossipMessage> messagesToKeep = new ArrayList<>(); // must be instances of 'GossipMessage'
-		
-		gossipMessagesLock.readLock().lock();
-		try {
-			for (int i=0; i<gossipMessagesToClean.length; i++) {
-				if (gossipMessagesToClean[i] instanceof GossipMessage) {
-					GossipMessage gossipMessage = (GossipMessage)gossipMessagesToClean[i];
-					if (!(this.gossipMessages.contains(gossipMessage))) messagesToKeep.add(gossipMessage);
-				} else {
-					System.err.println("Thread "+Thread.currentThread().getId()+": Gossip error : message not an instance of GossipMessage");
-				}
-			}
-		} finally {
-			gossipMessagesLock.readLock().unlock();
-		}
-		
-		GossipMessageI[] keptGossipMessages = new GossipMessageI[messagesToKeep.size()];
-		for (int j=0; j<messagesToKeep.size(); j++) {
-			keptGossipMessages[j] = messagesToKeep.get(j);
-		}
-		
-		// Postcondition check
-		assert(Stream.of(keptGossipMessages).allMatch(m -> m != null && m instanceof GossipMessage)) : new PostconditionException("Must contain only non null GossipMessage");
-		return keptGossipMessages;
 	}
 
 }

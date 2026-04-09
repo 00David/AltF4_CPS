@@ -80,8 +80,9 @@ public class SenderTask extends AbstractTask {
 			//broker.logMessage("SENDER "+Thread.currentThread().getId()+" starts sending from'"+channel+"' to '"+targetPortURI+"'") ;
 			
 			ClientBrokerInfos client = clientsInfos.get(targetPortURI);
-			// Checks that the targeted client is still registered right now. If it is okay, sends messages.
-			if (broker.registeredService(targetPortURI)) {
+			// Checks that the targeted client is still registered right now, and is in the same JVM (outbound port != null).
+			// If it is okay, sends messages.
+			if (broker.registeredService(targetPortURI) && client.getOutboundPort() != null) {
 				broker.logMessage("Thread "+Thread.currentThread().getId()+": Broker sending "+messagesToSend.length+" message(s) to '" + targetPortURI + "'") ;
 				client.getOutboundPort().receive(channel, messagesToSend);
 			}

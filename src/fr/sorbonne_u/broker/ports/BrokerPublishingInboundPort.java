@@ -106,7 +106,7 @@ implements	PublishingCI {
 		this.getOwner().runTask(
 				owner -> {
 					try {
-						((Broker)owner).publishService(receptionPortURI, channel, messages, null);
+						((Broker)owner).publishService(receptionPortURI, channel, messages, true);
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
@@ -118,7 +118,7 @@ implements	PublishingCI {
 		this.getOwner().runTask(
 				owner -> {
 					try {
-						((Broker)owner).publishService(receptionPortURI, channel, messages, null);
+						((Broker)owner).publishService(receptionPortURI, channel, messages, true);
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
@@ -140,7 +140,7 @@ implements	PublishingCI {
 									this.getPortURI(),
 									"asyncPublishAndNotify",
 									new Serializable[]{receptionPortURI, channel, messages});
-						((Broker)owner).publishService(receptionPortURI, channel, messages, null);
+						((Broker)owner).publishService(receptionPortURI, channel, messages, true);
 					} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException e) {
 						throw new BCMRuntimeException(e);
 					} catch (Exception e) {
@@ -162,7 +162,7 @@ implements	PublishingCI {
 									this.getPortURI(),
 									"asyncPublishAndNotify",
 									new Serializable[]{receptionPortURI, channel, messages});
-						((Broker)owner).publishService(receptionPortURI, channel, messages, null);
+						((Broker)owner).publishService(receptionPortURI, channel, messages, true);
 					} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException e) {
 						throw new BCMRuntimeException(e);
 					} catch (Exception e) {
