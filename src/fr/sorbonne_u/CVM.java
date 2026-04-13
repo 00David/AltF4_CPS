@@ -41,24 +41,24 @@ import fr.sorbonne_u.meteo.data.PositionData;
 public class CVM extends AbstractCVM {
 
 	// MeteoBureau
-	protected final String MBRegistrationOutboundPortURI;
-	protected final String MBPublishingOutboundPortURI;
-	protected final String MBReceivingInboundPortURI;
+	protected final String MBRegistrationOutboundPortURI = "registration-outbound-port-MB";
+	protected final String MBPublishingOutboundPortURI = "publishing-outbound-port-MB";;
+	protected final String MBReceivingInboundPortURI = "inbound-port-client-MB";
 	
 	// MeteoStation 1
-	protected final String MS1RegistrationOutboundPortURI;
-	protected final String MS1PublishingOutboundPortURI;
-	protected final String MS1ReceivingInboundPortURI;
+	protected final String MS1RegistrationOutboundPortURI = "registration-outbound-port-MS1";
+	protected final String MS1PublishingOutboundPortURI = "publishing-outbound-port-MS1";
+	protected final String MS1ReceivingInboundPortURI = "inbound-port-client-MS1";
 	
 	// MeteoStation 2
-	protected final String MS2RegistrationOutboundPortURI;
-	protected final String MS2PublishingOutboundPortURI;
-	protected final String MS2ReceivingInboundPortURI;
+	protected final String MS2RegistrationOutboundPortURI = "registration-outbound-port-MS2";
+	protected final String MS2PublishingOutboundPortURI = "publishing-outbound-port-MS2";
+	protected final String MS2ReceivingInboundPortURI = "inbound-port-client-MS2";
 	
 	// WindTurbine
-	protected final String WindTurbineRegistrationOutboundPortURI;
-	protected final String WindTurbinePublishingOutboundPortURI;
-	protected final String WindTurbineReceivingInboundPortURI;
+	protected final String WindTurbineRegistrationOutboundPortURI = "registration-outbound-port-WindTurbine";
+	protected final String WindTurbinePublishingOutboundPortURI = "publishing-outbound-port-WindTurbine";
+	protected final String WindTurbineReceivingInboundPortURI ="inbound-port-client-WindTurbine";
 	
 	// Component URIs
 	protected String uriBroker;
@@ -69,21 +69,6 @@ public class CVM extends AbstractCVM {
 	
 	public CVM() throws Exception{
 		super();
-		MBRegistrationOutboundPortURI = "registration-outbound-port-MB";
-		MBPublishingOutboundPortURI = "publishing-outbound-port-MB";
-		MBReceivingInboundPortURI = "inbound-port-client-MB";
-		
-		MS1RegistrationOutboundPortURI = "registration-outbound-port-MS1";
-		MS1PublishingOutboundPortURI = "publishing-outbound-port-MS1";
-		MS1ReceivingInboundPortURI = "inbound-port-client-MS1";
-		
-		MS2RegistrationOutboundPortURI = "registration-outbound-port-MS2";
-		MS2PublishingOutboundPortURI = "publishing-outbound-port-MS2";
-		MS2ReceivingInboundPortURI = "inbound-port-client-MS2";
-		
-		WindTurbineRegistrationOutboundPortURI = "registration-outbound-port-WindTurbine";
-		WindTurbinePublishingOutboundPortURI = "publishing-outbound-port-WindTurbine";
-		WindTurbineReceivingInboundPortURI = "inbound-port-client-WindTurbine";
 	}
 	
 	@Override
