@@ -91,6 +91,8 @@ import fr.sorbonne_u.messages.GossipMessage;
  * <p><strong>Invariants</strong></p>
  * <pre>
  * invariant	{@code gossipPlugin != null}
+ * invariant	{@code GOSSIP_POOL_URI != null && !GOSSIP_POOL_URI.isEmpty() && nbGossipThreads > 0}
+ * 
  * invariant	{@code notificationPort != null}
  * invariant	{@code registrationPortURI != null && !registrationPortURI.isEmpty()}
  * invariant	{@code registrationPort != null}
@@ -120,10 +122,16 @@ public class Broker extends AbstractComponent{
 	// Internal datas
 	//--------------------------------------------------------------------------
 	
-	// GOSSIP PROTOCOL PLUGIN
+	// GOSSIP PROTOCOL
 	
 	/** Broker's gossip protocol plugin, every Broker has it initialized in its constructor. */
 	private final BrokerGossipPlugin gossipPlugin;
+	
+	/** URI of the pool of threads used for the gossip protocol. */
+	public static final String	GOSSIP_POOL_URI = "gossip-pool" ;
+	
+	/** Number of threads in the {@code GOSSIP_POOL_URI} pool. */
+	public final int nbGossipThreads;
 	
 	// NOTIFICATION
 	
@@ -133,7 +141,7 @@ public class Broker extends AbstractComponent{
 	// REGISTRATION
 	
 	/** Broker's inbound registration port, got by static method 'registrationPortURI' */
-	private static final String registrationPortURI = "registration-inbound--port-broker";
+	private static String registrationPortURI;
 	
 	/** Broker's inbound port, implementing {@link RegistrationCI} */
 	private final BrokerRegistrationInboundPort registrationPort;
@@ -147,7 +155,7 @@ public class Broker extends AbstractComponent{
 	// PUBLICATION
 	
 	/** Broker's inbound publication port, got by registering an inbound client port */
-	private static final String publishingPortURI = "publishing-inbound-port-broker";
+	private String publishingPortURI;
 	
 	/** Broker's inbound port, implementing {@link PublishingCI} */
 	private final BrokerPublishingInboundPort publishingPort;
@@ -155,7 +163,7 @@ public class Broker extends AbstractComponent{
 	// PRIVILEGED MANAGEMENT
 	
 	/** Broker's inbound privileged port, got by registering an inbound privileged client port */
-	private static final String privilegedPortURI = "privileged-inbound-port-broker";
+	private String privilegedPortURI;
 	
 	/** Broker's inbound port, implementing {@link PrivilegedClientCI} */
 	private final BrokerPrivilegedInboundPort privilegedPort;
@@ -226,11 +234,13 @@ public class Broker extends AbstractComponent{
 	 * pre	{@code nbThreads > 0}
 	 * pre	{@code nbSchedulableThreads >= 0}
 	 * pre	{@code nbFreeLoadersThreads > 0 && nbUnloadersThreads > 0 && nbSendersThreads > 0}
+	 * pre	{@code nbGossipThreads > 0}
 	 * post class invariants satisfied
 	 * post outbound ports configured and initialized
 	 * post {@code ClientBrokerInfos.nbMaxChannelsStd >= 0 && ClientBrokerInfos.nbMaxChannelsPrem >= 0}
 	 * </pre>
 	 * 
+	 * @param id						Broker id. Supposed to be unique, even in a multi-JVM run situation.
 	 * @param N							The number of default channels in the Broker (from 'channel0' to 'channel[N-1]').
 	 * @param nbMaxChannelsStd			The maximum number of channels that can be managed by a standard privileged client.
 	 * @param nbMaxChannelsPrem			The maximum number of channels that can be managed by a premium privileged client.
@@ -239,14 +249,15 @@ public class Broker extends AbstractComponent{
 	 * @param nbFreeLoadersThreads		Number of threads to be created in the free loaders pool. It is x2 for standard clients, and x4 for premium clients.
 	 * @param nbUnloadersThreads		Number of threads to be created in the unloaders pool.
 	 * @param nbSendersThreads			Number of threads to be created in the senders pool.
+	 * @param nbGossipThreads			Number of threads to be created in the gossip protocol pool.
 	 * @param gossipInboundPortURI		The {@link Broker} inbound port URI offering {@link GossipReceiverCI} interface.
 	 * @param gossipOutboundPortURIs	{@link Broker} outbound port URIs requiring {@link GossipSenderCI} interface.
 	 * @param otherBrokersToConnectURIs	Other {@link Broker}s gossip inbound port URIs, a URI at an index i in {@code gossipOutboundPortURIs} 
 	 * 									connects to the port URI with the same index in {@code portsToConnect}.
 	 * @throws Exception				If there is a problem while publishing a port.
 	 */
-	protected Broker(int N, int nbMaxChannelsStd, int nbMaxChannelsPrem, int nbThreads, int nbSchedulableThreads,
-			int nbFreeLoadersThreads, int nbUnloadersThreads, int nbSendersThreads,
+	protected Broker(int id, int N, int nbMaxChannelsStd, int nbMaxChannelsPrem, int nbThreads, int nbSchedulableThreads,
+			int nbFreeLoadersThreads, int nbUnloadersThreads, int nbSendersThreads, int nbGossipThreads,
 			String gossipInboundPortURI, List<String> gossipOutboundPortURIs, List<String> otherBrokersToConnectURIs) throws Exception {
 		super(nbThreads, nbSchedulableThreads);
 		// Precondition checks
@@ -254,7 +265,14 @@ public class Broker extends AbstractComponent{
 		assert(nbThreads > 0) : new PreconditionException("must have at leat 1 normal thread");
 		assert(nbSchedulableThreads >= 0) : new PreconditionException("cannot have a negative number of schedulable threads");
 		assert(nbFreeLoadersThreads > 0 && nbUnloadersThreads > 0 && nbSendersThreads > 0) : new PreconditionException("must have at least 1 thread for each publication step");
+		assert(nbGossipThreads > 0) : new PreconditionException("must have at leat 1 gossip thread");
 		
+		// Port URIs
+		registrationPortURI = "registration-inbound-port-broker"+id;
+		publishingPortURI = "publishing-inbound-port-broker"+id;
+		privilegedPortURI = "privileged-inbound-port-broker"+id;
+		
+		// Internal static data initializations
 		ClientBrokerInfos.nbMaxChannelsStd = nbMaxChannelsStd;
 		ClientBrokerInfos.nbMaxChannelsPrem = nbMaxChannelsPrem;
 		
@@ -266,12 +284,14 @@ public class Broker extends AbstractComponent{
 		}
 		
 		// Creation of thread pools
+		this.nbGossipThreads = nbGossipThreads;
 		this.nbFreeLoadersThreads = nbFreeLoadersThreads;
 		this.nbStdLoadersThreads = 2*nbFreeLoadersThreads;
 		this.nbPremLoadersThreads = 4*nbFreeLoadersThreads;
 		this.nbUnloadersThreads = nbUnloadersThreads;
 		this.nbSendersThreads = nbSendersThreads;
 		
+		this.createNewExecutorService(GOSSIP_POOL_URI, this.nbGossipThreads, false);
 		this.createNewExecutorService(FREE_LOADERS_POOL_URI, this.nbFreeLoadersThreads, false);
 		this.createNewExecutorService(STD_LOADERS_POOL_URI, this.nbStdLoadersThreads, false);
 		this.createNewExecutorService(PREM_LOADERS_POOL_URI, this.nbPremLoadersThreads, false);
@@ -297,6 +317,16 @@ public class Broker extends AbstractComponent{
 		this.installPlugin(this.gossipPlugin);
 		
 		// Invariant checks
+		AbstractComponent.checkImplementationInvariant(this);
+		AbstractComponent.checkInvariant(this);
+		
+		// Postcondition checks
+		assert	this.isRequiredInterface(GossipSenderCI.class) :
+			new InvariantException("The Broker component should require the interface GossipSenderCI!");
+		assert	this.isOfferedInterface(GossipReceiverCI.class) :
+			new InvariantException("The Broker component should offer the interface GossipReceiverCI!");
+		assert	this.isRequiredInterface(AbnormalTerminationNotificationCI.class) :
+			new InvariantException("The Broker component should require the interface AbnormalTerminationNotificationCI!");
 		assert	this.isOfferedInterface(RegistrationCI.class) :
 			new InvariantException("The Broker component should offer the interface RegistrationCI!");
 		assert	this.isOfferedInterface(PublishingCI.class) :
@@ -305,13 +335,24 @@ public class Broker extends AbstractComponent{
 			new InvariantException("The Broker component should offer the interface PrivilegedClientCI!");
 		assert	this.isRequiredInterface(ReceivingCI.class) :
 			new InvariantException("The Broker component should require the interface ReceivingCI!");
-		assert	this.isRequiredInterface(AbnormalTerminationNotificationCI.class) :
-			new InvariantException("The Broker component should require the interface AbnormalTerminationNotificationCI!");
 		
-		AbstractComponent.checkImplementationInvariant(this);
-		AbstractComponent.checkInvariant(this);
+		assert gossipPlugin.isInitialised() : 
+			new PostconditionException("Gossip plugin must be initialized");
+		assert	this.isPortExisting(gossipInboundPortURI) : 
+			new PostconditionException("The component must have a port with URI " + gossipInboundPortURI);
+		assert	this.findPortFromURI(gossipInboundPortURI).getImplementedInterface().equals(GossipReceiverCI.class) : 
+			new PostconditionException("The component must have a port with implemented interface GossipReceiverCI");
+		assert	this.findPortFromURI(gossipInboundPortURI).isPublished() :
+			new PostconditionException("The component must have a port published with URI " + gossipInboundPortURI);
+		for (String gossipOutboundPortURI : gossipOutboundPortURIs) {
+			assert	this.isPortExisting(gossipOutboundPortURI) : 
+				new PostconditionException("The component must have a port with URI " + gossipOutboundPortURI);
+			assert	this.findPortFromURI(gossipOutboundPortURI).getImplementedInterface().equals(GossipSenderCI.class) : 
+				new PostconditionException("The component must have a port with implemented interface GossipSenderCI");
+			assert	this.findPortFromURI(gossipOutboundPortURI).isPublished() :
+				new PostconditionException("The component must have a port published with URI " + gossipOutboundPortURI);
+		}
 		
-		// Postcondition checks
 		String[] notificationURIs = this.findOutboundPortURIsFromInterface(AbnormalTerminationNotificationCI.class);
 		assert  notificationURIs.length == 1 : 
 			new PostconditionException("The Broker must have a port with implemented interface AbnormalTerminationNotificationCI");;
@@ -339,29 +380,13 @@ public class Broker extends AbstractComponent{
 		assert	this.findPortFromURI(privilegedPortURI).isPublished() : 
 			new PostconditionException("The component must have a port published with URI " + privilegedPortURI);
 		
-		assert gossipPlugin.isInitialised() : 
-			new PostconditionException("Gossip plugin must be initialized");
-		assert	this.isPortExisting(gossipInboundPortURI) : 
-			new PostconditionException("The component must have a port with URI " + gossipInboundPortURI);
-		assert	this.findPortFromURI(gossipInboundPortURI).getImplementedInterface().equals(GossipReceiverCI.class) : 
-			new PostconditionException("The component must have a port with implemented interface GossipReceiverCI");
-		assert	this.findPortFromURI(gossipInboundPortURI).isPublished() :
-			new PostconditionException("The component must have a port published with URI " + gossipInboundPortURI);
-		for (String gossipOutboundPortURI : gossipOutboundPortURIs) {
-			assert	this.isPortExisting(gossipOutboundPortURI) : 
-				new PostconditionException("The component must have a port with URI " + gossipOutboundPortURI);
-			assert	this.findPortFromURI(gossipOutboundPortURI).getImplementedInterface().equals(GossipSenderCI.class) : 
-				new PostconditionException("The component must have a port with implemented interface GossipSenderCI");
-			assert	this.findPortFromURI(gossipOutboundPortURI).isPublished() :
-				new PostconditionException("The component must have a port published with URI " + gossipOutboundPortURI);
-		}
 		
 		assert ClientBrokerInfos.nbMaxChannelsStd >= 0 : 
 			new PostconditionException("The max number of channels for standard clients must be properly initialized");
 		assert ClientBrokerInfos.nbMaxChannelsPrem >= 0 : 
 			new PostconditionException("The max number of channels for premium clients must be properly initialized");
 		
-		this.getTracer().setTitle("Broker");
+		this.getTracer().setTitle("Broker"+id);
 		this.getTracer().setRelativePosition(0, 4);
 	}
 	
@@ -524,9 +549,10 @@ public class Broker extends AbstractComponent{
 		if (fromLocalJVM) {
 			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
 			message.setRegisterMessage(receptionPortURI, rc);
-			gossipPlugin.send(new GossipMessageI[] {message});
+			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
+				gossipPlugin.send(new GossipMessageI[] {message});
+			});
 		}
-		
 		
 		if (rc == RegistrationClass.FREE) return publishingPortURI;
 		else return privilegedPortURI;
@@ -599,7 +625,9 @@ public class Broker extends AbstractComponent{
 		if (fromLocalJVM) {
 			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
 			message.setUpdateClientClassMessage(receptionPortURI, rc);
-			gossipPlugin.send(new GossipMessageI[] {message});
+			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
+				gossipPlugin.send(new GossipMessageI[] {message});
+			});
 		}
 		
 		if (rc == RegistrationClass.FREE) return publishingPortURI;
@@ -662,7 +690,9 @@ public class Broker extends AbstractComponent{
 		if (fromLocalJVM) {
 			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
 			message.setUnregisterMessage(receptionPortURI);
-			gossipPlugin.send(new GossipMessageI[] {message});
+			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
+				gossipPlugin.send(new GossipMessageI[] {message});
+			});
 		}
 		
 		return null;
@@ -836,7 +866,9 @@ public class Broker extends AbstractComponent{
 		if (fromLocalJVM) {
 			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
 			message.setSubscribeClientMessage(receptionPortURI, channel, filter);
-			gossipPlugin.send(new GossipMessageI[] {message});
+			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
+				gossipPlugin.send(new GossipMessageI[] {message});
+			});
 		}
 		
 		return null;
@@ -893,7 +925,9 @@ public class Broker extends AbstractComponent{
 		if (fromLocalJVM) {
 			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
 			message.setUnsubscribeClientMessage(receptionPortURI, channel);
-			gossipPlugin.send(new GossipMessageI[] {message});
+			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
+				gossipPlugin.send(new GossipMessageI[] {message});
+			});
 		}
 		
 		return null;
@@ -1011,7 +1045,9 @@ public class Broker extends AbstractComponent{
 		if (fromLocalJVM) {
 			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
 			message.setPublishMessages(receptionPortURI, channel, messages);
-			gossipPlugin.send(new GossipMessageI[] {message});
+			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
+				gossipPlugin.send(new GossipMessageI[] {message});
+			});
 		}
 		
 		return null;
@@ -1124,7 +1160,9 @@ public class Broker extends AbstractComponent{
 		if (fromLocalJVM) {
 			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
 			message.setCreateChannelMessage(receptionPortURI, channel, autorizedUsers);
-			gossipPlugin.send(new GossipMessageI[] {message});
+			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
+				gossipPlugin.send(new GossipMessageI[] {message});
+			});
 		}
 		
 		return null;
@@ -1188,7 +1226,9 @@ public class Broker extends AbstractComponent{
 		if (fromLocalJVM) {
 			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
 			message.setUpdateChannelAuthURIsMessage(receptionPortURI, channel, autorizedUsers);
-			gossipPlugin.send(new GossipMessageI[] {message});
+			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
+				gossipPlugin.send(new GossipMessageI[] {message});
+			});
 		}
 		
 		return null;
@@ -1307,7 +1347,9 @@ public class Broker extends AbstractComponent{
 		if (fromLocalJVM) {
 			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
 			message.setDestroyChannelMessage(receptionPortURI, channel, false);
-			gossipPlugin.send(new GossipMessageI[] {message});
+			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
+				gossipPlugin.send(new GossipMessageI[] {message});
+			});
 		}
 
 		// Dans le cahier des charges il est mentionné que les ports entrants offrant ReceivingCI doivent être déconnectés après 
@@ -1388,7 +1430,9 @@ public class Broker extends AbstractComponent{
 		if (fromLocalJVM) {
 			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
 			message.setDestroyChannelMessage(receptionPortURI, channel, true);
-			gossipPlugin.send(new GossipMessageI[] {message});
+			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
+				gossipPlugin.send(new GossipMessageI[] {message});
+			});
 		}
 		
 		// Dans le cahier des charges il est mentionné que les ports entrants offrant ReceivingCI doivent être déconnectés après 

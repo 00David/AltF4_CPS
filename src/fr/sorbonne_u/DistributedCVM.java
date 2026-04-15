@@ -30,22 +30,22 @@ public class DistributedCVM extends	AbstractDistributedCVM {
 	protected final String Broker3GossipInboundPortURI = "gossip-inbound-port-Bro3";
 	protected final String Broker3GossipOutboundPortURI = "gossip-outbound-port-Bro3-"; // + "1", +"2", etc..
 	
-	// MeteoBureau (in Broker1)
+	// MeteoBureau (with Broker1)
 	protected final String MBRegistrationOutboundPortURI = "registration-outbound-port-MB";
 	protected final String MBPublishingOutboundPortURI = "publishing-outbound-port-MB";
 	protected final String MBReceivingInboundPortURI = "inbound-port-client-MB";
 	
-	// MeteoStation 1 (in Broker1)
+	// MeteoStation 1 (with Broker1)
 	protected final String MS1RegistrationOutboundPortURI = "registration-outbound-port-MS1";
 	protected final String MS1PublishingOutboundPortURI = "publishing-outbound-port-MS1";
 	protected final String MS1ReceivingInboundPortURI = "inbound-port-client-MS1";
 	
-	// MeteoStation 2 (in Broker2)
+	// MeteoStation 2 (with Broker2)
 	protected final String MS2RegistrationOutboundPortURI = "registration-outbound-port-MS2";
 	protected final String MS2PublishingOutboundPortURI = "publishing-outbound-port-MS2";
 	protected final String MS2ReceivingInboundPortURI = "inbound-port-client-MS2";
 	
-	// WindTurbine (in Broker3)
+	// WindTurbine (with Broker3)
 	protected final String WindTurbineRegistrationOutboundPortURI = "registration-outbound-port-WindTurbine";
 	protected final String WindTurbinePublishingOutboundPortURI = "publishing-outbound-port-WindTurbine";
 	protected final String WindTurbineReceivingInboundPortURI ="inbound-port-client-WindTurbine";
@@ -76,6 +76,7 @@ public class DistributedCVM extends	AbstractDistributedCVM {
 	protected final int nbFreeLoadersThreads = 1;
 	protected final int nbUnloadersThreads = 1;
 	protected final int nbSendersThreads = 1;
+	protected final int nbGossipThreads = 1;
 	
 	// MeteoBureau parameters
 	protected final PositionData bureauPosition = new PositionData(2, 1);
@@ -93,23 +94,6 @@ public class DistributedCVM extends	AbstractDistributedCVM {
 	// WindTurbine parameters
 	protected final PositionData windTurbinePosition = new PositionData(2, 2);
 	protected final MeteoAlertI.Level maxWorkingLevel = MeteoAlertI.Level.ORANGE;
-	
-	protected static final String PROVIDER_COMPONENT_URI = "my-URI-provider";
-	protected static final String CONSUMER_COMPONENT_URI = "my-URI-consumer";
-
-	// URI of the CVM instances as defined in the config.xml file
-	protected static String			PROVIDER_JVM_URI = "provider";
-	protected static String			CONSUMER_JVM_URI = "consumer";
-
-	protected static String			URIGetterOutboundPortURI = "oport";
-	protected static String			URIProviderInboundPortURI = "iport";
-
-	/** Reference to the provider component to share between deploy
-	 *  and shutdown.														*/
-	protected String	uriProviderURI;
-	/** Reference to the consumer component to share between deploy
-	 *  and shutdown.														*/
-	protected String	uriConsumerURI;
 
 	public DistributedCVM(String[] args) throws Exception {
 		super(args);
@@ -133,8 +117,6 @@ public class DistributedCVM extends	AbstractDistributedCVM {
 		// Configuration phase
 		// ---------------------------------------------------------------------
 
-		// debugging mode configuration; comment and uncomment the line to see
-		// the difference
 		AbstractCVM.DEBUG_MODE.add(CVMDebugModes.LIFE_CYCLE);
 		AbstractCVM.DEBUG_MODE.add(CVMDebugModes.INTERFACES);
 		AbstractCVM.DEBUG_MODE.add(CVMDebugModes.PORTS);
@@ -143,7 +125,6 @@ public class DistributedCVM extends	AbstractDistributedCVM {
 		AbstractCVM.DEBUG_MODE.add(CVMDebugModes.EXECUTOR_SERVICES);
 
 		super.initialise();
-		// any other application-specific initialisation must be put here
 	}
 
 	@Override
@@ -161,14 +142,13 @@ public class DistributedCVM extends	AbstractDistributedCVM {
 			// Broker creation
 			this.uriBroker1 = AbstractComponent.createComponent(
 					Broker.class.getCanonicalName(),
-					new Object[] {nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, nbThreads, nbSchedulableThreads, 
-							nbFreeLoadersThreads, nbUnloadersThreads, nbSendersThreads, 
+					new Object[] {1, nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, nbThreads, nbSchedulableThreads, 
+							nbFreeLoadersThreads, nbUnloadersThreads, nbSendersThreads, nbGossipThreads,
 							Broker1GossipInboundPortURI, broker1OutboundPorts, broker1ConnectedTo});
 			assert this.isDeployedComponent(this.uriBroker1);
 			this.toggleTracing(this.uriBroker1);
 			
 			// Creation of 1 MeteoBureau
-			
 			this.uriMB = AbstractComponent.createComponent(
 					MeteoBureau.class.getCanonicalName(),
 					new Object[] { MBReceivingInboundPortURI, MBRegistrationOutboundPortURI, MBPublishingOutboundPortURI, "", // privileged port URI empty
@@ -197,8 +177,8 @@ public class DistributedCVM extends	AbstractDistributedCVM {
 			// Broker creation
 			this.uriBroker2 = AbstractComponent.createComponent(
 					Broker.class.getCanonicalName(),
-					new Object[] {nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, nbThreads, nbSchedulableThreads, 
-							nbFreeLoadersThreads, nbUnloadersThreads, nbSendersThreads, 
+					new Object[] {2, nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, nbThreads, nbSchedulableThreads, 
+							nbFreeLoadersThreads, nbUnloadersThreads, nbSendersThreads, nbGossipThreads,
 							Broker2GossipInboundPortURI, broker2OutboundPorts, broker2ConnectedTo});
 			assert this.isDeployedComponent(this.uriBroker2);
 			this.toggleTracing(this.uriBroker2);
@@ -224,8 +204,8 @@ public class DistributedCVM extends	AbstractDistributedCVM {
 			// Broker creation
 			this.uriBroker3 = AbstractComponent.createComponent(
 					Broker.class.getCanonicalName(),
-					new Object[] {nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, nbThreads, nbSchedulableThreads, 
-							nbFreeLoadersThreads, nbUnloadersThreads, nbSendersThreads, 
+					new Object[] {3, nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, nbThreads, nbSchedulableThreads, 
+							nbFreeLoadersThreads, nbUnloadersThreads, nbSendersThreads, nbGossipThreads,
 							Broker3GossipInboundPortURI, broker3OutboundPorts, broker3ConnectedTo});
 			assert this.isDeployedComponent(this.uriBroker3);
 			this.toggleTracing(this.uriBroker3);

@@ -182,7 +182,7 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 	
 	/**
 	 * Marks the given gossip messages as locally received (by putting them into {@code this.receivedMessages}) 
-	 * and sends them to another(s) {@link Broker}'s {@link BrokerGossipPluginInboundPort}.<br>
+	 * and sends them to another(s) {@link Broker}'s {@link BrokerGossipPluginInboundPort} with gossip protocol threads.<br>
 	 * This method is only called by Broker services called by local clients (in the same Broker JVM).
 	 * 
 	 * <p>Messages will be sent to Brokers to which {@code gossipOutboundPort}s are currently connected.</p>
@@ -197,10 +197,12 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 	 *
 	 * @param gossipMessages	gossip messages sent by the sender in the gossip protocol.
 	 */
-	public void send(GossipMessageI[] gossipMessages){
+	public void send(GossipMessageI[] gossipMessages) {
 		// Precondition check
 		assert(gossipMessages != null && gossipMessages.length > 0) : new PreconditionException("gossipMessages cannot be null or empty");
 		assert(Stream.of(gossipMessages).allMatch(m -> m != null && m instanceof GossipMessage)) : new PreconditionException("Must contain only non null GossipMessage");
+		
+		Broker broker = (Broker)this.getOwner();
 		
 		synchronized(this.receivedMessages) {
 			for (int i=0; i<gossipMessages.length; i++) {
@@ -209,13 +211,16 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 			}
 		}
 		
-		try {
-			for (Map.Entry<String, OutboundConnection> e : gossipOutboundPorts.entrySet()) {
+		
+		for (Map.Entry<String, OutboundConnection> e : gossipOutboundPorts.entrySet()) {
+			broker.runTask(Broker.GOSSIP_POOL_URI, o -> {
 				BrokerGossipPluginOutboundPort gossipOutboundPort = e.getValue().gossipOutboundPort;
-				gossipOutboundPort.send(gossipMessages);
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
+				try {
+					gossipOutboundPort.send(gossipMessages);
+				} catch (Exception eSend) {
+					eSend.printStackTrace();
+				}
+			});
 		}
 	}
 	
@@ -225,7 +230,7 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 	 * <ul>
 	 * 	<li>First sorts {@code gossipMessages} by keeping only gossip messages not yet locally received, and in the same 
 	 * 		time marks every received gossip message as locally received from now, by adding them into {@code this.receivedMessages}.</li>
-	 * 	<li>Then delegates to other {@link Broker} threads the propagation of received messages not previously received (those kept in the sorted array).</li>
+	 * 	<li>Then delegates to other gossip threads the propagation of received messages not previously received (those kept in the sorted array).</li>
 	 * 	<li>Finally, delegates {@link Broker} updates through a call to the {@code update} method.</li>
 	 * <ul>
 	 * 
@@ -272,12 +277,15 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 				messagesToSendToNeighbours[j] = keptGossipMessages[j].copyWithNewEmitterURI(broker.getReflectionInboundPortURI());
 			}
 			
-			// Delegates propagation of messages previously not received to other Broker threads
+			// Delegates propagation of messages previously not received to other gossip threads
 			for (Map.Entry<String, OutboundConnection> e : gossipOutboundPorts.entrySet()) {
-				BrokerGossipPluginOutboundPort gossipOutboundPort = e.getValue().gossipOutboundPort;
-				broker.handleRequest( owner -> {
-					gossipOutboundPort.send(messagesToSendToNeighbours);
-					return null;
+				broker.runTask(Broker.GOSSIP_POOL_URI, o -> {
+					BrokerGossipPluginOutboundPort gossipOutboundPort = e.getValue().gossipOutboundPort;
+					try {
+						gossipOutboundPort.send(messagesToSendToNeighbours);
+					} catch (Exception eSend) {
+						eSend.printStackTrace();
+					}
 				});
 			}
 			
@@ -290,7 +298,7 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 	 * Considers the given gossip messages received from another sender {@link Broker}, the current thread will :
 	 * 
 	 * <ul>
-	 * 	<li>Delegate the associated action of each gossip message {@code fromSender} to another {@link Broker} thread.</li>
+	 * 	<li>Delegate the associated action of each gossip message {@code fromSender} to another gossip thread.</li>
 	 * 	<li>Eventually clean old received messages in {@code this.receivedMessages}, if the number of messages exceeds a certain threshold
 	 * 			and some messages exceed maximum storage time.</li>
 	 * </ul>
@@ -311,14 +319,16 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 		// Precondition check
 		assert(fromSender != null && fromSender.length > 0) : new PreconditionException("fromSender cannot be null or empty");
 		assert(Stream.of(fromSender).allMatch(m -> m != null && m instanceof GossipMessage)) : new PreconditionException("Must contain only non null GossipMessage");
-				
-		// Delegate the associated action of each gossip message to another Broker thread
+			
+		Broker broker = (Broker)this.getOwner();
+		
+		// Delegate the associated action of each gossip message to another gossip thread
 		for (int i=0; i<fromSender.length; i++) {
 			GossipMessage gossipMessage = (GossipMessage)fromSender[i];
 			MessageI parameters = gossipMessage.message();
-			try {
-				this.getOwner().handleRequest( owner -> {
-					Broker broker = (Broker)owner;
+			
+			broker.runTask(Broker.GOSSIP_POOL_URI, o -> {
+				try {
 					switch (gossipMessage.messageAction()) {
 						case CREATE_CHANNEL:
 							broker.createChannelService((String)parameters.getPropertyValue("receptionPortURI"), 
@@ -375,14 +385,16 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 									(RegistrationClass)parameters.getPropertyValue("rc"),
 									false);
 							break;
-						default: // case NOTHING
+						case NOTHING:
+							break;
+						default:
+							System.err.println("Default case switch gossip plugin, broker "+broker.getReflectionInboundPortURI());
 							break;
 					}
-					return null;
-				});
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			});
 		}
 		
 		synchronized(this.receivedMessages) {

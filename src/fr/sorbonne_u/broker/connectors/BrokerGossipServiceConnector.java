@@ -3,6 +3,7 @@ package fr.sorbonne_u.broker.connectors;
 import fr.sorbonne_u.broker.plugin.BrokerGossipPlugin;
 import fr.sorbonne_u.components.connectors.AbstractConnector;
 import fr.sorbonne_u.cps.gossip.interfaces.GossipMessageI;
+import fr.sorbonne_u.cps.gossip.interfaces.GossipReceiverCI;
 import fr.sorbonne_u.cps.gossip.interfaces.GossipSenderCI;
 
 /**
@@ -20,10 +21,10 @@ import fr.sorbonne_u.cps.gossip.interfaces.GossipSenderCI;
 public class BrokerGossipServiceConnector extends AbstractConnector implements GossipSenderCI{
 
 	// Precondition and postconditions verifications are delegated to the the BrokerGossipPluginInboundPort
-	
+
 	@Override
 	public void send(GossipMessageI[] gossipMessages) throws Exception {
-		((GossipSenderCI)this.offering).send(gossipMessages);
+		((GossipReceiverCI)this.offering).receive(gossipMessages);
 	}
 
 }
