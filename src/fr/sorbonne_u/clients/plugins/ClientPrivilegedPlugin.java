@@ -93,24 +93,26 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 	
 	@Override
 	public void	initialise() throws Exception {
+		super.initialise();
 		this.privilegedOutboundPort = new ClientPrivilegedOutboundPort(privilegedOutboundPortURI, this.getOwner());
 		this.privilegedOutboundPort.publishPort();
 		
 		this.getOwner().doPortConnection(this.privilegedOutboundPort.getPortURI(),
 				brokerPublishingPortURI,
 				ClientPrivilegedServiceConnector.class.getCanonicalName());
-		super.initialise();
 	}
 	
 	@Override
 	public void	finalise() throws Exception {
 		this.getOwner().doPortDisconnection(this.privilegedOutboundPort.getPortURI());
+		super.finalise();
 	}
 	
 	@Override
 	public void uninstall() throws Exception {
 		this.privilegedOutboundPort.unpublishPort();
 		this.removeRequiredInterface(PrivilegedClientCI.class);
+		super.uninstall();
 	}
 	
 	// -------------------------------------------------------------------------

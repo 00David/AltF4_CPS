@@ -23,6 +23,7 @@ import fr.sorbonne_u.cps.gossip.interfaces.GossipSenderCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
+import fr.sorbonne_u.exceptions.PostconditionException;
 import fr.sorbonne_u.exceptions.PreconditionException;
 import fr.sorbonne_u.messages.GossipMessage;
 
@@ -134,10 +135,11 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 	
 	@Override
 	public void	initialise() throws Exception {
+		super.initialise();
 		this.gossipInboundPort = new BrokerGossipPluginInboundPort(gossipInboundPortURI, this.getOwner(), "gossip");
 		this.gossipInboundPort.publishPort();
 		
-		// Each outbound port is connected to the corresponding inbound port of another Broker, with an update of 'OutboundConnection' objects
+		// For each outbound connection, create and publish the outbound port
 		for (Map.Entry<String, OutboundConnection> e : gossipOutboundPorts.entrySet()) {
 			String gossipOutboundPortURI = e.getKey();
 			OutboundConnection connection = e.getValue();
@@ -145,13 +147,35 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 			BrokerGossipPluginOutboundPort gossipOutboundPort = new BrokerGossipPluginOutboundPort(gossipOutboundPortURI, this.getOwner());
 			connection.gossipOutboundPort = gossipOutboundPort;
 			gossipOutboundPort.publishPort();
-			
-			this.getOwner().doPortConnection(gossipOutboundPort.getPortURI(),
+		}
+	}
+	
+	/**
+	 * Utility method for connecting each plugin outbound port to its inbound port counter part.
+	 * Must be called in the {@code start} method of its Broker owner component.
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code true}	// no precondition.
+	 * post {@code 
+	 *   forall c in gossipOutboundPorts.values():
+	 *       c.gossipOutboundPort.connected()
+	 * }   // all outbound ports are connected.
+	 * </pre>
+	 * 
+	 * @throws Exception If an error occurs while connecting an outbound port.
+	 */
+	public void connectPorts() throws Exception {
+		// For each outbound connection, connect the outbound port
+		for (Map.Entry<String, OutboundConnection> e : gossipOutboundPorts.entrySet()) {
+			OutboundConnection connection = e.getValue();
+			this.getOwner().doPortConnection(connection.gossipOutboundPort.getPortURI(),
 					connection.portToConnectURI,
 					BrokerGossipServiceConnector.class.getCanonicalName());
+			
+			assert connection.gossipOutboundPort.connected() : 
+				new PostconditionException(connection.gossipOutboundPort.getPortURI()+" not connected");
 		}
-
-		super.initialise();
 	}
 	
 	@Override
@@ -161,6 +185,7 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 			OutboundConnection connection = e.getValue();
 			this.getOwner().doPortDisconnection(connection.gossipOutboundPort.getPortURI());
 		}
+		super.finalise();
 	}
 	
 	@Override
@@ -174,6 +199,7 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 			connection.gossipOutboundPort.unpublishPort();
 		}
 		this.removeRequiredInterface(GossipSenderCI.class);
+		super.uninstall();
 	}
 	
 	// -------------------------------------------------------------------------

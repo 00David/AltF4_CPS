@@ -440,7 +440,7 @@ public class CVMConcurrentPublicationsTest extends AbstractCVM {
 		int nbMaxChannelsPREM = 4;
 		String broker_URI = AbstractComponent.createComponent(
 				Broker.class.getCanonicalName(),
-				new Object[] {1, 2, nbMaxChannelsSTD, nbMaxChannelsPREM, brokerNbThreads, 0, 
+				new Object[] {1, new PositionData(0, 4), 2, nbMaxChannelsSTD, nbMaxChannelsPREM, brokerNbThreads, 0, 
 						brokerNbFreeLoadersThreads, brokerNbUnloadersThreads, brokerNbSendersThreads, 
 						1, "BrokerGossipInboundPortURI", new ArrayList<>(), new ArrayList<>()}); // Gossip protocol unused here
 		assert this.isDeployedComponent(broker_URI);

@@ -4,9 +4,7 @@ import java.util.ArrayList;
 
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.components.AbstractComponent;
-import fr.sorbonne_u.components.cvm.AbstractCVM;
 import fr.sorbonne_u.components.cvm.AbstractDistributedCVM;
-import fr.sorbonne_u.components.helpers.CVMDebugModes;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.meteo.components.MeteoBureau;
@@ -69,7 +67,7 @@ public class DistributedCVM extends	AbstractDistributedCVM {
 	protected final int nbSchedulableThreads = 0;
 	protected final RegistrationClass rc = RegistrationClass.FREE;
 	
-	// Broker parameters (same for each)
+	// Broker parameters, same for each
 	protected final int nbDefaultChannels = 2;
 	protected final int nbMaxChannelsStd = 2;
 	protected final int nbMaxChannelsPrem = 4;
@@ -77,6 +75,10 @@ public class DistributedCVM extends	AbstractDistributedCVM {
 	protected final int nbUnloadersThreads = 1;
 	protected final int nbSendersThreads = 1;
 	protected final int nbGossipThreads = 1;
+	// Broker parameters, individual
+	protected final PositionData broker1Postion = new PositionData(0, 3);
+	protected final PositionData broker2Postion = new PositionData(0, 4);
+	protected final PositionData broker3Postion = new PositionData(0, 5);
 	
 	// MeteoBureau parameters
 	protected final PositionData bureauPosition = new PositionData(2, 1);
@@ -99,31 +101,14 @@ public class DistributedCVM extends	AbstractDistributedCVM {
 		super(args);
 	}
 
-	/**
-	 * do some initialisation before anything can go on.
-	 * 
-	 * <p><strong>Contract</strong></p>
-	 * 
-	 * <pre>
-	 * pre	true				// no more preconditions.
-	 * post	true				// no more postconditions.
-	 * </pre>
-	 * 
-	 * @see fr.sorbonne_u.components.cvm.AbstractDistributedCVM#initialise()
-	 */
 	@Override
 	public void	initialise() throws Exception {
-		// ---------------------------------------------------------------------
-		// Configuration phase
-		// ---------------------------------------------------------------------
-
-		AbstractCVM.DEBUG_MODE.add(CVMDebugModes.LIFE_CYCLE);
+		/*AbstractCVM.DEBUG_MODE.add(CVMDebugModes.LIFE_CYCLE);
 		AbstractCVM.DEBUG_MODE.add(CVMDebugModes.INTERFACES);
 		AbstractCVM.DEBUG_MODE.add(CVMDebugModes.PORTS);
 		AbstractCVM.DEBUG_MODE.add(CVMDebugModes.CONNECTING);
 		AbstractCVM.DEBUG_MODE.add(CVMDebugModes.CALLING);
-		AbstractCVM.DEBUG_MODE.add(CVMDebugModes.EXECUTOR_SERVICES);
-
+		AbstractCVM.DEBUG_MODE.add(CVMDebugModes.EXECUTOR_SERVICES);*/
 		super.initialise();
 	}
 
@@ -142,7 +127,7 @@ public class DistributedCVM extends	AbstractDistributedCVM {
 			// Broker creation
 			this.uriBroker1 = AbstractComponent.createComponent(
 					Broker.class.getCanonicalName(),
-					new Object[] {1, nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, nbThreads, nbSchedulableThreads, 
+					new Object[] {1, broker1Postion, nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, nbThreads, nbSchedulableThreads, 
 							nbFreeLoadersThreads, nbUnloadersThreads, nbSendersThreads, nbGossipThreads,
 							Broker1GossipInboundPortURI, broker1OutboundPorts, broker1ConnectedTo});
 			assert this.isDeployedComponent(this.uriBroker1);
@@ -177,7 +162,7 @@ public class DistributedCVM extends	AbstractDistributedCVM {
 			// Broker creation
 			this.uriBroker2 = AbstractComponent.createComponent(
 					Broker.class.getCanonicalName(),
-					new Object[] {2, nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, nbThreads, nbSchedulableThreads, 
+					new Object[] {2, broker2Postion, nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, nbThreads, nbSchedulableThreads, 
 							nbFreeLoadersThreads, nbUnloadersThreads, nbSendersThreads, nbGossipThreads,
 							Broker2GossipInboundPortURI, broker2OutboundPorts, broker2ConnectedTo});
 			assert this.isDeployedComponent(this.uriBroker2);
@@ -204,7 +189,7 @@ public class DistributedCVM extends	AbstractDistributedCVM {
 			// Broker creation
 			this.uriBroker3 = AbstractComponent.createComponent(
 					Broker.class.getCanonicalName(),
-					new Object[] {3, nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, nbThreads, nbSchedulableThreads, 
+					new Object[] {3, broker3Postion, nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, nbThreads, nbSchedulableThreads, 
 							nbFreeLoadersThreads, nbUnloadersThreads, nbSendersThreads, nbGossipThreads,
 							Broker3GossipInboundPortURI, broker3OutboundPorts, broker3ConnectedTo});
 			assert this.isDeployedComponent(this.uriBroker3);
@@ -224,28 +209,11 @@ public class DistributedCVM extends	AbstractDistributedCVM {
 		super.instantiateAndPublish();
 	}
 
-	@Override
-	public void	interconnect() throws Exception {
-		assert this.isIntantiatedAndPublished();
-		super.interconnect();
-	}
-
-	@Override
-	public void	finalise() throws Exception {
-		super.finalise();
-	}
-
-	@Override
-	public void	shutdown() throws Exception {
-		super.shutdown();
-	}
-
 	public static void main(String[] args) {
 		try {
 			DistributedCVM da  = new DistributedCVM(args);
-			int duree = 120; // in seconds
+			int duree = 90; // in seconds
 			da.startStandardLifeCycle(duree * 1000L) ; // start
-			Thread.sleep(10000L);
 			System.exit(0);
 		} catch (Throwable e) {
 			e.printStackTrace();

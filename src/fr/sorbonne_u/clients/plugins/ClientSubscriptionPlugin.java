@@ -94,15 +94,16 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	
 	@Override
 	public void	initialise() throws Exception {
+		super.initialise();
 		this.receivingInboundPort = new ClientReceivingPluginInboundPort(receivingInboundPortURI, this.getOwner(), this.getPluginURI());
 		this.receivingInboundPort.publishPort();
-		super.initialise();
 	}
 	
 	@Override
 	public void uninstall() throws Exception {
 		this.receivingInboundPort.unpublishPort();
 		this.removeOfferedInterface(ReceivingCI.class);
+		super.uninstall();
 	}
 	
 	// -------------------------------------------------------------------------

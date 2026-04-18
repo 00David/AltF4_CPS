@@ -46,6 +46,7 @@ import fr.sorbonne_u.exceptions.InvariantException;
 import fr.sorbonne_u.exceptions.PostconditionException;
 import fr.sorbonne_u.exceptions.PreconditionException;
 import fr.sorbonne_u.messages.GossipMessage;
+import fr.sorbonne_u.meteo.data.PositionData;
 
 /**
  * Component implementing the publish/subscribe system.
@@ -241,6 +242,7 @@ public class Broker extends AbstractComponent{
 	 * </pre>
 	 * 
 	 * @param id						Broker id. Supposed to be unique, even in a multi-JVM run situation.
+	 * @param windowPosition			Broker's log window position. A PositionData is used for it.
 	 * @param N							The number of default channels in the Broker (from 'channel0' to 'channel[N-1]').
 	 * @param nbMaxChannelsStd			The maximum number of channels that can be managed by a standard privileged client.
 	 * @param nbMaxChannelsPrem			The maximum number of channels that can be managed by a premium privileged client.
@@ -256,11 +258,12 @@ public class Broker extends AbstractComponent{
 	 * 									connects to the port URI with the same index in {@code portsToConnect}.
 	 * @throws Exception				If there is a problem while publishing a port.
 	 */
-	protected Broker(int id, int N, int nbMaxChannelsStd, int nbMaxChannelsPrem, int nbThreads, int nbSchedulableThreads,
+	protected Broker(int id, PositionData windowPosition, int N, int nbMaxChannelsStd, int nbMaxChannelsPrem, int nbThreads, int nbSchedulableThreads,
 			int nbFreeLoadersThreads, int nbUnloadersThreads, int nbSendersThreads, int nbGossipThreads,
 			String gossipInboundPortURI, List<String> gossipOutboundPortURIs, List<String> otherBrokersToConnectURIs) throws Exception {
 		super(nbThreads, nbSchedulableThreads);
 		// Precondition checks
+		assert(windowPosition != null) : new PreconditionException("windowPosition cannot be null");
 		assert(N>=2) : new PreconditionException("Broker's number of default channels must be at least 2 ('channel0' for wind datas, 'channel1' for meteo alerts)");
 		assert(nbThreads > 0) : new PreconditionException("must have at leat 1 normal thread");
 		assert(nbSchedulableThreads >= 0) : new PreconditionException("cannot have a negative number of schedulable threads");
@@ -387,7 +390,7 @@ public class Broker extends AbstractComponent{
 			new PostconditionException("The max number of channels for premium clients must be properly initialized");
 		
 		this.getTracer().setTitle("Broker"+id);
-		this.getTracer().setRelativePosition(0, 4);
+		this.getTracer().setRelativePosition((int)windowPosition.getPosX(), (int)windowPosition.getPosY());
 	}
 	
 	//--------------------------------------------------------------------------
@@ -396,8 +399,13 @@ public class Broker extends AbstractComponent{
 
 	@Override
 	public synchronized void start() throws ComponentStartException {
-		this.logMessage("starting Broker component.");
 		super.start();
+		try {
+			this.gossipPlugin.connectPorts(); // Connect gossip outbound ports
+		} catch (Exception e) {
+			throw new ComponentStartException(e) ;
+		}
+		this.logMessage("starting Broker component.");
 	}
 
 	@Override

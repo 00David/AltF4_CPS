@@ -115,6 +115,7 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 	
 	@Override
 	public void	initialise() throws Exception {
+		super.initialise();
 		this.publishingOutboundPort = new ClientPublishingOutboundPort(publishingOutboundPortURI, this.getOwner());
 		this.publishingOutboundPort.publishPort();
 		
@@ -124,13 +125,12 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 		
 		this.notificationInboundPort = new AbnormalTerminationNotificationInboundPort(this.getOwner());
 		this.notificationInboundPort.publishPort();
-		
-		super.initialise();
 	}
 	
 	@Override
 	public void	finalise() throws Exception {
 		this.getOwner().doPortDisconnection(this.publishingOutboundPort.getPortURI());
+		super.finalise();
 	}
 	
 	@Override
@@ -139,6 +139,7 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 		this.removeRequiredInterface(PublishingCI.class);
 		this.notificationInboundPort.unpublishPort();
 		this.removeOfferedInterface(AbnormalTerminationNotificationCI.class);
+		super.uninstall();
 	}
 	
 	// -------------------------------------------------------------------------

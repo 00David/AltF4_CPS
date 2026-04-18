@@ -11,5 +11,13 @@
   	    rmiRegistryCreator="true"
         hostname="localhost"
         mainclass="fr.sorbonne_u.DistributedCVM"/>
+  	<jvm2hostname jvmuri="broker2"
+  	    rmiRegistryCreator="false"
+        hostname="localhost"
+        mainclass="fr.sorbonne_u.DistributedCVM"/>
+  	<jvm2hostname jvmuri="broker3"
+  	    rmiRegistryCreator="false"
+        hostname="localhost"
+        mainclass="fr.sorbonne_u.DistributedCVM"/>
   </jvms2hostnames>
 </deployment>

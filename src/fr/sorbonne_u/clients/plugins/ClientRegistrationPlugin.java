@@ -82,24 +82,26 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	
 	@Override
 	public void	initialise() throws Exception {
+		super.initialise();
 		this.registrationOutboundPort = new ClientRegistrationOutboundPort(registrationOutboundPortURI, this.getOwner());
 		this.registrationOutboundPort.publishPort();
 		
 		this.getOwner().doPortConnection(this.registrationOutboundPort.getPortURI(),
 				Broker.registrationPortURI(),
 				ClientRegistrationServiceConnector.class.getCanonicalName());
-		super.initialise();
 	}
 	
 	@Override
 	public void	finalise() throws Exception {
 		this.getOwner().doPortDisconnection(this.registrationOutboundPort.getPortURI());
+		super.finalise();
 	}
 	
 	@Override
 	public void uninstall() throws Exception {
 		this.registrationOutboundPort.unpublishPort();
 		this.removeRequiredInterface(RegistrationCI.class);
+		super.uninstall();
 	}
 	
 	// -------------------------------------------------------------------------

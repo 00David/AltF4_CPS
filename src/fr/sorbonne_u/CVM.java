@@ -94,7 +94,7 @@ public class CVM extends AbstractCVM {
 		int nbMaxChannelsPREM = 4;
 		this.uriBroker = AbstractComponent.createComponent(
 				Broker.class.getCanonicalName(),
-				new Object[] {1, 2, nbMaxChannelsSTD, nbMaxChannelsPREM, 1, 0, 1, 1, 1, 
+				new Object[] {1, new PositionData(0, 4), 2, nbMaxChannelsSTD, nbMaxChannelsPREM, 1, 0, 1, 1, 1, 
 						1, "BrokerGossipInboundPortURI", new ArrayList<>(), new ArrayList<>()}); // Gossip protocol unused here
 		assert this.isDeployedComponent(this.uriBroker);
 		this.toggleTracing(this.uriBroker);
@@ -152,10 +152,8 @@ public class CVM extends AbstractCVM {
 	public static void main(String[] args) {
 		try {
 			CVM a = new CVM() ;
-			
-			int duree = 120; // in seconds
+			int duree = 90; // in seconds
 			a.startStandardLifeCycle(duree * 1000L) ; // start
-
 			System.exit(0) ;
 		} catch (Throwable e) {
 			e.printStackTrace();
