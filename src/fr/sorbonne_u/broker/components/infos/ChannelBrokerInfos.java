@@ -104,7 +104,8 @@ public class ChannelBrokerInfos {
     	
     	if (channel == null || channel.isEmpty()) 
     		throw new IllegalArgumentException("A channel name cannot be null or empty");
-        if (authorizedUsers == null) throw new IllegalArgumentException("The regex for authorised users cannot be null");
+        if (authorizedUsers == null) 
+        	throw new IllegalArgumentException("The regex for authorised users cannot be null");
 
         this.channel = channel;
         this.subscribers = new HashMap<>();
@@ -134,8 +135,10 @@ public class ChannelBrokerInfos {
      */
     public synchronized void addOrReplaceSubscriber(String clientPortURI, MessageFilterI filter) {
     	// Precondition checks
-    	if (clientPortURI == null || clientPortURI.isEmpty()) throw new IllegalArgumentException("A client port URI cannot be null or empty");
-    	if (filter == null) throw new IllegalArgumentException("A filter cannot be null");
+    	if (clientPortURI == null || clientPortURI.isEmpty()) 
+    		throw new IllegalArgumentException("A client port URI cannot be null or empty");
+    	if (filter == null) 
+    		throw new IllegalArgumentException("A filter cannot be null");
     	
     	subscribers.put(clientPortURI, filter);
     	
@@ -158,7 +161,8 @@ public class ChannelBrokerInfos {
      */
     public synchronized boolean isSubscribed(String clientPortURI) {
     	// Precondition checks
-    	if (clientPortURI == null || clientPortURI.isEmpty()) throw new IllegalArgumentException("A client port URI cannot be null or empty");
+    	if (clientPortURI == null || clientPortURI.isEmpty()) 
+    		throw new IllegalArgumentException("A client port URI cannot be null or empty");
     	
     	return subscribers.containsKey(clientPortURI);
     }
@@ -179,8 +183,10 @@ public class ChannelBrokerInfos {
      */
     public synchronized void removeSubscriber(String clientPortURI) {
     	// Precondition checks
-    	if (clientPortURI == null || clientPortURI.isEmpty()) throw new IllegalArgumentException("A client port URI cannot be null or empty");
-    	if (!isSubscribed(clientPortURI)) throw new IllegalArgumentException("Client not already subscribed");
+    	if (clientPortURI == null || clientPortURI.isEmpty()) 
+    		throw new IllegalArgumentException("A client port URI cannot be null or empty");
+    	if (!isSubscribed(clientPortURI)) 
+    		throw new IllegalArgumentException("Client not already subscribed");
 
     	subscribers.remove(clientPortURI);   
 
@@ -247,7 +253,8 @@ public class ChannelBrokerInfos {
      */
     public synchronized void modifyAuthorizedUsers(String authorizedUsers) {
     	// Precondition check
-    	if (authorizedUsers == null) throw new IllegalArgumentException("Authorized users cannot be null");
+    	if (authorizedUsers == null) 
+    		throw new IllegalArgumentException("Authorized users cannot be null");
     	
     	this.authorizedUsers = authorizedUsers;
 		

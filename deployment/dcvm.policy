@@ -1,6 +1,6 @@
 grant {
   permission java.io.FilePermission "./*", "write";
-  permission java.io.FilePermission "./jars/*", "read,write";
+  permission java.io.FilePermission "../jars/*", "read,write";
   permission java.io.FilePermission "C:\\Program Files (x86)\\Java\\jre1.8.0_481\\lib\\*", "read";
   permission java.lang.RuntimePermission "accessDeclaredMembers" ;
   permission java.lang.RuntimePermission "getClassLoader" ;

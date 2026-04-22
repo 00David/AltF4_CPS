@@ -40,7 +40,9 @@ public class IdenticalValueFilter implements ValueFilterI {
 	 */
 	public IdenticalValueFilter(Serializable filterValue) {
 		// Precondition check
-		if (filterValue == null) throw new IllegalArgumentException("A filter value cannot be null");
+		if (filterValue == null) 
+			throw new IllegalArgumentException("A filter value cannot be null");
+		
 		this.filterValue = filterValue;
 	}
 	

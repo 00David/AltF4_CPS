@@ -42,7 +42,8 @@ public class WindData implements WindDataI {
 	 */
 	public WindData(PositionData position, double windX, double windY) {
 		// Precondition check
-		if (position == null) throw new IllegalArgumentException("The wind source position cannot be null");
+		if (position == null) 
+			throw new IllegalArgumentException("The wind source position cannot be null");
 		
 		this.position = position;
 		this.windX = windX;

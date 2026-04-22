@@ -63,11 +63,16 @@ public class MeteoAlert implements MeteoAlertI {
 	 */
 	public MeteoAlert(AlertTypeI alertType,LevelI alertLevel,ArrayList<RegionI> regions,Instant startTime, Duration duration) {
 		// Precondition checks
-		if (alertType == null) throw new IllegalArgumentException("An alert type cannot be null");
-		if (alertLevel == null) throw new IllegalArgumentException("An alert level cannot be null");
-		if (regions == null || regions.isEmpty()) throw new IllegalArgumentException("Regions cannot be null or empty");
-		if (startTime == null) throw new IllegalArgumentException("Start time cannot be null");
-		if (duration == null) throw new IllegalArgumentException("Duration cannot be null");
+		if (alertType == null) 
+			throw new IllegalArgumentException("An alert type cannot be null");
+		if (alertLevel == null) 
+			throw new IllegalArgumentException("An alert level cannot be null");
+		if (regions == null || regions.isEmpty()) 
+			throw new IllegalArgumentException("Regions cannot be null or empty");
+		if (startTime == null) 
+			throw new IllegalArgumentException("Start time cannot be null");
+		if (duration == null) 
+			throw new IllegalArgumentException("Duration cannot be null");
 		
 		this.alertType = alertType;
 		this.alertLevel = alertLevel;

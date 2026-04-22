@@ -63,8 +63,10 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	 */
 	public ClientRegistrationPlugin(String receivingInboundPortURI, String registrationOutboundPortURI){
 		// Precondition checks
-		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : new PreconditionException("receivingInboundPortURI cannot be null or empty");
-		assert(registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()) : new PreconditionException("registrationOutboundPortURI cannot be null or empty");
+		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : 
+			new PreconditionException("receivingInboundPortURI cannot be null or empty");
+		assert(registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()) : 
+			new PreconditionException("registrationOutboundPortURI cannot be null or empty");
 		
 		this.receivingInboundPortURI = receivingInboundPortURI;
 		this.registrationOutboundPortURI = registrationOutboundPortURI;

@@ -6,6 +6,7 @@ import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.components.ports.AbstractInboundPort;
 import fr.sorbonne_u.cps.gossip.interfaces.GossipMessageI;
 import fr.sorbonne_u.cps.gossip.interfaces.GossipReceiverCI;
+import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
  * Inbound port of a {@link Broker}, allowing the handling of gossip messages reception.<br>
@@ -43,10 +44,10 @@ public class BrokerGossipPluginInboundPort extends AbstractInboundPort implement
 	public BrokerGossipPluginInboundPort(String uri, ComponentI owner, String pluginURI) throws Exception {
 		super(uri, GossipReceiverCI.class, owner, pluginURI, null);
 		// Precondition checks
-		assert(uri != null && !uri.isEmpty());
-		assert(owner != null);
-		assert(owner instanceof Broker);
-		assert(pluginURI != null && !pluginURI.isEmpty());
+		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
+		assert(owner != null) : new PreconditionException("owner cannot be null");
+		assert(owner instanceof Broker) : new PreconditionException("owner must be an instance of Broker");
+		assert(pluginURI != null && !pluginURI.isEmpty()) : new PreconditionException("pluginURI cannot be null or empty");
 	}
 	
 	// Precondition and postcondition verifications are delegated to the BrokerGossipPlugin

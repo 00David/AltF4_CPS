@@ -72,9 +72,12 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 	 */
 	public ClientPrivilegedPlugin(String receivingInboundPortURI, String privilegedOutboundPortURI, String brokerPublishingPortURI){
 		// Precondition checks
-		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : new PreconditionException("receivingInboundPortURI cannot be null or empty");
-		assert(privilegedOutboundPortURI != null && !privilegedOutboundPortURI.isEmpty()) : new PreconditionException("privilegedOutboundPortURI cannot be null or empty");
-		assert(brokerPublishingPortURI != null && !brokerPublishingPortURI.isEmpty()) : new PreconditionException("brokerPublishingPortURI cannot be null or empty");
+		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : 
+			new PreconditionException("receivingInboundPortURI cannot be null or empty");
+		assert(privilegedOutboundPortURI != null && !privilegedOutboundPortURI.isEmpty()) : 
+			new PreconditionException("privilegedOutboundPortURI cannot be null or empty");
+		assert(brokerPublishingPortURI != null && !brokerPublishingPortURI.isEmpty()) : 
+			new PreconditionException("brokerPublishingPortURI cannot be null or empty");
 		
 		this.receivingInboundPortURI = receivingInboundPortURI;
 		this.privilegedOutboundPortURI = privilegedOutboundPortURI;
@@ -157,8 +160,7 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 		}
 	}
 
-	// tmp, will be deleted
-	@Override
+	@Override // deleted from other interfaces, so unused
 	public boolean isAuthorisedUser(String channel, String uri) throws UnknownClientException, UnknownChannelException {
 		return true;
 	}

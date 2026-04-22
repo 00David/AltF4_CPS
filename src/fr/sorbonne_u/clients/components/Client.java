@@ -73,10 +73,14 @@ public abstract class Client extends AbstractComponent implements AbnormalTermin
 		super(nbThreads,nbSchedulableThreads);
 		
 		// Precondition checks
-		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : new PreconditionException("receivingInboundPortURI cannot be empty or null");
-		assert(registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()) : new PreconditionException("registrationOutboundPortURI cannot be empty or null");
-		assert(registrationClass != null) : new PreconditionException("registrationClass cannot be null");
-		assert(nbThreads >= 0 && nbSchedulableThreads >= 0) : new PreconditionException("cannot have a negative number of threads");
+		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : 
+			new PreconditionException("receivingInboundPortURI cannot be empty or null");
+		assert(registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()) : 
+			new PreconditionException("registrationOutboundPortURI cannot be empty or null");
+		assert(registrationClass != null) : 
+			new PreconditionException("registrationClass cannot be null");
+		assert(nbThreads >= 0 && nbSchedulableThreads >= 0) : 
+			new PreconditionException("cannot have a negative number of threads");
 		
 		this.receivingInboundPortURI = receivingInboundPortURI;
 		this.registrationClass = registrationClass;
@@ -130,11 +134,16 @@ public abstract class Client extends AbstractComponent implements AbnormalTermin
 		super(reflectionInboundPortURI, nbThreads,nbSchedulableThreads);
 		
 		// Precondition checks
-		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : new PreconditionException("receivingInboundPortURI cannot be empty or null");
-		assert(registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()) : new PreconditionException("registrationOutboundPortURI cannot be empty or null");
-		assert(registrationClass != null) : new PreconditionException("registrationClass cannot be empty or null");
-		assert(nbThreads >= 0 && nbSchedulableThreads >= 0) : new PreconditionException("cannot have a negative number of threads");
-		assert(reflectionInboundPortURI != null && !reflectionInboundPortURI.isEmpty()) : new PreconditionException("reflectionInboundPortURI cannot be empty or null");
+		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : 
+			new PreconditionException("receivingInboundPortURI cannot be empty or null");
+		assert(registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()) : 
+			new PreconditionException("registrationOutboundPortURI cannot be empty or null");
+		assert(registrationClass != null) : 
+			new PreconditionException("registrationClass cannot be empty or null");
+		assert(nbThreads >= 0 && nbSchedulableThreads >= 0) : 
+			new PreconditionException("cannot have a negative number of threads");
+		assert(reflectionInboundPortURI != null && !reflectionInboundPortURI.isEmpty()) : 
+			new PreconditionException("reflectionInboundPortURI cannot be empty or null");
 		
 		this.receivingInboundPortURI = receivingInboundPortURI;
 		this.registrationClass = registrationClass;

@@ -25,6 +25,7 @@ import fr.sorbonne_u.filters.time.GreaterOrEqualTimeFilter;
 import fr.sorbonne_u.filters.time.JokerTimeFilter;
 import fr.sorbonne_u.filters.value.meteo.PositionInRegionsValueFilter;
 import fr.sorbonne_u.filters.value.meteo.StrongWindMultiValuesFilter;
+import fr.sorbonne_u.messages.meteo.AlertMessage;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.RegionData;
 import fr.sorbonne_u.meteo.tests.MeteoBureauTest;
@@ -168,7 +169,7 @@ public class CVMCompleteTest extends AbstractCVM {
 	protected final PropertiesFilter[] WT1_props =  {new PropertiesFilter(new StrongWindMultiValuesFilter(windTurbine1Position, 10, 10))};
 	protected final MessageFilterI WT1Windfilters =  new MessageFilter(new PropertyFilter[0], WT1_props, timeFilterJoker);
 	// On alerts received, filter keeps only alerts with a region containing wind turbine's position
-	protected final PropertyFilterI[] WT1_prop = {new PropertyFilter("regions", new PositionInRegionsValueFilter(windTurbine1Position))};
+	protected final PropertyFilterI[] WT1_prop = {new PropertyFilter(AlertMessage.ALERT_REGIONS_PROPERTY, new PositionInRegionsValueFilter(windTurbine1Position))};
     protected final MessageFilterI WT1Alertfilters =  new MessageFilter(WT1_prop, new PropertiesFilter[0], timeFilterJoker);
 	
 	// WindTurbine 2
@@ -182,7 +183,7 @@ public class CVMCompleteTest extends AbstractCVM {
 	// Accepts every wind data
 	protected final MessageFilterI WT2Windfilters =  new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], timeFilterJoker);
 	// On alerts received, filter keeps only alerts with a region containing wind turbine's position
-	protected final PropertyFilterI[] WT2_prop = {new PropertyFilter("regions", new PositionInRegionsValueFilter(windTurbine2Position))};
+	protected final PropertyFilterI[] WT2_prop = {new PropertyFilter(AlertMessage.ALERT_REGIONS_PROPERTY, new PositionInRegionsValueFilter(windTurbine2Position))};
 	protected final MessageFilterI WT2Alertfilters =  new MessageFilter(WT2_prop, new PropertiesFilter[0], timeFilterJoker);
 	
 	// WindTurbine 3
@@ -198,7 +199,7 @@ public class CVMCompleteTest extends AbstractCVM {
 	// Accepts every wind data
 	protected final MessageFilterI WT3Windfilters =  new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], WT3timeFilterGE);
 	// On alerts received, filter keeps only alerts with a region containing wind turbine's position
-	protected final PropertyFilterI[] WT3_prop = {new PropertyFilter("regions", new PositionInRegionsValueFilter(windTurbine3Position))};
+	protected final PropertyFilterI[] WT3_prop = {new PropertyFilter(AlertMessage.ALERT_REGIONS_PROPERTY, new PositionInRegionsValueFilter(windTurbine3Position))};
 	protected final MessageFilterI WT3Alertfilters =  new MessageFilter(WT3_prop, new PropertiesFilter[0], WT3timeFilterGE);
 	
 	// Component URIs for tests (without the Broker)

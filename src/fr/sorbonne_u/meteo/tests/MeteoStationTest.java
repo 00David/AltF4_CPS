@@ -13,6 +13,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.exceptions.PostconditionException;
 import fr.sorbonne_u.exceptions.PreconditionException;
 import fr.sorbonne_u.messages.Message;
+import fr.sorbonne_u.messages.meteo.WindMessage;
 import fr.sorbonne_u.meteo.components.MeteoStation;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.WindData;
@@ -116,12 +117,8 @@ public class MeteoStationTest extends MeteoStation {
 		// Precondition checks
 		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");	
 		
-		Message msg = new Message();
 		WindData wd = new WindData(stationPosition, xWind, yWind);
-		msg.setPayload(wd);
-		msg.putProperty("position", stationPosition);
-		msg.putProperty("xWind", xWind);
-		msg.putProperty("yWind", yWind);
+		Message msg = new WindMessage(wd);
 			
 		this.logMessage("------------------------------");
 		this.logMessage("MeteoStation sending wind data "+wd+"\nto channel : '"+channel+"'");
@@ -156,11 +153,7 @@ public class MeteoStationTest extends MeteoStation {
 		
 		ArrayList<MessageI> messages = new ArrayList<>();
 		for (WindData wd : windDatas) {
-			Message msg = new Message();
-			msg.setPayload(wd);
-			msg.putProperty("position", stationPosition);
-			msg.putProperty("xWind", wd.xComponent());
-			msg.putProperty("yWind", wd.yComponent());
+			Message msg = new WindMessage(wd);
 			messages.add(msg);
 		}
 			

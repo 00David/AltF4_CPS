@@ -15,6 +15,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.exceptions.PostconditionException;
 import fr.sorbonne_u.exceptions.PreconditionException;
 import fr.sorbonne_u.messages.Message;
+import fr.sorbonne_u.messages.meteo.AlertMessage;
 import fr.sorbonne_u.meteo.components.MeteoBureau;
 import fr.sorbonne_u.meteo.data.MeteoAlert;
 import fr.sorbonne_u.meteo.data.PositionData;
@@ -131,14 +132,8 @@ public class MeteoBureauTest extends MeteoBureau {
 		assert(duration != null) : new PreconditionException("duration cannot be null");
 		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
 		
-		Message msg = new Message();
 		MeteoAlert ma = new MeteoAlert(type, level, regions, instant, duration);
-		msg.setPayload(ma);
-		msg.putProperty("alert", type);
-		msg.putProperty("level", level);
-		msg.putProperty("regions", regions);
-		msg.putProperty("instant", instant);
-		msg.putProperty("duration", duration);
+		Message msg = new AlertMessage(ma);
 			
 		this.logMessage("------------------------------");
 		this.logMessage("MeteoBureau sending a "+level+" alert "+ma+"\nto channel : '"+channel+"'");

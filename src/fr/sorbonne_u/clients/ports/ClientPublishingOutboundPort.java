@@ -10,6 +10,7 @@ import fr.sorbonne_u.components.interfaces.RequiredCI;
 import fr.sorbonne_u.components.ports.AbstractOutboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
+import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
  * Outbound port of a {@link Client}, allowing the publication of one or more messages to a {@link Broker}.
@@ -45,9 +46,9 @@ public class ClientPublishingOutboundPort extends AbstractOutboundPort implement
 	public ClientPublishingOutboundPort(String uri, ComponentI owner) throws Exception {
 		super(uri, PublishingCI.class, owner);
 		// Precondition checks
-		assert(uri != null && !uri.isEmpty());
-		assert(owner != null);
-		assert(owner instanceof Client);
+		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
+		assert(owner != null) : new PreconditionException("owner cannot be null");
+		assert(owner instanceof Client) : new PreconditionException("owner must be an instance of Client");
 	}
 	
 	/**
@@ -70,8 +71,8 @@ public class ClientPublishingOutboundPort extends AbstractOutboundPort implement
 	public ClientPublishingOutboundPort(String uri, Class<? extends RequiredCI> implementedInterface, ComponentI owner) throws Exception {
 		super(uri, implementedInterface, owner);
 		// Precondition checks
-		assert(uri != null && !uri.isEmpty());
-		assert(owner != null);
+		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
+		assert(owner != null) : new PreconditionException("owner cannot be null");
 		assert(owner instanceof Client);
 	}
 	

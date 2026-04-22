@@ -84,11 +84,15 @@ public class ClientBrokerInfos {
 	 * @throws ChannelNumberNotInitializedException	if {@code nbMaxChannelsStd} or {@code nbMaxChannelsPrem} have not yet been initialized by the {@link Broker}.
 	 */
 	public ClientBrokerInfos(String clientPortURI, RegistrationClass rc, BrokerReceivingOutboundPort clientOutboundPort) {
-		if (clientPortURI == null || clientPortURI.isEmpty()) throw new IllegalArgumentException("A client port URI cannot be null or empty");
-		if (rc == null) throw new IllegalArgumentException("A registration class cannot be null");
+		if (clientPortURI == null || clientPortURI.isEmpty()) 
+			throw new IllegalArgumentException("A client port URI cannot be null or empty");
+		if (rc == null) 
+			throw new IllegalArgumentException("A registration class cannot be null");
 		
-		if (nbMaxChannelsStd < 0) throw new ChannelNumberNotInitializedException("Number of max channels for standard clients cannot be negative");
-		if (nbMaxChannelsPrem < 0) throw new ChannelNumberNotInitializedException("Number of max channels for premium clients cannot be negative");
+		if (nbMaxChannelsStd < 0) 
+			throw new ChannelNumberNotInitializedException("Number of max channels for standard clients cannot be negative");
+		if (nbMaxChannelsPrem < 0) 
+			throw new ChannelNumberNotInitializedException("Number of max channels for premium clients cannot be negative");
 		
 		this.clientPortURI = clientPortURI;
 		this.rc = rc;
@@ -197,7 +201,8 @@ public class ClientBrokerInfos {
 	 */
 	public synchronized void decreaseRemainingChannels() throws ChannelQuotaExceededException{
 		// Precondition check
-		if (nbRemainingChannels == 0) throw new ChannelQuotaExceededException("The number of remaining channels cannot become negative");
+		if (nbRemainingChannels == 0) 
+			throw new ChannelQuotaExceededException("The number of remaining channels cannot become negative");
 			
 		nbRemainingChannels--;
 			
@@ -218,7 +223,8 @@ public class ClientBrokerInfos {
 	 */
 	public synchronized void increaseRemainingChannels() throws ChannelQuotaExceededException{
 		// Precondition check
-		if (rc == RegistrationClass.FREE) throw new ChannelQuotaExceededException("A free client cannot increase its number of remaining channels (0 by default)");
+		if (rc == RegistrationClass.FREE) 
+			throw new ChannelQuotaExceededException("A free client cannot increase its number of remaining channels (0 by default)");
 		
 		nbRemainingChannels++;
 	}

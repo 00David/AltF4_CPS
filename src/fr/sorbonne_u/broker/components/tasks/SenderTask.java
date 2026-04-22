@@ -61,11 +61,16 @@ public class SenderTask extends AbstractTask {
 	public SenderTask(Broker broker, Map<String, ClientBrokerInfos> clientsInfos, 
 			String channel, String targetPortURI, MessageI[] messagesToSend) {
 		// Precondition checks
-		assert(broker != null) : new PreconditionException("broker cannot be null");
-		assert(clientsInfos != null) : new PreconditionException("clientsInfos cannot be null");
-		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
-		assert(targetPortURI != null && !targetPortURI.isEmpty()) : new PreconditionException("targetPortURI cannot be null or empty");
-		assert(messagesToSend != null) : new PreconditionException("messagesToSend cannot be null");
+		assert(broker != null) : 
+			new PreconditionException("broker cannot be null");
+		assert(clientsInfos != null) : 
+			new PreconditionException("clientsInfos cannot be null");
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
+		assert(targetPortURI != null && !targetPortURI.isEmpty()) : 
+			new PreconditionException("targetPortURI cannot be null or empty");
+		assert(messagesToSend != null) : 
+			new PreconditionException("messagesToSend cannot be null");
 		
 		this.broker = broker;
 		this.clientsInfos = clientsInfos;

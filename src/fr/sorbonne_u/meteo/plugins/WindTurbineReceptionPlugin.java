@@ -10,6 +10,8 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.exceptions.PreconditionException;
+import fr.sorbonne_u.messages.meteo.AlertMessage;
+import fr.sorbonne_u.messages.meteo.WindMessage;
 import fr.sorbonne_u.meteo.components.WindTurbine;
 import fr.sorbonne_u.meteo.data.MeteoAlert;
 import fr.sorbonne_u.meteo.data.WindData;
@@ -54,8 +56,10 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 	@Override
 	public void receive(String channel, MessageI message) {
 		// Precondition checks
-		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
-		assert(message != null) : new PreconditionException("message cannot be null");
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
+		assert(message != null) : 
+			new PreconditionException("message cannot be null");
 		
 		WindTurbine windTurbine = (WindTurbine)this.getOwner();
 		
@@ -65,11 +69,11 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 		Serializable payload = message.getPayload();
 
 		// Handling of received wind data delegated to the WindTurbine
-		if (payload instanceof WindData && !windTurbine.inSafeMode()) {
+		if (message instanceof WindMessage && !windTurbine.inSafeMode()) {
 			windTurbine.considerNewWindData((WindData) payload);
 		
 		// Handling of received meteo alert delegated to the WindTurbine
-		} else if (payload instanceof MeteoAlert) {
+		} else if (message instanceof AlertMessage) {
 			windTurbine.considerNewAlert((MeteoAlert) payload);
 			
 		// Handling of received wind data while in safe mode (nothing)
@@ -81,9 +85,12 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 	@Override
 	public void receive(String channel, MessageI[] messages) {
 		// Precondition checks
-		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
-		assert(messages != null && messages.length > 0) : new PreconditionException("messages container cannot be null or empty");
-		assert(Stream.of(messages).allMatch(m -> m != null)) : new PreconditionException("a message received cannot be null");
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
+		assert(messages != null && messages.length > 0) : 
+			new PreconditionException("messages container cannot be null or empty");
+		assert(Stream.of(messages).allMatch(m -> m != null)) : 
+			new PreconditionException("a message received cannot be null");
 		
 		WindTurbine windTurbine = (WindTurbine)this.getOwner();
 		
@@ -97,11 +104,11 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 			Serializable payload = message.getPayload();
 			
 			// Handling of received wind data delegated to the WindTurbine
-			if (payload instanceof WindData && !windTurbine.inSafeMode()) {
+			if (message instanceof WindMessage && !windTurbine.inSafeMode()) {
 				windTurbine.considerNewWindData((WindData) payload);
 			
 			// Handling of received meteo alert delegated to the WindTurbine
-			} else if (payload instanceof MeteoAlert) {
+			} else if (message instanceof AlertMessage) {
 				windTurbine.considerNewAlert((MeteoAlert) payload);
 				
 			// Handling of received wind data while in safe mode (nothing)

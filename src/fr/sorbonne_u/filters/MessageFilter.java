@@ -1,5 +1,7 @@
 package fr.sorbonne_u.filters;
 
+import java.util.HashMap;
+
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI.PropertyI;
@@ -10,6 +12,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI.PropertyI;
  * <p><strong>Invariants</strong></p>
  * <pre>
  * invariant	{@code propertyFilters != null}
+ * invariant	{@code propertyFiltersLength >= 0}
  * invariant	{@code propertiesFilters != null}
  * invariant	{@code timeFilter != null}
  * </pre>
@@ -22,13 +25,13 @@ public class MessageFilter implements MessageFilterI{
 	private static final long serialVersionUID = -6067517238603360377L;
 	
 	/** Filters acting on individual message properties */
-	private PropertyFilterI[] propertyFilters;
+	private final PropertyFilterI[] propertyFilters;
 	
 	/** Filters acting on grouped message properties */
-	private PropertiesFilterI[] propertiesFilters;
+	private final PropertiesFilterI[] propertiesFilters;
 	
 	/** Filter acting on a message's timestamp */
-	private TimeFilterI timeFilter;
+	private final TimeFilterI timeFilter;
 	
 	/**
 	 * Constructs a message filter.
@@ -44,12 +47,14 @@ public class MessageFilter implements MessageFilterI{
 	 * @param propertyFilters 				The set of individual property filters to apply to the values of the message properties.
 	 * @param propertiesFilters 			The set of grouped property filters to apply to the values of the message properties.
 	 * @param timeFilter 					A time filter to apply to the message timestamp. Can be {@code null}.
-	 * @throws IllegalArgumentException		if a precondition is not satisfied..
+	 * @throws IllegalArgumentException		if a precondition is not satisfied.
 	 */
 	public MessageFilter(PropertyFilterI[] propertyFilters, PropertiesFilterI[] propertiesFilters, TimeFilterI timeFilter) {
 		// Precondition checks
-		if (propertyFilters == null || propertiesFilters == null) throw new IllegalArgumentException("An array cannot be null");
-		if (timeFilter == null) throw new IllegalArgumentException("Time filter cannot be null");
+		if (propertyFilters == null || propertiesFilters == null) 
+			throw new IllegalArgumentException("An array cannot be null");
+		if (timeFilter == null) 
+			throw new IllegalArgumentException("Time filter cannot be null");
 		
 		this.propertyFilters = propertyFilters;
 		this.propertiesFilters = propertiesFilters;
@@ -75,35 +80,44 @@ public class MessageFilter implements MessageFilterI{
 
 	@Override
 	public boolean match(MessageI message) {
+	    boolean matched = true;
 
 	    // 1. Time filter
 	    if (!timeFilter.match(message.getTimeStamp())) {
-	        return false;
+	    	matched = false;
 	    }
 
 	    PropertyI[] properties = message.getProperties();
+	    HashMap<String, PropertyI> propertiesMap = null;
+	    // constructs the map only if it has previously matched, otherwise it will directly go to the return
+	    if (matched) {
+	    	propertiesMap = new HashMap<>();
+	    	for (PropertyI p : properties) {
+		    	propertiesMap.put(p.getName(), p);
+		    }
+	    }
 
 	    // 2. Filters on individual properties
-	    for (PropertyFilterI pf : propertyFilters) {
-	        boolean matched = false;
-
-	        for (PropertyI p : properties) {
-	            if (pf.match(p)) {
-	                matched = true;
-	                break;
-	            }
+	    for (int i = 0; matched && i<propertyFilters.length; i++) {
+	    	PropertyFilterI pf = propertyFilters[i];
+	    	String filterPropertyName = pf.getName();
+	    	
+	    	// Check if property exists AND matches
+	        if (!propertiesMap.containsKey(filterPropertyName) || 
+	            !pf.match(propertiesMap.get(filterPropertyName))) {
+	        	matched = false;
 	        }
-
-	        // The property expected by the filter did not match
-	        if (!matched) return false;
 	    }
 
 	    // 3. Filters on joint properties
-	    for (PropertiesFilterI pf : propertiesFilters) {
-	        if (!pf.match(properties)) return false;
+	    for (int i = 0; matched && i<propertiesFilters.length; i++) {
+	    	PropertiesFilterI pf = propertiesFilters[i];
+	        if (!pf.match(properties)) {
+	        	matched = false;
+	        }
 	    }
 
-	    return true;
+	    return matched;
 	}
 	
 }

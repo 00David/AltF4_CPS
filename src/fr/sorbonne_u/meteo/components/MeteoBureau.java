@@ -21,6 +21,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.exceptions.PostconditionException;
 import fr.sorbonne_u.exceptions.PreconditionException;
 import fr.sorbonne_u.messages.Message;
+import fr.sorbonne_u.messages.meteo.AlertMessage;
 import fr.sorbonne_u.meteo.data.MeteoAlert;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.RegionData;
@@ -118,11 +119,15 @@ public class MeteoBureau extends Client {
 		super(receivingInboundPortURI, registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads);
 		
 		// Some preconditions are checked inside the superconstructor while others are checked here
-		assert(bureauPosition != null) : new PreconditionException("bureauPosition cannot be null");
-		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime) : new PreconditionException("sleep times must be coherent");
-		assert(privilegedOutboundPortURI != null) : new PreconditionException("privilegedOutboundPortURI cannot be null");
+		assert(bureauPosition != null) : 
+			new PreconditionException("bureauPosition cannot be null");
+		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime) : 
+			new PreconditionException("sleep times must be coherent");
+		assert(privilegedOutboundPortURI != null) : 
+			new PreconditionException("privilegedOutboundPortURI cannot be null");
 		if (rc != RegistrationClass.FREE) {
-			assert (!privilegedOutboundPortURI.isEmpty()) : new PreconditionException("privilegedOutboundPortURI cannot be empty if the client is privileged");
+			assert (!privilegedOutboundPortURI.isEmpty()) : 
+				new PreconditionException("privilegedOutboundPortURI cannot be empty if the client is privileged");
 			this.privilegedOutboundPortURI = privilegedOutboundPortURI;
 		}
 		
@@ -189,11 +194,15 @@ public class MeteoBureau extends Client {
 		super(receivingInboundPortURI, registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
 		
 		// Some preconditions are checked inside the superconstructor while others are checked here
-		assert(bureauPosition != null) : new PreconditionException("bureauPosition cannot be null");
-		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime) : new PreconditionException("sleep times must be coherent");
-		assert(privilegedOutboundPortURI != null) : new PreconditionException("privilegedOutboundPortURI cannot be null");
+		assert(bureauPosition != null) : 
+			new PreconditionException("bureauPosition cannot be null");
+		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime) : 
+			new PreconditionException("sleep times must be coherent");
+		assert(privilegedOutboundPortURI != null) : 
+			new PreconditionException("privilegedOutboundPortURI cannot be null");
 		if (rc != RegistrationClass.FREE) {
-			assert (!privilegedOutboundPortURI.isEmpty()) : new PreconditionException("privilegedOutboundPortURI cannot be empty if the client is privileged");
+			assert (!privilegedOutboundPortURI.isEmpty()) : 
+				new PreconditionException("privilegedOutboundPortURI cannot be empty if the client is privileged");
 			this.privilegedOutboundPortURI = privilegedOutboundPortURI;
 		}
 		
@@ -293,8 +302,6 @@ public class MeteoBureau extends Client {
 		this.logMessage("MeteoBureau sleeps "+seconds+" seconds..."); 
 		Thread.sleep(seconds * 1000L);
 		
-		Message msg = new Message();
-		
 		ArrayList<RegionI> regions = new ArrayList<>();
 		regions.add(randomRegion());
 		
@@ -303,13 +310,7 @@ public class MeteoBureau extends Client {
 		Instant instant = Instant.now();
 		Duration duration = randomDuration();
 		MeteoAlert ma = new MeteoAlert(alert, level, regions, instant, duration);
-		
-		msg.setPayload(ma);
-		msg.putProperty("alert", alert);
-		msg.putProperty("level", level);
-		msg.putProperty("regions", regions);
-		msg.putProperty("instant", instant);
-		msg.putProperty("duration", duration);
+		Message msg = new AlertMessage(ma);
 			
 		this.logMessage("------------------------------\n"
 				+ "MeteoBureau sending an alert "+ma

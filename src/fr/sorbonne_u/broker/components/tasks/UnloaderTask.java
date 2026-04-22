@@ -76,10 +76,14 @@ public class UnloaderTask extends AbstractTask {
 	public UnloaderTask(Broker broker, Map<String, ClientBrokerInfos> clientsInfos, ChannelBrokerInfos chanInfos, 
 			String channel, int nbMaxUnloadMessages) {
 		// Precondition checks
-		assert(broker != null) : new PreconditionException("broker cannot be null");
-		assert(clientsInfos != null) : new PreconditionException("clientsInfos cannot be null");
-		assert(chanInfos != null) : new PreconditionException("chanInfos cannot be null");
-		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
+		assert(broker != null) : 
+			new PreconditionException("broker cannot be null");
+		assert(clientsInfos != null) : 
+			new PreconditionException("clientsInfos cannot be null");
+		assert(chanInfos != null) : 
+			new PreconditionException("chanInfos cannot be null");
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
 		
 		this.broker = broker;
 		this.clientsInfos = clientsInfos;
@@ -109,7 +113,9 @@ public class UnloaderTask extends AbstractTask {
 				while (nbMessages < nbMaxUnloadMessages && isUnloading) {
 					
 					// If the channel has been destroyed (with destroyChannelService for instance) : throws an UnknownChannelException
-					if (!broker.channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist anymore (destroyed).");
+					if (!broker.channelExistService(channel)) {
+						throw new UnknownChannelException("Channel "+channel+" doesn't exist anymore (destroyed).");
+					}
 					
 					// Unloads a message
 					MessageI msg = chanInfos.unloadMessage();
@@ -168,7 +174,9 @@ public class UnloaderTask extends AbstractTask {
 			
 			int l = listMessagesToSend.size();
 			MessageI[] messagesToSend = new MessageI[l];
-			for(int i=0; i<l; i++) messagesToSend[i] = listMessagesToSend.get(i);
+			for(int i=0; i<l; i++) {
+				messagesToSend[i] = listMessagesToSend.get(i);
+			}
 			
 			broker.runTask(Broker.SENDERS_POOL_URI, new SenderTask(broker, clientsInfos, channel, targetPortURI, messagesToSend));
 		}

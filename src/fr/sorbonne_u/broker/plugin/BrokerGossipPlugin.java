@@ -276,7 +276,7 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 		assert(Stream.of(gossipMessages).allMatch(m -> m != null && m instanceof GossipMessage)) : new PreconditionException("Must contain only non null GossipMessage");
 		
 		Broker broker = (Broker)this.getOwner();
-		broker.logMessage("Thread "+Thread.currentThread().getId()+": "+gossipMessages.length+" gossip message(s) received");
+		//broker.logMessage("Thread "+Thread.currentThread().getId()+": "+gossipMessages.length+" gossip message(s) received");
 		
 		List<GossipMessage> messagesToKeep = new ArrayList<>(); // must be instances of 'GossipMessage'
 		

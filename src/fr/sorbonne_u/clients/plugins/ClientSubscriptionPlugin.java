@@ -74,8 +74,10 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	 */
 	public ClientSubscriptionPlugin(String receivingInboundPortURI, ClientRegistrationOutboundPort registrationOutboundPort){
 		// Precondition checks
-		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : new PreconditionException("receivingInboundPortURI cannot be null or empty");
-		assert(registrationOutboundPort != null) : new PreconditionException("registrationOutboundPort cannot be null");
+		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : 
+			new PreconditionException("receivingInboundPortURI cannot be null or empty");
+		assert(registrationOutboundPort != null) : 
+			new PreconditionException("registrationOutboundPort cannot be null");
 		
 		this.receivingInboundPortURI = receivingInboundPortURI;
 		this.registrationOutboundPort = registrationOutboundPort;

@@ -23,6 +23,7 @@ import fr.sorbonne_u.filters.property.PropertiesFilter;
 import fr.sorbonne_u.filters.property.PropertyFilter;
 import fr.sorbonne_u.filters.time.GreaterOrEqualTimeFilter;
 import fr.sorbonne_u.filters.value.meteo.PositionInRegionsValueFilter;
+import fr.sorbonne_u.messages.meteo.AlertMessage;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.RegionData;
 import fr.sorbonne_u.meteo.tests.MeteoBureauTest;
@@ -100,7 +101,7 @@ public class CVMSimpleTest extends AbstractCVM {
     // No special constraint on wind data reception
     protected MessageFilterI windTurbineWindFilter = new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], timeFilter);
     // On alert reception : creation of a filter accepting alerts with targeted regions containing the wind turbine position
-    protected PropertyFilterI[] propFiltersAlert = {new PropertyFilter("regions", new PositionInRegionsValueFilter(windTurbinePosition))};
+    protected PropertyFilterI[] propFiltersAlert = {new PropertyFilter(AlertMessage.ALERT_REGIONS_PROPERTY, new PositionInRegionsValueFilter(windTurbinePosition))};
     protected MessageFilterI windTurbineAlertFilter = new MessageFilter(propFiltersAlert, new PropertiesFilter[0], timeFilter);
 	
 	// Component URIs for tests (without the Broker)

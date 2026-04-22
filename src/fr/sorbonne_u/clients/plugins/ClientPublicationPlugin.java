@@ -91,10 +91,14 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 	public ClientPublicationPlugin(String receivingInboundPortURI, ClientRegistrationOutboundPort registrationOutboundPort,
 			String publishingOutboundPortURI, String brokerPublishingPortURI){
 		// Precondition checks
-		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : new PreconditionException("receivingInboundPortURI cannot be null or empty");
-		assert(registrationOutboundPort != null) : new PreconditionException("registrationOutboundPort cannot be null");
-		assert(publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()) : new PreconditionException("publishingOutboundPortURI cannot be null or empty");
-		assert(brokerPublishingPortURI != null && !brokerPublishingPortURI.isEmpty()) : new PreconditionException("brokerPublishingPortURI cannot be null or empty");
+		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : 
+			new PreconditionException("receivingInboundPortURI cannot be null or empty");
+		assert(registrationOutboundPort != null) : 
+			new PreconditionException("registrationOutboundPort cannot be null");
+		assert(publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()) : 
+			new PreconditionException("publishingOutboundPortURI cannot be null or empty");
+		assert(brokerPublishingPortURI != null && !brokerPublishingPortURI.isEmpty()) : 
+			new PreconditionException("brokerPublishingPortURI cannot be null or empty");
 		
 		this.receivingInboundPortURI = receivingInboundPortURI;
 		this.registrationOutboundPort = registrationOutboundPort;

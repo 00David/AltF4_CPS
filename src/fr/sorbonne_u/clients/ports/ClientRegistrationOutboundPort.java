@@ -7,6 +7,7 @@ import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.components.ports.AbstractOutboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
+import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
  * Outbound port of a {@link Client}, allowing the registration to a {@link Broker}.
@@ -42,9 +43,9 @@ public class ClientRegistrationOutboundPort extends AbstractOutboundPort impleme
 	public ClientRegistrationOutboundPort(String uri,ComponentI owner) throws Exception {
 		super(uri,RegistrationCI.class,owner);
 		// Precondition checks
-		assert(uri != null && !uri.isEmpty());
-		assert(owner != null);
-		assert(owner instanceof Client);
+		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
+		assert(owner != null) : new PreconditionException("owner cannot be null");
+		assert(owner instanceof Client) : new PreconditionException("owner must be an instance of Client");
 	}
 	
 	// Precondition and postcondition verifications are delegated to the ClientRegistrationServiceConnector

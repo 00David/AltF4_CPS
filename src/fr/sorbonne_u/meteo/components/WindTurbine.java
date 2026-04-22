@@ -131,8 +131,10 @@ public class WindTurbine extends Client {
 		super(receivingInboundPortURI, registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads);
 		
 		// Some preconditions are checked inside the superconstructor while others are checked here
-		assert (windTurbinePos != null) : new PreconditionException("WindTurbine position cannot be null");	
-		assert (maxWorkingLevel != null) : new PreconditionException("max working level cannot be null");	
+		assert (windTurbinePos != null) : 
+			new PreconditionException("WindTurbine position cannot be null");	
+		assert (maxWorkingLevel != null) : 
+			new PreconditionException("max working level cannot be null");	
 
 		this.windTurbinePos = windTurbinePos;
 		this.maxWorkingLevel = maxWorkingLevel;
@@ -195,8 +197,10 @@ public class WindTurbine extends Client {
 		super(receivingInboundPortURI, registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
 		
 		// Some preconditions are checked inside the superconstructor while others are checked here
-		assert (windTurbinePos != null) : new PreconditionException("WindTurbine position cannot be null");	
-		assert (maxWorkingLevel != null) : new PreconditionException("max working level cannot be null");	
+		assert (windTurbinePos != null) : 
+			new PreconditionException("WindTurbine position cannot be null");	
+		assert (maxWorkingLevel != null) : 
+			new PreconditionException("max working level cannot be null");	
 
 		this.windTurbinePos = windTurbinePos;
 		this.maxWorkingLevel = maxWorkingLevel;
@@ -382,7 +386,6 @@ public class WindTurbine extends Client {
 				}
 			} else if (alertLevel.ordinal() <= maxLevel.ordinal() && safeMode) {
 				goBacktoNormalMode();
-			
 			} else {
 				// Don't change anything, if we have :
 				// - received an alert above the maximum operating level while already in safe mode

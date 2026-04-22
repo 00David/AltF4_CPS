@@ -16,6 +16,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.exceptions.PostconditionException;
 import fr.sorbonne_u.exceptions.PreconditionException;
 import fr.sorbonne_u.messages.Message;
+import fr.sorbonne_u.messages.meteo.WindMessage;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.WindData;
 import fr.sorbonne_u.meteo.tests.MeteoStationTest;
@@ -119,10 +120,14 @@ public class MeteoStation extends Client {
 		super(receivingInboundPortURI, registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads);
 		
 		// Some preconditions are checked inside the superconstructor while others are checked here
-		assert(stationPosition != null) : new PreconditionException("stationPosition cannot be null");	
-		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime): new PreconditionException("sleep times must be coherent");
-		assert(windMaxXY >= windMinXY): new PreconditionException("wind range must be coherent");
-		assert(privilegedOutboundPortURI != null) : new PreconditionException("privilegedOutboundPortURI cannot be null");
+		assert(stationPosition != null) : 
+			new PreconditionException("stationPosition cannot be null");	
+		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime): 
+			new PreconditionException("sleep times must be coherent");
+		assert(windMaxXY >= windMinXY): 
+			new PreconditionException("wind range must be coherent");
+		assert(privilegedOutboundPortURI != null) : 
+			new PreconditionException("privilegedOutboundPortURI cannot be null");
 		if (rc != RegistrationClass.FREE) {
 			assert (!privilegedOutboundPortURI.isEmpty()) : new PreconditionException("privilegedOutboundPortURI cannot be empty if the client is privileged");
 			this.privilegedOutboundPortURI = privilegedOutboundPortURI;
@@ -193,10 +198,14 @@ public class MeteoStation extends Client {
 		super(receivingInboundPortURI, registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
 		
 		// Some preconditions are checked inside the superconstructor while others are checked here
-		assert(stationPosition != null) : new PreconditionException("stationPosition cannot be null");	
-		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime): new PreconditionException("sleep times must be coherent");
-		assert(windMaxXY >= windMinXY): new PreconditionException("wind range must be coherent");
-		assert(privilegedOutboundPortURI != null) : new PreconditionException("privilegedOutboundPortURI cannot be null");
+		assert(stationPosition != null) : 
+			new PreconditionException("stationPosition cannot be null");	
+		assert(sleepMinTime >= 0 && sleepMaxTime >= sleepMinTime): 
+			new PreconditionException("sleep times must be coherent");
+		assert(windMaxXY >= windMinXY): 
+			new PreconditionException("wind range must be coherent");
+		assert(privilegedOutboundPortURI != null) : 
+			new PreconditionException("privilegedOutboundPortURI cannot be null");
 		if (rc != RegistrationClass.FREE) {
 			assert (!privilegedOutboundPortURI.isEmpty()) : new PreconditionException("privilegedOutboundPortURI cannot be empty if the client is privileged");
 			this.privilegedOutboundPortURI = privilegedOutboundPortURI;
@@ -300,15 +309,10 @@ public class MeteoStation extends Client {
 		this.logMessage("MeteoStation sleeps "+seconds+" seconds..."); 
 		Thread.sleep(seconds * 1000L);
 		
-		Message msg = new Message();
 		double xWind = ThreadLocalRandom.current().nextDouble(windMinXY, windMaxXY);
 		double yWind = ThreadLocalRandom.current().nextDouble(windMinXY, windMaxXY);
 		WindData wd = new WindData(stationPosition, xWind, yWind);
-		
-		msg.setPayload(wd);
-		msg.putProperty("position", stationPosition);
-		msg.putProperty("xWind", xWind);
-		msg.putProperty("yWind", yWind);
+		Message msg = new WindMessage(wd);
 		
 		this.logMessage("------------------------------\n"
 				+ "MeteoStation sending wind data "+wd

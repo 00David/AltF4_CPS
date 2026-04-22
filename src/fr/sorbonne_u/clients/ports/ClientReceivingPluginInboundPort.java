@@ -11,6 +11,7 @@ import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.components.ports.AbstractInboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
+import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
  * Inbound port of a {@link Client}, allowing the handling of messages reception.<br>
@@ -49,10 +50,10 @@ public class ClientReceivingPluginInboundPort extends AbstractInboundPort implem
 	public ClientReceivingPluginInboundPort(String uri, ComponentI owner, String pluginURI) throws Exception {
 		super(uri, ReceivingCI.class, owner, pluginURI, null);
 		// Precondition checks
-		assert(uri != null && !uri.isEmpty());
-		assert(owner != null);
-		assert(owner instanceof Client);
-		assert(pluginURI != null && !pluginURI.isEmpty());
+		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
+		assert(owner != null) : new PreconditionException("owner cannot be null");
+		assert(owner instanceof Client) : new PreconditionException("owner must be an instance of Client");
+		assert(pluginURI != null && !pluginURI.isEmpty()) : new PreconditionException("pluginURI cannot be null or empty");
 	}
 
 	@Override

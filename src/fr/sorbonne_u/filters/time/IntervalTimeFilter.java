@@ -45,8 +45,12 @@ public class IntervalTimeFilter implements TimeFilterI{
 	 * @throws IllegalArgumentException		if {@code maxBound < minBound}.
 	 */
 	public IntervalTimeFilter(Instant minBound, Instant maxBound) {
-        if (minBound == null || maxBound == null) throw new IllegalArgumentException("Bounds cannot be null");
-        if (maxBound.isBefore(minBound)) throw new IllegalArgumentException("maxBound must be greater or equal to minBound");
+		// Precondition checks
+        if (minBound == null || maxBound == null) 
+        	throw new IllegalArgumentException("Bounds cannot be null");
+        if (maxBound.isBefore(minBound)) 
+        	throw new IllegalArgumentException("maxBound must be greater or equal to minBound");
+        
 		this.minBound = minBound;
 		this.maxBound = maxBound;
 	}

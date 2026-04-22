@@ -72,7 +72,8 @@ public class GossipMessage implements GossipMessageI{
 	 */
 	public GossipMessage(String emitterURI) {
 		// Precondition check
-		if (emitterURI == null || emitterURI.isEmpty()) throw new IllegalArgumentException("emitterURI cannot be null or empty");
+		if (emitterURI == null || emitterURI.isEmpty()) 
+			throw new IllegalArgumentException("emitterURI cannot be null or empty");
 		
 		this.emitterURI = emitterURI;
 		this.messageURI = generateGossipMessageURI();
@@ -98,8 +99,10 @@ public class GossipMessage implements GossipMessageI{
 	 */
 	private GossipMessage(String emitterURI, String messageURI) {
 		// Precondition checks
-		if (emitterURI == null || emitterURI.isEmpty()) throw new IllegalArgumentException("emitterURI cannot be null or empty");
-		if (messageURI == null || messageURI.isEmpty()) throw new IllegalArgumentException("emitterURI cannot be null or empty");
+		if (emitterURI == null || emitterURI.isEmpty()) 
+			throw new IllegalArgumentException("emitterURI cannot be null or empty");
+		if (messageURI == null || messageURI.isEmpty()) 
+			throw new IllegalArgumentException("emitterURI cannot be null or empty");
 		
 		this.emitterURI = emitterURI;
 		this.messageURI = messageURI;
