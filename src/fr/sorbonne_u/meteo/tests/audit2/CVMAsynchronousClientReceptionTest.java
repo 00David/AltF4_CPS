@@ -297,7 +297,8 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 						CLOCK_URI, MS_URI, step_Instants[11],
 						owner -> {
 							try {
-								System.out.println("STEP 11/"+(NBSTEPS-1)+" ("+STEPS[11]+"s) : MeteoStation publishes 3 messages on 'channel0', each got by each possible reception method");
+								System.out.println("STEP 11/"+(NBSTEPS-1)+" ("+STEPS[11]+"s) : MeteoStation publishes 3 messages on 'channel0', each got by each possible reception method\n"
+										+ "(normal reception appears in the log window)");
 								((MeteoStationTest)owner).publishWindData(2, 2, "channel0", false);
 								((MeteoStationTest)owner).publishWindData(2, 2, "channel0", false);
 								((MeteoStationTest)owner).publishWindData(2, 2, "channel0", false);

@@ -5,7 +5,6 @@ import java.util.ArrayList;
 
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.clients.components.Client;
-import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.LevelI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.PropertyFilterI;
@@ -144,10 +143,6 @@ public class WindTurbine extends Client {
 		this.subscriptionPlugin.setPluginURI("subscription");
 		this.installPlugin(this.subscriptionPlugin);
 		
-		// Invariant checks
-		AbstractComponent.checkImplementationInvariant(this);
-		AbstractComponent.checkInvariant(this);
-		
 		// Postcondition checks
 		assert subscriptionPlugin.isInitialised() : 
 			new PostconditionException("Subscription (+reception) plugin must be initialized");
@@ -209,10 +204,6 @@ public class WindTurbine extends Client {
 		this.subscriptionPlugin = new WindTurbineReceptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
 		this.subscriptionPlugin.setPluginURI("subscription");
 		this.installPlugin(this.subscriptionPlugin);
-		
-		// Invariant checks
-		AbstractComponent.checkImplementationInvariant(this);
-		AbstractComponent.checkInvariant(this);
 		
 		// Postcondition checks
 		assert subscriptionPlugin.isInitialised() : 

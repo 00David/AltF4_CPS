@@ -2,8 +2,8 @@ package fr.sorbonne_u.clients.plugins;
 
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.clients.components.Client;
-import fr.sorbonne_u.clients.connectors.ClientRegistrationServiceConnector;
-import fr.sorbonne_u.clients.ports.ClientRegistrationOutboundPort;
+import fr.sorbonne_u.clients.connectors.RegistrationServiceConnector;
+import fr.sorbonne_u.clients.ports.RegistrationOutboundPort;
 import fr.sorbonne_u.components.AbstractPlugin;
 import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.cps.pubsub.exceptions.AlreadyRegisteredException;
@@ -17,7 +17,7 @@ import fr.sorbonne_u.cps.pubsub.plugins.interfaces.ClientRegistrationI;
 import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
- * The {@link Client} plugin having a {@link ClientRegistrationOutboundPort}.
+ * The {@link Client} plugin having a {@link RegistrationOutboundPort}.
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -43,7 +43,7 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	protected final String registrationOutboundPortURI;
 	
 	/** Registration outbound port, set up after plugin installation + initialization */
-	protected ClientRegistrationOutboundPort registrationOutboundPort;
+	protected RegistrationOutboundPort registrationOutboundPort;
 	
 	/** {@link Broker} publication inbound port URI, got after registration on the Broker */
 	protected String brokerPublishingPortURI;
@@ -59,7 +59,7 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	 * </pre>
 	 * 
 	 * @param receivingInboundPortURI		the client inbound port URI offering {@link ReceivingCI} interface.
-	 * @param registrationOutboundPortURI	the client outbound port URI requiring {@link RegistrationCI} interface, used for creating the {@link ClientRegistrationOutboundPort}.
+	 * @param registrationOutboundPortURI	the client outbound port URI requiring {@link RegistrationCI} interface, used for creating the {@link RegistrationOutboundPort}.
 	 */
 	public ClientRegistrationPlugin(String receivingInboundPortURI, String registrationOutboundPortURI){
 		// Precondition checks
@@ -85,12 +85,12 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	@Override
 	public void	initialise() throws Exception {
 		super.initialise();
-		this.registrationOutboundPort = new ClientRegistrationOutboundPort(registrationOutboundPortURI, this.getOwner());
+		this.registrationOutboundPort = new RegistrationOutboundPort(registrationOutboundPortURI, this.getOwner());
 		this.registrationOutboundPort.publishPort();
 		
 		this.getOwner().doPortConnection(this.registrationOutboundPort.getPortURI(),
 				Broker.registrationPortURI(),
-				ClientRegistrationServiceConnector.class.getCanonicalName());
+				RegistrationServiceConnector.class.getCanonicalName());
 	}
 	
 	@Override
@@ -182,7 +182,7 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	 * 
 	 * @return the client port requiring the {@link RegistrationCI} interface.
 	 */
-	public ClientRegistrationOutboundPort getRegistrationOutboundPort() {
+	public RegistrationOutboundPort getRegistrationOutboundPort() {
 		return registrationOutboundPort;
 	}
 	

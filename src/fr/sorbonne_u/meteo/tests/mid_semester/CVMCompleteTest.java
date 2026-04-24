@@ -398,7 +398,7 @@ public class CVMCompleteTest extends AbstractCVM {
 						step_Instants[9],
 						owner -> {
 							try {
-								System.out.println("STEP 9/"+(NBSTEPS-1)+" ("+STEPS[9]+"s) : MeteoBureau1 changes 'testChannel' authorized users for exactly WindTurbine1 URI,\nimplicitly unsubsrcribing WindTurbine2");
+								System.out.println("STEP 9/"+(NBSTEPS-1)+" ("+STEPS[9]+"s) : MeteoBureau1 changes 'testChannel' authorized users for exactly WindTurbine1 URI,\nimplicitly unsubscribing WindTurbine2");
 								((MeteoBureauTest)owner).modifyAuthorizedUsers("testChannel", "^"+WT1ReceivingInboundPortURI+"$"); // inbound receiving port used on the broker
 							} catch (Exception e) {
 								System.err.println("Step 9 authorized users modification failed with exception " + e);

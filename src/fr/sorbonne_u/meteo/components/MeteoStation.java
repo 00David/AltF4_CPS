@@ -6,7 +6,6 @@ import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.plugins.ClientPrivilegedPlugin;
 import fr.sorbonne_u.clients.plugins.ClientPublicationPlugin;
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
-import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.tasks_management.interfaces.AbnormalTerminationNotificationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
@@ -146,10 +145,6 @@ public class MeteoStation extends Client {
 		this.subscriptionPlugin.setPluginURI("subscription");
 		this.installPlugin(this.subscriptionPlugin);
 		
-		// Invariant checks
-		AbstractComponent.checkImplementationInvariant(this);
-		AbstractComponent.checkInvariant(this);
-		
 		// Postcondition checks
 		assert subscriptionPlugin.isInitialised() : 
 			new PostconditionException("Subscription (+reception) plugin must be initialized");
@@ -223,10 +218,6 @@ public class MeteoStation extends Client {
 		this.subscriptionPlugin = new ClientSubscriptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
 		this.subscriptionPlugin.setPluginURI("subscription");
 		this.installPlugin(this.subscriptionPlugin);
-		
-		// Invariant checks
-		AbstractComponent.checkImplementationInvariant(this);
-		AbstractComponent.checkInvariant(this);
 		
 		// Postcondition checks
 		assert subscriptionPlugin.isInitialised() : 

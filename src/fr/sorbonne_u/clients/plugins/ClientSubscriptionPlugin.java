@@ -11,8 +11,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
 import fr.sorbonne_u.clients.components.Client;
-import fr.sorbonne_u.clients.ports.ClientReceivingPluginInboundPort;
-import fr.sorbonne_u.clients.ports.ClientRegistrationOutboundPort;
+import fr.sorbonne_u.clients.ports.ClientReceivingInboundPort;
+import fr.sorbonne_u.clients.ports.RegistrationOutboundPort;
 import fr.sorbonne_u.components.AbstractPlugin;
 import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.cps.pubsub.exceptions.NotSubscribedChannelException;
@@ -27,7 +27,7 @@ import fr.sorbonne_u.cps.pubsub.plugins.interfaces.ClientSubscriptionI;
 import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
- * The {@link Client} plugin having a {@link ClientReceivingPluginInboundPort}.
+ * The {@link Client} plugin having a {@link ClientReceivingInboundPort}.
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -49,12 +49,12 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	protected final String receivingInboundPortURI;
 	
 	/** Reception inbound port, set up after plugin installation + initialization */
-	protected ClientReceivingPluginInboundPort receivingInboundPort;
+	protected ClientReceivingInboundPort receivingInboundPort;
 	
 	// REGISTRATION
 	
 	/** Registration outbound port, owned by {@link ClientRegistrationPlugin} */
-	protected final ClientRegistrationOutboundPort registrationOutboundPort;
+	protected final RegistrationOutboundPort registrationOutboundPort;
 	
 	/** Mapping : channel name -> a queue of futures, each waiting a message from the channel. */
 	protected final ConcurrentHashMap<String, ConcurrentLinkedQueue<CompletableFuture<MessageI>>> futureQueues = new ConcurrentHashMap<>();
@@ -69,10 +69,10 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	 * post	class invariants satisfied
 	 * </pre>
 	 * 
-	 * @param receivingInboundPortURI		the client inbound port URI offering {@link ReceivingCI} interface, used for creating the {@link ClientReceivingPluginInboundPort}.
+	 * @param receivingInboundPortURI		the client inbound port URI offering {@link ReceivingCI} interface, used for creating the {@link ClientReceivingInboundPort}.
 	 * @param registrationOutboundPort		the client outbound port requiring {@link RegistrationCI} interface.
 	 */
-	public ClientSubscriptionPlugin(String receivingInboundPortURI, ClientRegistrationOutboundPort registrationOutboundPort){
+	public ClientSubscriptionPlugin(String receivingInboundPortURI, RegistrationOutboundPort registrationOutboundPort){
 		// Precondition checks
 		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : 
 			new PreconditionException("receivingInboundPortURI cannot be null or empty");
@@ -97,7 +97,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	@Override
 	public void	initialise() throws Exception {
 		super.initialise();
-		this.receivingInboundPort = new ClientReceivingPluginInboundPort(receivingInboundPortURI, this.getOwner(), this.getPluginURI());
+		this.receivingInboundPort = new ClientReceivingInboundPort(receivingInboundPortURI, (Client)this.getOwner(), this.getPluginURI());
 		this.receivingInboundPort.publishPort();
 	}
 	
@@ -349,7 +349,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	
 	/**
 	 * Returns a mapping : channel name -> a queue of futures, each future waiting a message from the channel.<br>
-	 * Used by the {@link ClientReceivingPluginInboundPort}.
+	 * Used by the {@link ClientReceivingInboundPort}.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
@@ -365,7 +365,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	
 	/**
 	 * Returns a queue of futures, each future waiting a message from the {@code channel}.<br>
-	 * Used by the {@link ClientReceivingPluginInboundPort}.
+	 * Used by the {@link ClientReceivingInboundPort}.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>

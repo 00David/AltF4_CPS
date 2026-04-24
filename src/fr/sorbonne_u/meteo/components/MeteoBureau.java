@@ -9,7 +9,6 @@ import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.plugins.ClientPrivilegedPlugin;
 import fr.sorbonne_u.clients.plugins.ClientPublicationPlugin;
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
-import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.tasks_management.interfaces.AbnormalTerminationNotificationCI;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
@@ -142,10 +141,6 @@ public class MeteoBureau extends Client {
 		this.subscriptionPlugin.setPluginURI("subscription");
 		this.installPlugin(this.subscriptionPlugin);
 		
-		// Invariant checks
-		AbstractComponent.checkImplementationInvariant(this);
-		AbstractComponent.checkInvariant(this);
-		
 		// Postcondition checks
 		assert subscriptionPlugin.isInitialised() : 
 			new PostconditionException("Subscription (+reception) plugin must be initialized");
@@ -216,10 +211,6 @@ public class MeteoBureau extends Client {
 		this.subscriptionPlugin = new ClientSubscriptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
 		this.subscriptionPlugin.setPluginURI("subscription");
 		this.installPlugin(this.subscriptionPlugin);
-		
-		// Invariant checks
-		AbstractComponent.checkImplementationInvariant(this);
-		AbstractComponent.checkInvariant(this);
 		
 		// Postcondition checks
 		assert subscriptionPlugin.isInitialised() : 
@@ -345,7 +336,7 @@ public class MeteoBureau extends Client {
 	        case 3: return MeteoAlertI.AlertType.FLOODING;
 	        case 4: return MeteoAlertI.AlertType.EARTHQUAKE;
 	        case 5: return MeteoAlertI.AlertType.ERUPTION;
-	        default: throw new AssertionError("Impossible");
+	        default: throw new IllegalArgumentException("Impossible alert type");
 	    }
     }
 	
@@ -367,7 +358,7 @@ public class MeteoBureau extends Client {
 	        case 2: return MeteoAlertI.Level.ORANGE;
 	        case 3: return MeteoAlertI.Level.RED;
 	        case 4: return MeteoAlertI.Level.SCARLET;
-	        default: throw new AssertionError("Impossible");
+	        default: throw new IllegalArgumentException("Impossible alert level");
 	    }
     }
 	

@@ -4,7 +4,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 
 import fr.sorbonne_u.broker.components.Broker;
-import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.components.exceptions.BCMRuntimeException;
 import fr.sorbonne_u.components.interfaces.OfferedCI;
 import fr.sorbonne_u.components.ports.AbstractInboundPort;
@@ -18,8 +17,9 @@ import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
- * Inbound port of a {@link Broker}, allowing the handling of client registration.<br>
- * Delegates the processing to its owner component, a {@link Broker}.
+ * Inbound port of a {@link Broker}, allowing the handling of client registration.
+ * 
+ * <p>Delegates the processing to its owner component, a {@link Broker}.</p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -44,7 +44,6 @@ implements	PublishingCI {
 	 * <pre>
 	 * pre  {@code uri != null && !uri.isEmpty()}
 	 * pre  {@code owner != null}
-	 * pre  {@code owner instanceof Broker}
 	 * pre  {@code notificationPort != null}
 	 * post class invariant satisfied
 	 * </pre>
@@ -54,13 +53,12 @@ implements	PublishingCI {
 	 * @param notificationPort  		outport port requiring the component interface {@code AbnormalTerminationNotificationCI}.
 	 * @throws Exception 				if an error occurs while creating the port
 	 */
-	public BrokerPublishingInboundPort(String uri, ComponentI owner, 
+	public BrokerPublishingInboundPort(String uri, Broker owner, 
 			AbnormalTerminationNotificationOutboundPort notificationPort) throws Exception {
 		super(uri, PublishingCI.class, owner) ;
 		// Precondition checks
 		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
 		assert(owner != null) : new PreconditionException("owner cannot be null");
-		assert(owner instanceof Broker) : new PreconditionException("owner must be a Broker");
 		assert(notificationPort != null) : new PreconditionException("notificationPort cannot be null");
 		
 		this.notificationPort = notificationPort;
@@ -74,7 +72,6 @@ implements	PublishingCI {
 	 * <pre>
 	 * pre  {@code uri != null && !uri.isEmpty()}
 	 * pre  {@code owner != null}
-	 * pre  {@code owner instanceof Broker}
 	 * pre  {@code notificationPort != null}
 	 * post class invariant satisfied
 	 * </pre>
@@ -85,13 +82,12 @@ implements	PublishingCI {
 	 * @param notificationPort  		outport port requiring the component interface {@code AbnormalTerminationNotificationCI}.
 	 * @throws Exception 				if an error occurs while creating the port
 	 */
-	public BrokerPublishingInboundPort(String uri, Class<? extends OfferedCI> implementedInterface, ComponentI owner, 
+	public BrokerPublishingInboundPort(String uri, Class<? extends OfferedCI> implementedInterface, Broker owner, 
 			AbnormalTerminationNotificationOutboundPort notificationPort) throws Exception {
 		super(uri, implementedInterface, owner);
 		// Precondition checks
 		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
 		assert(owner != null) : new PreconditionException("owner cannot be null");
-		assert(owner instanceof Broker) : new PreconditionException("owner must be a Broker");
 		assert(notificationPort != null) : new PreconditionException("notificationPort cannot be null");
 		
 		this.notificationPort = notificationPort;

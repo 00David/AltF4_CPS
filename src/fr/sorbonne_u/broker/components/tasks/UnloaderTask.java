@@ -17,6 +17,11 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * Created by a {@link LoaderTask}, handles unloading messages from a specific channel, 
  * and submits {@link SenderTask}s for sending those messages to targeted clients.
  * 
+ * <p>
+ * An {@link UnknownChannelException} can be thrown while checking if the channel still exists before each individual unloading, 
+ * in that case an error log appears both in the Broker log window and on the console.
+ * </p>
+ * 
  * <p><strong>Invariants</strong></p>
  * <pre>
  * invariant	{@code broker != null}
@@ -141,7 +146,8 @@ public class UnloaderTask extends AbstractTask {
 
 			//broker.logMessage("UNLOADER "+Thread.currentThread().getId()+" ended task") ;
 		} catch (UnknownChannelException e) {
-			System.err.println("Thread "+Thread.currentThread().getId()+": Unloader UnknownChannelException : "+e.getMessage());
+			System.err.println("Broker"+broker.id+", Thread "+Thread.currentThread().getId()+": Unloader UnknownChannelException : "+e.getMessage());
+			broker.logMessage("[ERROR] Thread "+Thread.currentThread().getId()+": Unloader UnknownChannelException : "+e.getMessage());
 			
 			// If an unloading is interrupted, with for instance a channel destruction,
 			// it will still send unloaded messages currently in its map

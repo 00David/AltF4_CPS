@@ -4,9 +4,9 @@ import java.util.ArrayList;
 
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.clients.components.Client;
-import fr.sorbonne_u.clients.connectors.ClientPublishingServiceConnector;
-import fr.sorbonne_u.clients.ports.ClientPublishingOutboundPort;
-import fr.sorbonne_u.clients.ports.ClientRegistrationOutboundPort;
+import fr.sorbonne_u.clients.connectors.PublishingServiceConnector;
+import fr.sorbonne_u.clients.ports.PublishingOutboundPort;
+import fr.sorbonne_u.clients.ports.RegistrationOutboundPort;
 import fr.sorbonne_u.components.AbstractPlugin;
 import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.components.tasks_management.connection.AbnormalTerminationNotificationInboundPort;
@@ -23,7 +23,7 @@ import fr.sorbonne_u.cps.pubsub.plugins.interfaces.ClientPublicationI;
 import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
- * The {@link Client} plugin having a {@link ClientPublishingOutboundPort} and a {@link AbnormalTerminationNotificationInboundPort}.
+ * The {@link Client} plugin having a {@link PublishingOutboundPort} and a {@link AbnormalTerminationNotificationInboundPort}.
  * 
  * <p>
  * This plugin needs to be created after registering on the {@link Broker}, in order to pass 
@@ -58,7 +58,7 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 	// REGISTRATION
 	
 	/** Registration outbound port, owned by {@link ClientRegistrationPlugin} */
-	protected final ClientRegistrationOutboundPort registrationOutboundPort;
+	protected final RegistrationOutboundPort registrationOutboundPort;
 	
 	// PUBLICATION
 	
@@ -66,7 +66,7 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 	protected final String publishingOutboundPortURI;
 	
 	/** Publication outbound port, set up after plugin installation + initialization */
-	protected ClientPublishingOutboundPort publishingOutboundPort;
+	protected PublishingOutboundPort publishingOutboundPort;
 	
 	/** {@link Broker} publication inbound port URI, got via {@link ClientRegistrationPlugin} after registration */
 	protected final String brokerPublishingPortURI;
@@ -85,10 +85,10 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 	 * 
 	 * @param receivingInboundPortURI		the client inbound port URI offering {@link ReceivingCI} interface.
 	 * @param registrationOutboundPort		the client outbound port requiring {@link RegistrationCI} interface.
-	 * @param publishingOutboundPortURI		the client outbound port URI requiring {@link PublishingCI} interface, used for creating the {@link ClientPublishingOutboundPort}.
+	 * @param publishingOutboundPortURI		the client outbound port URI requiring {@link PublishingCI} interface, used for creating the {@link PublishingOutboundPort}.
 	 * @param brokerPublishingPortURI		the {@link Broker} inbound port URI offering {@link PublishingCI} or {@link PrivilegedClientCI} interface.
 	 */
-	public ClientPublicationPlugin(String receivingInboundPortURI, ClientRegistrationOutboundPort registrationOutboundPort,
+	public ClientPublicationPlugin(String receivingInboundPortURI, RegistrationOutboundPort registrationOutboundPort,
 			String publishingOutboundPortURI, String brokerPublishingPortURI){
 		// Precondition checks
 		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : 
@@ -120,12 +120,12 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 	@Override
 	public void	initialise() throws Exception {
 		super.initialise();
-		this.publishingOutboundPort = new ClientPublishingOutboundPort(publishingOutboundPortURI, this.getOwner());
+		this.publishingOutboundPort = new PublishingOutboundPort(publishingOutboundPortURI, this.getOwner());
 		this.publishingOutboundPort.publishPort();
 		
 		this.getOwner().doPortConnection(this.publishingOutboundPort.getPortURI(),
 				brokerPublishingPortURI,
-				ClientPublishingServiceConnector.class.getCanonicalName());
+				PublishingServiceConnector.class.getCanonicalName());
 		
 		this.notificationInboundPort = new AbnormalTerminationNotificationInboundPort(this.getOwner());
 		this.notificationInboundPort.publishPort();

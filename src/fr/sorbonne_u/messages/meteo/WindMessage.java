@@ -7,11 +7,12 @@ import java.util.Arrays;
 import fr.sorbonne_u.cps.pubsub.exceptions.UnknownPropertyException;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.messages.Message;
+import fr.sorbonne_u.messages.tests.MeteoMessagesTest;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.WindData;
 
 /**
- * A message containing a {@link WindData} data.
+ * A message containing a {@link WindData} data, tested in {@link MeteoMessagesTest}.
  * 
  * <p>
  * 	This class offers the possibility of directly getting specific wind data property values stored, through local getters.

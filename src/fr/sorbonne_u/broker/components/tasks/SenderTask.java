@@ -11,6 +11,11 @@ import fr.sorbonne_u.exceptions.PreconditionException;
 /**
  * Created by a {@link UnloaderTask}, handles messages sending to a specific targeted client.
  * 
+ * <p>
+ * An {@link Exception} can be thrown while sending messages, 
+ * in that case an error log appears both in the Broker log window and on the console.
+ * </p>
+ * 
  * <p><strong>Invariants</strong></p>
  * <pre>
  * invariant	{@code broker != null}
@@ -94,7 +99,8 @@ public class SenderTask extends AbstractTask {
 
 			//broker.logMessage("SENDER "+Thread.currentThread().getId()+" ended task") ;
 		} catch (Exception e) {
-			System.err.println("Thread "+Thread.currentThread().getId()+": Sender Exception : "+e.getMessage());
+			System.err.println("Broker"+broker.id+", Thread "+Thread.currentThread().getId()+": Sender Exception : "+e.getMessage());
+			broker.logMessage("[ERROR] Thread "+Thread.currentThread().getId()+": Sender Exception : "+e.getMessage());
 		}
 	}
 }

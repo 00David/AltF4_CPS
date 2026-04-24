@@ -4,8 +4,8 @@ import java.io.Serializable;
 import java.util.stream.Stream;
 
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
-import fr.sorbonne_u.clients.ports.ClientReceivingPluginInboundPort;
-import fr.sorbonne_u.clients.ports.ClientRegistrationOutboundPort;
+import fr.sorbonne_u.clients.ports.ClientReceivingInboundPort;
+import fr.sorbonne_u.clients.ports.RegistrationOutboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
@@ -41,11 +41,11 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 	 * post	class invariants satisfied
 	 * </pre>
 	 * 
-	 * @param receivingInboundPortURI		the wind turbine inbound port URI offering {@link ReceivingCI} interface, used for creating the {@link ClientReceivingPluginInboundPort}.
+	 * @param receivingInboundPortURI		the wind turbine inbound port URI offering {@link ReceivingCI} interface, used for creating the {@link ClientReceivingInboundPort}.
 	 * @param registrationOutboundPort		the wind turbine outbound port requiring {@link RegistrationCI} interface.
 	 */
 	public WindTurbineReceptionPlugin(String receivingInboundPortURI,
-			ClientRegistrationOutboundPort registrationOutboundPort) {
+			RegistrationOutboundPort registrationOutboundPort) {
 		super(receivingInboundPortURI, registrationOutboundPort);
 	}
 	

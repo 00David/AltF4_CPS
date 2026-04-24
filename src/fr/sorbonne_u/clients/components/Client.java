@@ -90,10 +90,6 @@ public abstract class Client extends AbstractComponent implements AbnormalTermin
 		this.registrationPlugin.setPluginURI("registration");
 		this.installPlugin(this.registrationPlugin);
 		
-		// Invariant checks
-		AbstractComponent.checkImplementationInvariant(this);
-		AbstractComponent.checkInvariant(this);
-		
 		// Postcondition checks
 		assert registrationPlugin.isInitialised() : 
 			new PostconditionException("Registration plugin must be initialized");
@@ -152,10 +148,6 @@ public abstract class Client extends AbstractComponent implements AbnormalTermin
 		this.registrationPlugin = new ClientRegistrationPlugin(receivingInboundPortURI, registrationOutboundPortURI);
 		this.registrationPlugin.setPluginURI("registration");
 		this.installPlugin(this.registrationPlugin);
-		
-		// Invariant checks
-		AbstractComponent.checkImplementationInvariant(this);
-		AbstractComponent.checkInvariant(this);
 		
 		// Postcondition checks
 		assert registrationPlugin.isInitialised() : 

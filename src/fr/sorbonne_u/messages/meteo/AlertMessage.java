@@ -13,10 +13,11 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.AlertType;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.Level;
 import fr.sorbonne_u.messages.Message;
+import fr.sorbonne_u.messages.tests.MeteoMessagesTest;
 import fr.sorbonne_u.meteo.data.MeteoAlert;
 
 /**
- * A message containing a {@link MeteoAlert} data.
+ * A message containing a {@link MeteoAlert} data, tested in {@link MeteoMessagesTest}.
  * 
  * <p>
  * 	This class offers the possibility of directly getting specific meteo alert property values stored, through local getters.

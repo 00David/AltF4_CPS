@@ -15,7 +15,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
  * Class storing all information related to an existing channel on the {@link Broker}.
  * 
  * <p>
- * In case of multiple threads accessing on the same instance informations that can be modified, a global lock is used :
+ * In case of multiple threads accessing on the same instance informations that can be modified, a global lock is used : 
  * because of having only short operations, it does not cost a lot in terms of performances.
  * </p>
  * 
@@ -27,13 +27,13 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
  * Maintained information includes :
  * </p>
  * <ul>
- * 	<li> - The channel name.
- * 	<li> - A mapping : subscriber client port URI -> its channel filter.
- * 	<li> - Whether the channel is accessible only to privileged clients or to everyone (default channel).
- * 	<li> - The client port that created the channel, or {@code null} if it was created by the {@link Broker}.
- * 	<li> - The regular expression defining the accepted client port URIs for this channel.
- * 	<li> - A FIFO queue of {@link MessageI} pending on the channel (to be sent).
- * 	<li> - A counter indicating the number of threads currently unloading the channel, with its lock (both public).
+ * 	<li> - The channel name.</li>
+ * 	<li> - A mapping : subscriber client port URI -> its channel filter.</li>
+ * 	<li> - Whether the channel is accessible only to privileged clients or to everyone (default channel).</li>
+ * 	<li> - The client port that created the channel, or {@code null} if it was created by the {@link Broker}.</li>
+ * 	<li> - The regular expression defining the accepted client port URIs for this channel.</li>
+ * 	<li> - A FIFO queue of {@link MessageI} pending on the channel (to be sent).</li>
+ * 	<li> - A counter indicating the number of threads currently unloading the channel, with its lock (both public).</li>
  * </ul>
  * 
  * <p><strong>Invariants</strong></p>
@@ -56,9 +56,6 @@ public class ChannelBrokerInfos {
     
     /** A mapping : subscriber client port URI -> its channel filter.*/
     private final Map<String, MessageFilterI> subscribers;
-    
-    /** Whether the channel is accessible only to privileged clients or to everyone */
-    private final boolean onlyPrivileged;
     
     /** Whether the channel is accessible only to privileged clients or to everyone */
     private String authorizedUsers;
@@ -93,14 +90,12 @@ public class ChannelBrokerInfos {
      * 
      * @param channel         the channel name.
      * @param authorizedUsers the regular expression defining accepted client port URIs.
-     * @param clientCreator   the URI of the client port that created the {@code channel},
+     * @param clientCreator   the URI of the client port that created the {@code channel}, 
      *                        or {@code null} if created by the {@link Broker}.
-     * @param onlyPrivileged  true if accessible only to privileged clients, false otherwise.
      */
     public ChannelBrokerInfos(String channel,
                               String authorizedUsers,
-                              String clientCreator,
-                              boolean onlyPrivileged) {
+                              String clientCreator) {
     	
     	if (channel == null || channel.isEmpty()) 
     		throw new IllegalArgumentException("A channel name cannot be null or empty");
@@ -109,7 +104,6 @@ public class ChannelBrokerInfos {
 
         this.channel = channel;
         this.subscribers = new HashMap<>();
-        this.onlyPrivileged = onlyPrivileged;
         this.authorizedUsers = authorizedUsers;
         this.clientCreator = clientCreator;
         this.messages = new LinkedList<>();
@@ -127,6 +121,7 @@ public class ChannelBrokerInfos {
      * pre  {@code clientPortURI != null && !clientPortURI.isEmpty()}
      * pre  {@code filter != null}
      * post {@code isSubscribed(clientPortURI)}
+     * post {@code this.subscribers.get(clientPortURI).equals(filter)}
      * </pre>
      * 
      * @param clientPortURI					the client needed to be subscibed to the channel.
@@ -142,8 +137,9 @@ public class ChannelBrokerInfos {
     	
     	subscribers.put(clientPortURI, filter);
     	
-        // Postcondition check
-        assert isSubscribed(clientPortURI);
+        // Postcondition checks
+        assert isSubscribed(clientPortURI); // subscriber present
+        assert subscribers.get(clientPortURI).equals(filter); // with the given filter
     }
 
     /**
@@ -222,21 +218,6 @@ public class ChannelBrokerInfos {
     // -------------------------------------------------------------------------
 
     /**
-     * Indicates whether the channel is restricted to privileged clients.
-     * 
-     * <p><strong>Contract</strong></p>
-     * <pre>
-     * pre  {@code true} 	// no precondition
-     * post  {@code true)} 	// no postcondition
-     * </pre>
-     * 
-     * @return true if this channel is only for privileged clients, otherwise false
-     */
-    public boolean onlyPrivileged() {
-        return onlyPrivileged;  // onlyPrivileged cannot be modified, so no need to protect it from a data race
-    }
-
-    /**
      * Updates the regular expression defining authorized users.
      * 
      * <p>Subscribed users that no longer match are automatically unsubscribed.</p>
@@ -257,30 +238,36 @@ public class ChannelBrokerInfos {
     		throw new IllegalArgumentException("Authorized users cannot be null");
     	
     	this.authorizedUsers = authorizedUsers;
-		
-    	for (String subscriber : getSubscribers()) {
-    		if (!subscriber.matches(authorizedUsers)) {
+    	
+        for (Map.Entry<String, MessageFilterI> e : subscribers.entrySet()) {
+        	String subscriber = e.getKey();
+        	if (!subscriber.matches(authorizedUsers)) {
     			removeSubscriber(subscriber);
     		}
-    	}
+        }
 		        
     	// Postcondition check
     	assert subscribers.keySet().stream().allMatch(subscriber -> subscriber.matches(authorizedUsers));
     }
 
     /**
-     * Returns the regular expression filtering authorized client URIs.
+     * Indicates if the given {@code clientPortURI} is authorized to interact with the channel (its URI matches authorized users regex).
      * 
      * <p><strong>Contract</strong></p>
      * <pre>
-     * pre  {@code true} 	// no precondition
+     * pre   {@code clientPortURI != null && !clientPortURI.isEmpty()}
      * post  {@code return != null)}
      * </pre>
      * 
-     * @return the regular expression filtering authorized client URIs.
+     * @param clientPortURI		the client for whom we verify its channel usage authorization.
+     * @return 					True if {@code clientPortURI} is authorized to interact with the channel, otherwise False.
      */
-    public synchronized String getAuthorizedUsers() {
-    	return authorizedUsers;
+    public synchronized boolean isAuthorized(String clientPortURI) {
+    	// Precondition check
+    	if (clientPortURI == null || clientPortURI.isEmpty()) 
+    		throw new IllegalArgumentException("A client port URI cannot be null or empty");
+    	
+    	return (clientPortURI.matches(authorizedUsers));
     }
 
     // -------------------------------------------------------------------------
@@ -288,7 +275,32 @@ public class ChannelBrokerInfos {
     // -------------------------------------------------------------------------
 
     /**
+     * Indicates if the given {@code clientPortURI} has created the channel.
+     * 
+     * <p><strong>Contract</strong></p>
+     * <pre>
+     * pre   {@code clientPortURI != null && !clientPortURI.isEmpty()}
+     * post  {@code true)} 	// no postcondition
+     * </pre>
+     * 
+     * @param clientPortURI		the client for whom we want to know if he is the channel creator.
+     * @return 					True if {@code clientPortURI.equals(clientCreator)}, otherwise False.
+     */
+    public boolean isCreator(String clientPortURI) {
+    	// Precondition check
+    	if (clientPortURI == null || clientPortURI.isEmpty()) 
+    		throw new IllegalArgumentException("A client port URI cannot be null or empty");
+    	
+        return clientPortURI.equals(clientCreator); // clientCreator cannot be modified, so no need to protect it from a data race
+    }
+    
+    /**
      * Returns the URI of the client port that created the channel. Can be {@code null} if the {@link Broker} has created the channel.
+     * 
+     * <p>
+     * This method is used only in case of needing the creator string for a treatment not related to the channel, 
+     * otherwise if it is only for checking if a user is the channel creator, use {@link ChannelBrokerInfos#isCreator(String)} method.
+     * </p>
      * 
      * <p><strong>Contract</strong></p>
      * <pre>

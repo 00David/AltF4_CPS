@@ -2,14 +2,18 @@ package fr.sorbonne_u.clients.ports;
 
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.clients.components.Client;
-import fr.sorbonne_u.clients.connectors.ClientPrivilegedServiceConnector;
+import fr.sorbonne_u.clients.connectors.PrivilegedServiceConnector;
 import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
- * Outbound port of a {@link Client}, allowing the publication and privileged management to a {@link Broker}.
- * Delegates the publication and privileged management to its {@link ClientPrivilegedServiceConnector}.
+ * Delegates publication and privileged management to its {@link PrivilegedServiceConnector}.
+ * 
+ * <p>
+ * Used as an outbound port of a {@link Client}, 
+ * allowing the publication and privileged management to a {@link Broker}.
+ * </p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -19,18 +23,17 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * @author Kevin Tang
  * @author David Vadimon
  */
-public class ClientPrivilegedOutboundPort extends ClientPublishingOutboundPort implements PrivilegedClientCI {
+public class PrivilegedOutboundPort extends PublishingOutboundPort implements PrivilegedClientCI {
 	
 	private static final long serialVersionUID = 373413793763732617L;
 
 	/**
-	 * Creates the outbound port with the provided {@code uri}, whose owner component {@code owner} is a {@link Client}.
+	 * Creates the outbound port with the provided {@code uri} redirecting to a {@link PrivilegedServiceConnector}.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre {@code uri != null && !uri.isEmpty()}
 	 * pre {@code owner != null}
-	 * pre {@code owner instanceof Client}
 	 * post {@code  true}	// no postcondition.
 	 * </pre>
 	 * 
@@ -38,15 +41,14 @@ public class ClientPrivilegedOutboundPort extends ClientPublishingOutboundPort i
 	 * @param owner  		the component owning this port.
 	 * @throws Exception 	if an error occurs while creating the port
 	 */
-	public ClientPrivilegedOutboundPort(String uri, ComponentI owner) throws Exception {
+	public PrivilegedOutboundPort(String uri, ComponentI owner) throws Exception {
 		super(uri, PrivilegedClientCI.class, owner);
 		// Precondition checks
 		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
 		assert(owner != null) : new PreconditionException("owner cannot be null");
-		assert(owner instanceof Client) : new PreconditionException("owner must be an instance of Client");
 	}
 	
-	// Precondition and postcondition verifications are delegated to the ClientPrivilegedServiceConnector
+	// Precondition and postcondition verifications are delegated to the PrivilegedServiceConnector
 
 	@Override
 	public boolean hasCreatedChannel(String receptionPortURI, String channel) throws Exception {

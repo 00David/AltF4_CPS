@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.clients.components.Client;
-import fr.sorbonne_u.clients.connectors.ClientPublishingServiceConnector;
+import fr.sorbonne_u.clients.connectors.PublishingServiceConnector;
 import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.components.interfaces.RequiredCI;
 import fr.sorbonne_u.components.ports.AbstractOutboundPort;
@@ -13,8 +13,12 @@ import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
- * Outbound port of a {@link Client}, allowing the publication of one or more messages to a {@link Broker}.
- * Delegates the publication to its {@link ClientPublishingServiceConnector}.
+ * Delegates publications to its {@link PublishingServiceConnector}.
+ * 
+ * <p>
+ * Used as an outbound port of a {@link Client}, 
+ * allowing the publication of one or more messages to a {@link Broker}.
+ * </p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -24,18 +28,17 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * @author Kevin Tang
  * @author David Vadimon
  */
-public class ClientPublishingOutboundPort extends AbstractOutboundPort implements PublishingCI{
+public class PublishingOutboundPort extends AbstractOutboundPort implements PublishingCI{
 
 	private static final long serialVersionUID = 2672780904734490388L;
 
 	/**
-	 * Creates the outbound port with the provided {@code uri}, whose owner component {@code owner} is a {@link Client}.
+	 * Creates the outbound port with the provided {@code uri} redirecting to a {@link PublishingServiceConnector}.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre {@code uri != null && !uri.isEmpty()}
 	 * pre {@code owner != null}
-	 * pre {@code owner instanceof Client}
 	 * post {@code  true}	// no postcondition.
 	 * </pre>
 	 * 
@@ -43,23 +46,21 @@ public class ClientPublishingOutboundPort extends AbstractOutboundPort implement
 	 * @param owner  		the component owning this port.
 	 * @throws Exception 	if an error occurs while creating the port
 	 */
-	public ClientPublishingOutboundPort(String uri, ComponentI owner) throws Exception {
+	public PublishingOutboundPort(String uri, ComponentI owner) throws Exception {
 		super(uri, PublishingCI.class, owner);
 		// Precondition checks
 		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
 		assert(owner != null) : new PreconditionException("owner cannot be null");
-		assert(owner instanceof Client) : new PreconditionException("owner must be an instance of Client");
 	}
 	
 	/**
-	 * Creates the outbound port with the provided {@code uri}, whose owner component {@code owner} is a {@link Client}.<br>
-	 * Used by {@link ClientPrivilegedOutboundPort} constructor.
+	 * Creates the outbound port with the provided {@code uri} redirecting to a {@link PublishingServiceConnector}.<br>
+	 * Used by {@link PrivilegedOutboundPort} constructor.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre {@code uri != null && !uri.isEmpty()}
 	 * pre {@code owner != null}
-	 * pre {@code owner instanceof Client}
 	 * post {@code  true}	// no postcondition.
 	 * </pre>
 	 * 
@@ -68,15 +69,14 @@ public class ClientPublishingOutboundPort extends AbstractOutboundPort implement
 	 * @param owner  					the component owning this port.
 	 * @throws Exception 				if an error occurs while creating the port
 	 */
-	public ClientPublishingOutboundPort(String uri, Class<? extends RequiredCI> implementedInterface, ComponentI owner) throws Exception {
+	public PublishingOutboundPort(String uri, Class<? extends RequiredCI> implementedInterface, ComponentI owner) throws Exception {
 		super(uri, implementedInterface, owner);
 		// Precondition checks
 		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
 		assert(owner != null) : new PreconditionException("owner cannot be null");
-		assert(owner instanceof Client);
 	}
 	
-	// Precondition and postcondition verifications are delegated to the ClientPublishingServiceConnector
+	// Precondition and postcondition verifications are delegated to the PublishingServiceConnector
 
 	@Override
 	public void publish(String receptionPortURI, String channel, MessageI message) throws Exception {

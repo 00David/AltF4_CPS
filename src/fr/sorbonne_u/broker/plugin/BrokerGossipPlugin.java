@@ -11,9 +11,9 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import fr.sorbonne_u.broker.components.Broker;
-import fr.sorbonne_u.broker.connectors.BrokerGossipServiceConnector;
-import fr.sorbonne_u.broker.ports.BrokerGossipPluginInboundPort;
-import fr.sorbonne_u.broker.ports.BrokerGossipPluginOutboundPort;
+import fr.sorbonne_u.broker.connectors.GossipServiceConnector;
+import fr.sorbonne_u.broker.ports.BrokerGossipInboundPort;
+import fr.sorbonne_u.broker.ports.GossipOutboundPort;
 import fr.sorbonne_u.components.AbstractPlugin;
 import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.cps.gossip.interfaces.GossipImplementationI;
@@ -28,9 +28,12 @@ import fr.sorbonne_u.exceptions.PreconditionException;
 import fr.sorbonne_u.messages.GossipMessage;
 
 /**
- * The {@link Broker} plugin having a {@link BrokerGossipPluginInboundPort} and a {@link BrokerGossipPluginOutboundPort}.
+ * The {@link Broker} plugin having a {@link BrokerGossipInboundPort} and a {@link GossipOutboundPort}.
  * 
- * <p>Handles {@link GossipMessage} reception and sending</p>
+ * <p>
+ * Handles {@link GossipMessage} reception and sending, with each internal method being necessarily executed by a thread from 
+ * the Broker {@code Broker.GOSSIP_POOL_URI} thread pool (except for the constructor and methods related to the plugin life cycle). 
+ * </p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -48,11 +51,11 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 	
 	/** A pair corresponding to an outbound gossip connection : (current Broker outbound port, another Broker inbound port URI). */
 	private static class OutboundConnection{
-		public OutboundConnection(BrokerGossipPluginOutboundPort gossipOutboundPort, String portToConnectURI) {
+		public OutboundConnection(GossipOutboundPort gossipOutboundPort, String portToConnectURI) {
 			this.gossipOutboundPort = gossipOutboundPort;
 			this.portToConnectURI = portToConnectURI;
 		}
-		private BrokerGossipPluginOutboundPort gossipOutboundPort;
+		private GossipOutboundPort gossipOutboundPort;
 		private final String portToConnectURI;
 	}
 	
@@ -62,7 +65,7 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 	protected final String gossipInboundPortURI;
 	
 	/** Gossip message reception inbound port, set up after plugin installation + initialization. */
-	protected BrokerGossipPluginInboundPort gossipInboundPort;
+	protected BrokerGossipInboundPort gossipInboundPort;
 	
 	/** 
 	 * A mapping : {@link Broker} gossip outbound port URI -> the corresponding gossip connection.
@@ -136,7 +139,7 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 	@Override
 	public void	initialise() throws Exception {
 		super.initialise();
-		this.gossipInboundPort = new BrokerGossipPluginInboundPort(gossipInboundPortURI, this.getOwner(), "gossip");
+		this.gossipInboundPort = new BrokerGossipInboundPort(gossipInboundPortURI, (Broker)this.getOwner(), "gossip");
 		this.gossipInboundPort.publishPort();
 		
 		// For each outbound connection, create and publish the outbound port
@@ -144,7 +147,7 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 			String gossipOutboundPortURI = e.getKey();
 			OutboundConnection connection = e.getValue();
 			
-			BrokerGossipPluginOutboundPort gossipOutboundPort = new BrokerGossipPluginOutboundPort(gossipOutboundPortURI, this.getOwner());
+			GossipOutboundPort gossipOutboundPort = new GossipOutboundPort(gossipOutboundPortURI, this.getOwner());
 			connection.gossipOutboundPort = gossipOutboundPort;
 			gossipOutboundPort.publishPort();
 		}
@@ -171,7 +174,7 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 			OutboundConnection connection = e.getValue();
 			this.getOwner().doPortConnection(connection.gossipOutboundPort.getPortURI(),
 					connection.portToConnectURI,
-					BrokerGossipServiceConnector.class.getCanonicalName());
+					GossipServiceConnector.class.getCanonicalName());
 			
 			assert connection.gossipOutboundPort.connected() : 
 				new PostconditionException(connection.gossipOutboundPort.getPortURI()+" not connected");
@@ -208,7 +211,7 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 	
 	/**
 	 * Marks the given gossip messages as locally received (by putting them into {@code this.receivedMessages}) 
-	 * and sends them to another(s) {@link Broker}'s {@link BrokerGossipPluginInboundPort} with gossip protocol threads.<br>
+	 * and sends them to another(s) {@link Broker}'s {@link BrokerGossipInboundPort} with gossip protocol threads.<br>
 	 * This method is only called by Broker services called by local clients (in the same Broker JVM).
 	 * 
 	 * <p>Messages will be sent to Brokers to which {@code gossipOutboundPort}s are currently connected.</p>
@@ -240,7 +243,7 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 		
 		for (Map.Entry<String, OutboundConnection> e : gossipOutboundPorts.entrySet()) {
 			broker.runTask(Broker.GOSSIP_POOL_URI, o -> {
-				BrokerGossipPluginOutboundPort gossipOutboundPort = e.getValue().gossipOutboundPort;
+				GossipOutboundPort gossipOutboundPort = e.getValue().gossipOutboundPort;
 				try {
 					gossipOutboundPort.send(gossipMessages);
 				} catch (Exception eSend) {
@@ -306,7 +309,7 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 			// Delegates propagation of messages previously not received to other gossip threads
 			for (Map.Entry<String, OutboundConnection> e : gossipOutboundPorts.entrySet()) {
 				broker.runTask(Broker.GOSSIP_POOL_URI, o -> {
-					BrokerGossipPluginOutboundPort gossipOutboundPort = e.getValue().gossipOutboundPort;
+					GossipOutboundPort gossipOutboundPort = e.getValue().gossipOutboundPort;
 					try {
 						gossipOutboundPort.send(messagesToSendToNeighbours);
 					} catch (Exception eSend) {
@@ -337,7 +340,8 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 *
-	 * @param fromSender	gossip messages received from the sender in the gossip protocol.
+	 * @param fromSender					gossip messages received from the sender in the gossip protocol.
+	 * @throws IllegalArgumentException		if an action of a received message has no case in the local switch.
 	 */
 	@SuppressWarnings("unchecked")
 	@Override
@@ -414,8 +418,7 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 						case NOTHING:
 							break;
 						default:
-							System.err.println("Default case switch gossip plugin, broker "+broker.getReflectionInboundPortURI());
-							break;
+							throw new IllegalArgumentException("Undefined received message action in gossip plugin switch, broker"+broker.id);
 					}
 				} catch (Exception e) {
 					e.printStackTrace();

@@ -2,15 +2,15 @@ package fr.sorbonne_u.broker.ports;
 
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.broker.plugin.BrokerGossipPlugin;
-import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.components.ports.AbstractInboundPort;
 import fr.sorbonne_u.cps.gossip.interfaces.GossipMessageI;
 import fr.sorbonne_u.cps.gossip.interfaces.GossipReceiverCI;
 import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
- * Inbound port of a {@link Broker}, allowing the handling of gossip messages reception.<br>
- * Redirects incoming gossip messages to its {@link BrokerGossipPlugin}.
+ * Inbound port of a {@link Broker}, allowing the handling of gossip messages reception.
+ *
+ *<p>Redirects incoming gossip messages to its {@link BrokerGossipPlugin}.</p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -20,7 +20,7 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * @author Kevin Tang
  * @author David Vadimon
  */
-public class BrokerGossipPluginInboundPort extends AbstractInboundPort implements GossipReceiverCI{
+public class BrokerGossipInboundPort extends AbstractInboundPort implements GossipReceiverCI {
 
 	private static final long serialVersionUID = -177954494080664983L;
 
@@ -41,12 +41,11 @@ public class BrokerGossipPluginInboundPort extends AbstractInboundPort implement
 	 * @param pluginURI		the URI of the {@link BrokerGossipPlugin}.
 	 * @throws Exception 	if an error occurs while creating the port
 	 */
-	public BrokerGossipPluginInboundPort(String uri, ComponentI owner, String pluginURI) throws Exception {
+	public BrokerGossipInboundPort(String uri, Broker owner, String pluginURI) throws Exception {
 		super(uri, GossipReceiverCI.class, owner, pluginURI, null);
 		// Precondition checks
 		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
 		assert(owner != null) : new PreconditionException("owner cannot be null");
-		assert(owner instanceof Broker) : new PreconditionException("owner must be an instance of Broker");
 		assert(pluginURI != null && !pluginURI.isEmpty()) : new PreconditionException("pluginURI cannot be null or empty");
 	}
 	

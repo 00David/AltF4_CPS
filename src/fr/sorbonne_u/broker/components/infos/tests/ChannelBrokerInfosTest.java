@@ -2,6 +2,7 @@ package fr.sorbonne_u.broker.components.infos.tests;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,6 +16,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.PropertyFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.filters.MessageFilter;
 import fr.sorbonne_u.filters.property.PropertyFilter;
+import fr.sorbonne_u.filters.time.GreaterOrEqualTimeFilter;
 import fr.sorbonne_u.filters.time.JokerTimeFilter;
 import fr.sorbonne_u.filters.value.JokerValueFilter;
 import fr.sorbonne_u.messages.Message;
@@ -36,44 +38,35 @@ public class ChannelBrokerInfosTest {
     	ChannelBrokerInfos channel1 = new ChannelBrokerInfos(
                 "testChannel",
                 ".*",
-                "creatorURI",
-                false
+                "creatorURI"
         );
-        assertEquals(".*", channel1.getAuthorizedUsers());
         assertEquals("creatorURI", channel1.getCreator());
-        assertFalse(channel1.onlyPrivileged());
         
     	ChannelBrokerInfos channel2 = new ChannelBrokerInfos(
                 "testChannel",
                 ".*",
-                null,
-                false
+                null
         );
-        assertEquals(".*", channel2.getAuthorizedUsers());
         assertEquals(null, channel2.getCreator());
-        assertFalse(channel2.onlyPrivileged());
         
     	ChannelBrokerInfos channel3 = new ChannelBrokerInfos(
                 "testChannel",
                 ".*",
-                "creatorURI",
-                true
+                "creatorURI"
         );
-        assertEquals(".*", channel3.getAuthorizedUsers());
         assertEquals("creatorURI", channel3.getCreator());
-        assertTrue(channel3.onlyPrivileged());
     }
 
     @Test
     void testConstructorInvalid() {
         assertThrows(IllegalArgumentException.class,
-                () -> new ChannelBrokerInfos("", ".*", "creatorURI", false)); // empty channel name
+                () -> new ChannelBrokerInfos("", ".*", "creatorURI")); // empty channel name
         
         assertThrows(IllegalArgumentException.class,
-                () -> new ChannelBrokerInfos(null, ".*", "creatorURI", false)); // null channel name
+                () -> new ChannelBrokerInfos(null, ".*", "creatorURI")); // null channel name
         
         assertThrows(IllegalArgumentException.class,
-                () -> new ChannelBrokerInfos("testChannel", null, "creatorURI", false)); // null authorized users
+                () -> new ChannelBrokerInfos("testChannel", null, "creatorURI")); // null authorized users
     }
     
     // -------------------------------------------------------------------------
@@ -89,8 +82,7 @@ public class ChannelBrokerInfosTest {
         channel = new ChannelBrokerInfos(
                 "testChannel",
                 "client.*",
-                "creatorURI",
-                false
+                "creatorURI"
         );
         
         filterAcceptingAll = new MessageFilter(new PropertyFilterI[0], new PropertiesFilterI[0], new JokerTimeFilter());
@@ -104,6 +96,12 @@ public class ChannelBrokerInfosTest {
     void testAddSubscriber() { // also tests 'isSubscribed'
     	// Normal case
         channel.addOrReplaceSubscriber("client1", filterAcceptingAll);
+        assertTrue(channel.isSubscribed("client1"));
+        
+        // Filter replacement case
+        MessageFilterI newFilter = new MessageFilter(new PropertyFilterI[0], new PropertiesFilterI[0], 
+        		new GreaterOrEqualTimeFilter(Instant.parse("2026-04-24T12:00:00Z")));
+        channel.addOrReplaceSubscriber("client1", newFilter); // (post condition checks that the old filter has been replaced by the new one)
         assertTrue(channel.isSubscribed("client1"));
         
         // Invalid parameters throwing an IllegalArgumentException for addOrReplaceSubscriber
@@ -183,6 +181,37 @@ public class ChannelBrokerInfosTest {
         assertFalse(channel.isSubscribed("client1"));
         assertTrue(channel.isSubscribed("admin1"));
     }
+    
+    @Test
+    void testIsAuthorized() {
+    	// Authorized cases
+        assertTrue(channel.isAuthorized("client1"));
+        assertTrue(channel.isAuthorized("clientABC"));
+
+        // Unauthorized cases
+        assertFalse(channel.isAuthorized("admin1"));
+        assertFalse(channel.isAuthorized("user"));
+
+        assertThrows(IllegalArgumentException.class, () -> channel.isAuthorized(null));
+        assertThrows(IllegalArgumentException.class, () -> channel.isAuthorized(""));
+    }
+    
+    // -------------------------------------------------------------------------
+    // CREATOR MANAGEMENT
+    // -------------------------------------------------------------------------
+    
+    @Test
+    void testIsCreator() {
+        // Correct case
+        assertTrue(channel.isCreator("creatorURI"));
+
+        // False cases
+        assertFalse(channel.isCreator("client1"));
+        assertFalse(channel.isCreator("admin"));
+
+        assertThrows(IllegalArgumentException.class, () -> channel.isCreator(null));
+        assertThrows(IllegalArgumentException.class, () -> channel.isCreator(""));
+    }
 
     // -------------------------------------------------------------------------
     // MESSAGES
@@ -241,7 +270,7 @@ public class ChannelBrokerInfosTest {
     @Test
     void testEqualsAndHashCode() {
         ChannelBrokerInfos other =
-                new ChannelBrokerInfos("testChannel", "admin.*", null, false); // authorized users : admin.* != client.*
+                new ChannelBrokerInfos("testChannel", "admin.*", null); // authorized users : admin.* != client.*
 
         // Equality ok because of same channel name "testChannel"
         assertEquals(channel, other);

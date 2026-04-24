@@ -2,15 +2,13 @@ package fr.sorbonne_u.clients.connectors;
 
 import java.util.ArrayList;
 
-import fr.sorbonne_u.broker.components.Broker;
-import fr.sorbonne_u.broker.ports.BrokerPrivilegedInboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
-import fr.sorbonne_u.clients.components.Client;
+import fr.sorbonne_u.clients.ports.PrivilegedOutboundPort;
 
 /**
- * Connector between an outbound port of the {@link Client} component and an inbound port of a {@link Broker}.<br>
- * Delegates privileged management to the {@link BrokerPrivilegedInboundPort}
+ * Connector between a {@link PrivilegedOutboundPort} and a port implementing {@link PrivilegedClientCI}, 
+ * delegates privileged management to this port.
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -20,9 +18,9 @@ import fr.sorbonne_u.clients.components.Client;
  * @author Kevin Tang
  * @author David Vadimon
  */
-public class ClientPrivilegedServiceConnector extends ClientPublishingServiceConnector implements PrivilegedClientCI {
+public class PrivilegedServiceConnector extends PublishingServiceConnector implements PrivilegedClientCI {
 
-	// Precondition and postcondition verifications are delegated to the the BrokerPrivilegedInboundPort
+	// Precondition and postcondition verifications are delegated to the the port implementing PrivilegedClientCI
 	
 	@Override
 	public void publish(String receptionPortURI, String channel, MessageI message) throws Exception {

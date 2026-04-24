@@ -7,16 +7,20 @@ import java.util.stream.Stream;
 
 import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
-import fr.sorbonne_u.components.ComponentI;
+import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.ports.AbstractInboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
- * Inbound port of a {@link Client}, allowing the handling of messages reception.<br>
- * Redirects messages received to the {@link ClientSubscriptionPlugin}, by either completing futures waiting those messages into
- * the plugin, or by delegating the reception to the {@code receive} plugin method (through {@code runTask}).
+ * Inbound port of a {@link Client}, allowing the handling of messages reception.
+ * 
+ * <p>
+ * Redirects messages received to its {@link ClientSubscriptionPlugin}, by either completing futures 
+ * waiting those messages into the plugin, or by delegating the reception to the {@code receive} plugin method 
+ * (through {@link AbstractComponent#runTask(fr.sorbonne_u.components.ComponentI.FComponentTask)}.
+ * </p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -26,7 +30,7 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * @author Kevin Tang
  * @author David Vadimon
  */
-public class ClientReceivingPluginInboundPort extends AbstractInboundPort implements ReceivingCI {
+public class ClientReceivingInboundPort extends AbstractInboundPort implements ReceivingCI {
 
 	private static final long serialVersionUID = 3472768325829807000L;
 
@@ -37,7 +41,6 @@ public class ClientReceivingPluginInboundPort extends AbstractInboundPort implem
 	 * <pre>
 	 * pre {@code uri != null && !uri.isEmpty()}
 	 * pre {@code owner != null}
-	 * pre {@code owner instanceof Client}
 	 * pre {@code pluginURI != null && !pluginURI.isEmpty()}
 	 * post {@code  true}	// no postcondition.
 	 * </pre>
@@ -47,12 +50,11 @@ public class ClientReceivingPluginInboundPort extends AbstractInboundPort implem
 	 * @param pluginURI		the URI of the {@link ClientSubscriptionPlugin}.
 	 * @throws Exception 	if an error occurs while creating the port
 	 */
-	public ClientReceivingPluginInboundPort(String uri, ComponentI owner, String pluginURI) throws Exception {
+	public ClientReceivingInboundPort(String uri, Client owner, String pluginURI) throws Exception {
 		super(uri, ReceivingCI.class, owner, pluginURI, null);
 		// Precondition checks
 		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
 		assert(owner != null) : new PreconditionException("owner cannot be null");
-		assert(owner instanceof Client) : new PreconditionException("owner must be an instance of Client");
 		assert(pluginURI != null && !pluginURI.isEmpty()) : new PreconditionException("pluginURI cannot be null or empty");
 	}
 

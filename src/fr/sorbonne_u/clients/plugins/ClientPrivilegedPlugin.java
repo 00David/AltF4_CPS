@@ -2,8 +2,8 @@ package fr.sorbonne_u.clients.plugins;
 
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.clients.components.Client;
-import fr.sorbonne_u.clients.connectors.ClientPrivilegedServiceConnector;
-import fr.sorbonne_u.clients.ports.ClientPrivilegedOutboundPort;
+import fr.sorbonne_u.clients.connectors.PrivilegedServiceConnector;
+import fr.sorbonne_u.clients.ports.PrivilegedOutboundPort;
 import fr.sorbonne_u.components.AbstractPlugin;
 import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.cps.pubsub.exceptions.AlreadyExistingChannelException;
@@ -17,7 +17,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
- * The {@link Client} plugin having a {@link ClientPrivilegedOutboundPort}.
+ * The {@link Client} plugin having a {@link PrivilegedOutboundPort}.
  * 
  * <p>
  * This plugin needs to be created after registering on the {@link Broker}, in order to pass 
@@ -48,7 +48,7 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 	protected final String privilegedOutboundPortURI;
 
 	/** Privileged outbound port, set up after plugin installation + initialization */
-	protected ClientPrivilegedOutboundPort privilegedOutboundPort;
+	protected PrivilegedOutboundPort privilegedOutboundPort;
 	
 	// PUBLICATION
 	
@@ -67,7 +67,7 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 	 * </pre>
 	 * 
 	 * @param receivingInboundPortURI		the client inbound port URI offering {@link ReceivingCI} interface.
-	 * @param privilegedOutboundPortURI		the client outbound port URI requiring {@link PrivilegedClientCI} interface, used for creating the {@link ClientPrivilegedOutboundPort}.
+	 * @param privilegedOutboundPortURI		the client outbound port URI requiring {@link PrivilegedClientCI} interface, used for creating the {@link PrivilegedOutboundPort}.
 	 * @param brokerPublishingPortURI		the {@link Broker} inbound port URI offering {@link PrivilegedClientCI} interface.
 	 */
 	public ClientPrivilegedPlugin(String receivingInboundPortURI, String privilegedOutboundPortURI, String brokerPublishingPortURI){
@@ -97,12 +97,12 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 	@Override
 	public void	initialise() throws Exception {
 		super.initialise();
-		this.privilegedOutboundPort = new ClientPrivilegedOutboundPort(privilegedOutboundPortURI, this.getOwner());
+		this.privilegedOutboundPort = new PrivilegedOutboundPort(privilegedOutboundPortURI, this.getOwner());
 		this.privilegedOutboundPort.publishPort();
 		
 		this.getOwner().doPortConnection(this.privilegedOutboundPort.getPortURI(),
 				brokerPublishingPortURI,
-				ClientPrivilegedServiceConnector.class.getCanonicalName());
+				PrivilegedServiceConnector.class.getCanonicalName());
 	}
 	
 	@Override
