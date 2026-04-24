@@ -126,31 +126,21 @@ public class CVMCompleteTest extends AbstractCVM {
 	
 	// MeteoBureau 1
 	protected final String MB1ReceivingInboundPortURI = "inbound-port-client-MB1";
-	protected final String MB1RegistrationOutboundPortURI = "registration-outbound-port-MB1";
-	protected final String MB1PublishingOutboundPortURI = "publishing-outbound-port-MB1";
-	protected final String MB1PrivilegedOutboundPortURI = "privileged-outbound-port-MB1";
 	protected static final PositionData bureau1Position = new PositionData(2, 1);
 	protected static final RegistrationClass MB1rc = RegistrationClass.PREMIUM;
 	
 	// MeteoBureau 2
 	protected final String MB2ReceivingInboundPortURI = "inbound-port-client-MB2";
-	protected final String MB2RegistrationOutboundPortURI = "registration-outbound-port-MB2";
-	protected final String MB2PublishingOutboundPortURI = "publishing-outbound-port-MB2";
 	protected static final PositionData bureau2Position = new PositionData(3, 1);
 	protected static final RegistrationClass MB2rc = RegistrationClass.FREE;
 	
 	// MeteoStation 1
 	protected final String MS1ReceivingInboundPortURI = "inbound-port-client-MS1";
-	protected final String MS1RegistrationOutboundPortURI = "registration-outbound-port-MS1";
-	protected final String MS1PublishingOutboundPortURI = "publishing-outbound-port-MS1";
-	protected final String MS1PrivilegedOutboundPortURI = "privileged-outbound-port-MS1";
 	protected static final PositionData station1Position = new PositionData(2, 2);
 	protected static final RegistrationClass MS1rc = RegistrationClass.STANDARD;
 	
 	// MeteoStation 2
 	protected final String MS2ReceivingInboundPortURI = "inbound-port-client-MS2";
-	protected final String MS2RegistrationOutboundPortURI = "registration-outbound-port-MS2";
-	protected final String MS2PublishingOutboundPortURI = "publishing-outbound-port-MS2";
 	protected static final PositionData station2Position = new PositionData(3, 2);
 	protected static final RegistrationClass MS2rc = RegistrationClass.FREE;
 	
@@ -159,8 +149,6 @@ public class CVMCompleteTest extends AbstractCVM {
 	
 	// WindTurbine 1
 	protected final static String WT1ReceivingInboundPortURI = "inbound-port-client-WT1";
-	protected final String WT1RegistrationOutboundPortURI = "registration-outbound-port-WT1";
-	protected final String WT1PublishingOutboundPortURI = "publishing-outbound-port-WT1";
 	protected static final PositionData windTurbine1Position = new PositionData(1, 0);
 	protected static final RegistrationClass WT1rc = RegistrationClass.STANDARD;
 	protected static final MeteoAlertI.Level maxWorkingLevelWT1 = MeteoAlertI.Level.ORANGE; // inclusive
@@ -467,16 +455,14 @@ public class CVMCompleteTest extends AbstractCVM {
 		
 		String meteoBureau1_URI_verif = AbstractComponent.createComponent(
 				MeteoBureauTest.class.getCanonicalName(),
-				new Object[] { MB1ReceivingInboundPortURI, MB1RegistrationOutboundPortURI, MB1PublishingOutboundPortURI, MB1PrivilegedOutboundPortURI,
-						MB1rc, 1, 1, bureau1Position, MB1_URI, testScenario, 1});
+				new Object[] { MB1ReceivingInboundPortURI, MB1rc, 1, 1, bureau1Position, MB1_URI, testScenario, 1});
 		assert MB1_URI.equals(meteoBureau1_URI_verif);
 		assert this.isDeployedComponent(MB1_URI);
 		this.toggleTracing(MB1_URI);
 		
 		String meteoBureau2_URI_verif = AbstractComponent.createComponent(
 				MeteoBureauTest.class.getCanonicalName(),
-				new Object[] { MB2ReceivingInboundPortURI, MB2RegistrationOutboundPortURI, MB2PublishingOutboundPortURI, "", // privileged port URI empty
-						MB2rc, 1, 1, bureau2Position, MB2_URI, testScenario, 2});
+				new Object[] { MB2ReceivingInboundPortURI, MB2rc, 1, 1, bureau2Position, MB2_URI, testScenario, 2});
 		assert MB2_URI.equals(meteoBureau2_URI_verif);
 		assert this.isDeployedComponent(MB2_URI);
 		this.toggleTracing(MB2_URI);
@@ -485,8 +471,7 @@ public class CVMCompleteTest extends AbstractCVM {
 		
 		String meteoStation1_URI_verif = AbstractComponent.createComponent(
 				MeteoStationTest.class.getCanonicalName(),
-				new Object[] { MS1ReceivingInboundPortURI, MS1RegistrationOutboundPortURI, MS1PublishingOutboundPortURI, MS1PrivilegedOutboundPortURI,
-						MS1rc, 1, 1, station1Position, MS1_URI, testScenario, 1});
+				new Object[] { MS1ReceivingInboundPortURI, MS1rc, 1, 1, station1Position, MS1_URI, testScenario, 1});
 		assert MS1_URI.equals(meteoStation1_URI_verif);
 		assert this.isDeployedComponent(MS1_URI);
 		this.toggleTracing(MS1_URI);
@@ -494,8 +479,7 @@ public class CVMCompleteTest extends AbstractCVM {
 		
 		String meteoStation2_URI_verif = AbstractComponent.createComponent(
 				MeteoStationTest.class.getCanonicalName(),
-				new Object[] { MS2ReceivingInboundPortURI, MS2RegistrationOutboundPortURI, MS2PublishingOutboundPortURI, "", // privileged port URI empty
-						MS2rc, 1, 1, station2Position, MS2_URI, testScenario, 2});
+				new Object[] { MS2ReceivingInboundPortURI, MS2rc, 1, 1, station2Position, MS2_URI, testScenario, 2});
 		assert MS2_URI.equals(meteoStation2_URI_verif);
 		assert this.isDeployedComponent(MS2_URI);
 		this.toggleTracing(MS2_URI);
@@ -503,18 +487,18 @@ public class CVMCompleteTest extends AbstractCVM {
 		// Creation of WindTurbines
 		
 		String windTurbine1_URI_verif = AbstractComponent.createComponent(WindTurbineTest.class.getCanonicalName(),
-				new Object[] { WT1ReceivingInboundPortURI, WT1RegistrationOutboundPortURI, WT1PublishingOutboundPortURI,
-						WT1rc, 1, 1, windTurbine1Position, maxWorkingLevelWT1, WT1_URI, testScenario, 1, WT1Windfilters, WT1Alertfilters});
+				new Object[] { WT1ReceivingInboundPortURI, WT1rc, 1, 1, windTurbine1Position, maxWorkingLevelWT1, 
+						WT1_URI, testScenario, 1, WT1Windfilters, WT1Alertfilters});
 		this.toggleTracing(windTurbine1_URI_verif);
 		
 		String windTurbine2_URI_verif = AbstractComponent.createComponent(WindTurbineTest.class.getCanonicalName(),
-				new Object[] { WT2ReceivingInboundPortURI, WT2RegistrationOutboundPortURI, WT2PublishingOutboundPortURI,
-						WT2rc, 1, 1, windTurbine2Position, maxWorkingLevelWT2, WT2_URI, testScenario, 2, WT2Windfilters, WT2Alertfilters});
+				new Object[] { WT2ReceivingInboundPortURI, WT2rc, 1, 1, windTurbine2Position, maxWorkingLevelWT2, 
+						WT2_URI, testScenario, 2, WT2Windfilters, WT2Alertfilters});
 		this.toggleTracing(windTurbine2_URI_verif);
 		
 		String windTurbine3_URI_verif = AbstractComponent.createComponent(WindTurbineTest.class.getCanonicalName(),
-				new Object[] { WT3ReceivingInboundPortURI, WT3RegistrationOutboundPortURI, WT3PublishingOutboundPortURI,
-						WT3rc, 1, 1, windTurbine3Position, maxWorkingLevelWT3, WT3_URI, testScenario, 3, WT3Windfilters, WT3Alertfilters});
+				new Object[] { WT3ReceivingInboundPortURI, WT3rc, 1, 1, windTurbine3Position, maxWorkingLevelWT3, 
+						WT3_URI, testScenario, 3, WT3Windfilters, WT3Alertfilters});
 		this.toggleTracing(windTurbine3_URI_verif);
 		
 		// Clock server creation

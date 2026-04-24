@@ -6,7 +6,6 @@ import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.connectors.PublishingServiceConnector;
 import fr.sorbonne_u.clients.ports.PublishingOutboundPort;
-import fr.sorbonne_u.clients.ports.RegistrationOutboundPort;
 import fr.sorbonne_u.components.AbstractPlugin;
 import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.components.tasks_management.connection.AbnormalTerminationNotificationInboundPort;
@@ -15,27 +14,22 @@ import fr.sorbonne_u.cps.pubsub.exceptions.UnauthorisedClientException;
 import fr.sorbonne_u.cps.pubsub.exceptions.UnknownChannelException;
 import fr.sorbonne_u.cps.pubsub.exceptions.UnknownClientException;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
-import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
-import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.plugins.interfaces.ClientPublicationI;
 import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
- * The {@link Client} plugin having a {@link PublishingOutboundPort} and a {@link AbnormalTerminationNotificationInboundPort}.
+ * The {@link Client} plug-in having a {@link PublishingOutboundPort} and a {@link AbnormalTerminationNotificationInboundPort}.
  * 
  * <p>
- * This plugin needs to be created after registering on the {@link Broker}, in order to pass 
- * a valid {@code brokerPublishingPortURI} argument to the constructor.
+ * This plug-in needs to be created after registering on the {@link Broker}, in order to achieve 
+ * a valid connection to an inbound {@link Broker} publishing port.
  * </p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
- * invariant	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
- * invariant	{@code registrationOutboundPort != null}
- * invariant	{@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
- * invariant	{@code brokerPublishingPortURI != null && !brokerPublishingPortURI.isEmpty()}
+ * invariant	{@code registrationPlugin != null && registrationPlugin.isInitialised()}
  * </pre>
  * 
  * @author Kevin TANG
@@ -45,65 +39,42 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 	
 	private static final long serialVersionUID = 4889836074410437984L;
 	
+	/** 
+	 * <p>Registration plug-in, owning an outbound port requiring {@link RegistrationCI} interface. 
+	 * Some local services are delegated to it.</p>
+
+	 * <p>Its {@code getBrokerPublishingPortURI()} method is used for getting 
+	 * the {@link Broker} inbound port URI offering {@link PublishingCI} interface.</p>
+	 */
+	protected final ClientRegistrationPlugin registrationPlugin;
+	
 	// NOTIFICATION
 	
 	/** Notification inbound port, set up after plugin installation + initialization */
 	protected AbnormalTerminationNotificationInboundPort notificationInboundPort;
 	
-	// RECEPTION
-	
-	/** {@link Client} reception inbound port URI */
-	protected final String receivingInboundPortURI;
-	
-	// REGISTRATION
-	
-	/** Registration outbound port, owned by {@link ClientRegistrationPlugin} */
-	protected final RegistrationOutboundPort registrationOutboundPort;
-	
 	// PUBLICATION
-	
-	/** {@link Client} publication outbound port URI */
-	protected final String publishingOutboundPortURI;
 	
 	/** Publication outbound port, set up after plugin installation + initialization */
 	protected PublishingOutboundPort publishingOutboundPort;
 	
-	/** {@link Broker} publication inbound port URI, got via {@link ClientRegistrationPlugin} after registration */
-	protected final String brokerPublishingPortURI;
-	
 	/**
-	 * Creates a {@link Client} publishing plugin.
+	 * Creates a {@link Client} publishing plug-in.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
-	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
-	 * pre	{@code registrationOutboundPort != null}
-	 * pre	{@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
-	 * pre	{@code brokerPublishingPortURI != null && !brokerPublishingPortURI.isEmpty()}
+	 * pre	{@code registrationPlugin != null && registrationPlugin.isInitialised()}
 	 * post	class invariants satisfied
 	 * </pre>
 	 * 
-	 * @param receivingInboundPortURI		the client inbound port URI offering {@link ReceivingCI} interface.
-	 * @param registrationOutboundPort		the client outbound port requiring {@link RegistrationCI} interface.
-	 * @param publishingOutboundPortURI		the client outbound port URI requiring {@link PublishingCI} interface, used for creating the {@link PublishingOutboundPort}.
-	 * @param brokerPublishingPortURI		the {@link Broker} inbound port URI offering {@link PublishingCI} or {@link PrivilegedClientCI} interface.
+	 * @param registrationPlugin		The client registration plug-in owning an outbound port requiring {@link RegistrationCI} interface.
 	 */
-	public ClientPublicationPlugin(String receivingInboundPortURI, RegistrationOutboundPort registrationOutboundPort,
-			String publishingOutboundPortURI, String brokerPublishingPortURI){
+	public ClientPublicationPlugin(ClientRegistrationPlugin registrationPlugin){
 		// Precondition checks
-		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : 
-			new PreconditionException("receivingInboundPortURI cannot be null or empty");
-		assert(registrationOutboundPort != null) : 
-			new PreconditionException("registrationOutboundPort cannot be null");
-		assert(publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()) : 
-			new PreconditionException("publishingOutboundPortURI cannot be null or empty");
-		assert(brokerPublishingPortURI != null && !brokerPublishingPortURI.isEmpty()) : 
-			new PreconditionException("brokerPublishingPortURI cannot be null or empty");
+		assert(registrationPlugin != null  && registrationPlugin.isInitialised()) : 
+			new PreconditionException("registrationPlugin must be initialised");
 		
-		this.receivingInboundPortURI = receivingInboundPortURI;
-		this.registrationOutboundPort = registrationOutboundPort;
-		this.publishingOutboundPortURI = publishingOutboundPortURI;
-		this.brokerPublishingPortURI = brokerPublishingPortURI;
+		this.registrationPlugin = registrationPlugin;
 	}
 	
 	// -------------------------------------------------------------------------
@@ -120,11 +91,14 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 	@Override
 	public void	initialise() throws Exception {
 		super.initialise();
-		this.publishingOutboundPort = new PublishingOutboundPort(publishingOutboundPortURI, this.getOwner());
+		
+		this.publishingOutboundPort = new PublishingOutboundPort(this.getOwner());
 		this.publishingOutboundPort.publishPort();
 		
+		// An error will be thrown here if the Client, through its registrationPlugin, has not yet been registered 
+		// (registrationPlugin.getBrokerPublishingPortURI() == null)
 		this.getOwner().doPortConnection(this.publishingOutboundPort.getPortURI(),
-				brokerPublishingPortURI,
+				registrationPlugin.getBrokerPublishingPortURI(),
 				PublishingServiceConnector.class.getCanonicalName());
 		
 		this.notificationInboundPort = new AbnormalTerminationNotificationInboundPort(this.getOwner());
@@ -150,12 +124,12 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 	// Plug-in services implementation
 	// -------------------------------------------------------------------------
 
-	// Precondition and postcondition verifications are delegated to the port used
+	// Precondition and postcondition verifications are delegated to the registration plug-in used
 	
 	@Override
 	public boolean channelExist(String channel) {
 		try {
-			return registrationOutboundPort.channelExist(channel);
+			return registrationPlugin.channelExist(channel);
 		} catch (Exception e) {
 			e.printStackTrace();
 			return false;
@@ -165,7 +139,7 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 	@Override
 	public boolean channelAuthorised(String channel) throws UnknownClientException, UnknownChannelException {
 		try {
-			return registrationOutboundPort.channelAuthorised(receivingInboundPortURI, channel);
+			return registrationPlugin.channelAuthorised(channel);
 		} catch (UnknownClientException | UnknownChannelException e) {
 			throw e;
 		} catch (Exception e) {
@@ -173,12 +147,15 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 			return false;
 		}
 	}
+	
+	// Precondition and postcondition verifications are delegated to the port used
 
 	@Override
 	public void publish(String channel, MessageI message)
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
+		Client owner = (Client)this.getOwner();
 		try {
-			publishingOutboundPort.publish(receivingInboundPortURI, channel, message);
+			publishingOutboundPort.publish(owner.receivingInboundPortURI, channel, message);
 		} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException e) {
 			throw e;
 		} catch (Exception e) {
@@ -189,8 +166,9 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 	@Override
 	public void publish(String channel, ArrayList<MessageI> messages)
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
+		Client owner = (Client)this.getOwner();
 		try {
-			publishingOutboundPort.publish(receivingInboundPortURI, channel, messages);
+			publishingOutboundPort.publish(owner.receivingInboundPortURI, channel, messages);
 		} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException e) {
 			throw e;
 		} catch (Exception e) {
@@ -200,8 +178,9 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 
 	@Override
 	public void asyncPublishAndNotify(String channel, MessageI message) {
+		Client owner = (Client)this.getOwner();
 		try {
-			publishingOutboundPort.asyncPublishAndNotify(receivingInboundPortURI, channel, message, notificationInboundPort.getPortURI());
+			publishingOutboundPort.asyncPublishAndNotify(owner.receivingInboundPortURI, channel, message, notificationInboundPort.getPortURI());
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -209,8 +188,9 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 
 	@Override
 	public void asyncPublishAndNotify(String channel, ArrayList<MessageI> messages) {
+		Client owner = (Client)this.getOwner();
 		try {
-			publishingOutboundPort.asyncPublishAndNotify(receivingInboundPortURI, channel, messages, notificationInboundPort.getPortURI());
+			publishingOutboundPort.asyncPublishAndNotify(owner.receivingInboundPortURI, channel, messages, notificationInboundPort.getPortURI());
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

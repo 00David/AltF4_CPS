@@ -111,9 +111,6 @@ public class CVMAbnormalConcurrentPublicationsTest extends AbstractCVM {
 	// MeteoStation general URIs
 	protected final static String MS_URI = "MeteoStation-URI";
 	protected final String MSReceivingInboundPortURI = "inbound-port-client-MS";
-	protected final String MSRegistrationOutboundPortURI = "registration-outbound-port-MS";
-	protected final String MSPublishingOutboundPortURI = "publishing-outbound-port-MS";
-	protected final String MSPrivilegedOutboundPortURI = "privileged-outbound-port-MS";
 	
 	protected static final int stationNbThreads = 4; // useless, meteo stations does not receive
 	protected static final PositionData stationPosition1 = new PositionData(1, 2);
@@ -122,8 +119,6 @@ public class CVMAbnormalConcurrentPublicationsTest extends AbstractCVM {
 	// WindTurbine
 	protected final static String WT_URI = "WindTurbine-URI";
 	protected final String WindTurbineReceivingInboundPortURI = "inbound-port-client-WindTurbine";
-	protected final String WindTurbineRegistrationOutboundPortURI = "registration-outbound-port-WindTurbine";
-	protected final String WindTurbinePublishingOutboundPortURI = "publishing-outbound-port-WindTurbine";
 	
 	protected static final int windTurbineNbThreads = 4;
 	protected static final PositionData windTurbinePosition = new PositionData(2, 0);
@@ -294,24 +289,24 @@ public class CVMAbnormalConcurrentPublicationsTest extends AbstractCVM {
 		// Creation of 2 MeteoStations
 		String meteoStation1_URI_verif = AbstractComponent.createComponent(
 				MeteoStationTest.class.getCanonicalName(),
-				new Object[] { MSReceivingInboundPortURI+1, MSRegistrationOutboundPortURI+1, MSPublishingOutboundPortURI+1, MSPrivilegedOutboundPortURI+1,
-						RegistrationClass.STANDARD, stationNbThreads, 1, stationPosition1, MS_URI+1, testScenario, 1});
+				new Object[] { MSReceivingInboundPortURI+1, RegistrationClass.STANDARD, stationNbThreads, 1, 
+						stationPosition1, MS_URI+1, testScenario, 1});
 		assert (MS_URI+1).equals(meteoStation1_URI_verif);
 		assert this.isDeployedComponent(MS_URI+1);
 		this.toggleTracing(MS_URI+1);
 		
 		String meteoStation2_URI_verif = AbstractComponent.createComponent(
 				MeteoStationTest.class.getCanonicalName(),
-				new Object[] { MSReceivingInboundPortURI+2, MSRegistrationOutboundPortURI+2, MSPublishingOutboundPortURI+2, MSPrivilegedOutboundPortURI+2,
-						RegistrationClass.STANDARD, stationNbThreads, 1, stationPosition2, MS_URI+2, testScenario, 2});
+				new Object[] { MSReceivingInboundPortURI+2, RegistrationClass.STANDARD, stationNbThreads, 1, 
+						stationPosition2, MS_URI+2, testScenario, 2});
 		assert (MS_URI+2).equals(meteoStation2_URI_verif);
 		assert this.isDeployedComponent(MS_URI+2);
 		this.toggleTracing(MS_URI+2);
 		
 		// Creation of 1 WindTurbine
 		String tmp_windTurbine_URI = AbstractComponent.createComponent(WindTurbineTest.class.getCanonicalName(),
-				new Object[] { WindTurbineReceivingInboundPortURI, WindTurbineRegistrationOutboundPortURI, WindTurbinePublishingOutboundPortURI,
-						RegistrationClass.STANDARD, windTurbineNbThreads, 1, windTurbinePosition, MeteoAlertI.Level.ORANGE, WT_URI, testScenario, 1, windTurbineWindFilter, windTurbineAlertFilter});
+				new Object[] { WindTurbineReceivingInboundPortURI, RegistrationClass.STANDARD, windTurbineNbThreads, 1, 
+						windTurbinePosition, MeteoAlertI.Level.ORANGE, WT_URI, testScenario, 1, windTurbineWindFilter, windTurbineAlertFilter});
 		this.toggleTracing(tmp_windTurbine_URI);
 		
 		// Clock server creation

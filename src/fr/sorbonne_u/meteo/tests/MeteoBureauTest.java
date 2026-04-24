@@ -7,10 +7,7 @@ import java.util.ArrayList;
 import fr.sorbonne_u.components.utils.tests.TestScenario;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
-import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
-import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
-import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.exceptions.PostconditionException;
 import fr.sorbonne_u.exceptions.PreconditionException;
@@ -44,9 +41,6 @@ public class MeteoBureauTest extends MeteoBureau {
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
-	 * pre	{@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
-	 * pre	{@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
-	 * pre	{@code privilegedOutboundPortURI != null}, if {@code rc != FREE : !privilegedOutboundPortURI.isEmpty()}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
 	 * pre	{@code bureauPosition != null}
 	 * pre	{@code reflectionInboundPortURI != null && !reflectionInboundPortURI.isEmpty()}
@@ -55,9 +49,6 @@ public class MeteoBureauTest extends MeteoBureau {
 	 * </pre>
 	 * 
 	 * @param receivingInboundPortURI       URI of the inbound port offering {@link ReceivingCI}.
-	 * @param registrationOutboundPortURI   URI of the outbound port requiring {@link RegistrationCI}.
-	 * @param publishingOutboundPortURI     URI of the outbound port requiring {@link PublishingCI}.
-	 * @param privilegedOutboundPortURI	    URI of the outbound port requiring {@link PrivilegedClientCI}. Can be empty if the client if FREE, otherwise it cannot.
 	 * @param rc			   				The registration class of the component.
 	 * @param nbThreads					  Number of threads to be created in the component pool.
 	 * @param nbSchedulableThreads		  Number of threads to be created in the component schedulable pool.
@@ -67,11 +58,10 @@ public class MeteoBureauTest extends MeteoBureau {
 	 * @param id							A number identifying the component, just for tracer window.
 	 * @throws Exception                    If an error occurs during initialization or port publication.
 	 */
-	protected MeteoBureauTest(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, String privilegedOutboundPortURI, 
+	protected MeteoBureauTest(String receivingInboundPortURI, 
 			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData bureauPosition, String reflectionInboundPortURI, 
 			TestScenario testScenario, int id) throws Exception {
-		super(receivingInboundPortURI, registrationOutboundPortURI , publishingOutboundPortURI, privilegedOutboundPortURI, rc, nbThreads,
-				nbSchedulableThreads, bureauPosition, reflectionInboundPortURI);
+		super(receivingInboundPortURI, rc, nbThreads, nbSchedulableThreads, bureauPosition, reflectionInboundPortURI);
 		
 		// Most preconditions are checked inside the superconstructor while the last one is checked here
 		assert(testScenario != null) : new PreconditionException("testScenario cannot be null");	

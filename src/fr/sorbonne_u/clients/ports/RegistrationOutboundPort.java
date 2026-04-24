@@ -30,23 +30,20 @@ public class RegistrationOutboundPort extends AbstractOutboundPort implements Re
 	private static final long serialVersionUID = 674403752614646152L;
 
 	/**
-	 * Creates the outbound port with the provided {@code uri} redirecting to a {@link RegistrationServiceConnector}.
+	 * Creates the outbound port redirecting to a {@link RegistrationServiceConnector}.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
-	 * pre {@code uri != null && !uri.isEmpty()}
 	 * pre {@code owner != null}
 	 * post {@code  true}	// no postcondition.
 	 * </pre>
 	 * 
-	 * @param uri    		the URI of the port.
 	 * @param owner  		the component owning this port.
 	 * @throws Exception 	if an error occurs while creating the port
 	 */
-	public RegistrationOutboundPort(String uri,ComponentI owner) throws Exception {
-		super(uri,RegistrationCI.class,owner);
-		// Precondition checks
-		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
+	public RegistrationOutboundPort(ComponentI owner) throws Exception {
+		super(RegistrationCI.class,owner);
+		// Precondition check
 		assert(owner != null) : new PreconditionException("owner cannot be null");
 	}
 	

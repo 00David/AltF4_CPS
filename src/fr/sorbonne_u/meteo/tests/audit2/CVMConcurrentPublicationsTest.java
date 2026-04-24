@@ -110,9 +110,6 @@ public class CVMConcurrentPublicationsTest extends AbstractCVM {
 	// MeteoStation general URIs
 	protected final static String MS_URI = "MeteoStation-URI";
 	protected final String MSReceivingInboundPortURI = "inbound-port-client-MS";
-	protected final String MSRegistrationOutboundPortURI = "registration-outbound-port-MS";
-	protected final String MSPublishingOutboundPortURI = "publishing-outbound-port-MS";
-	protected final String MSPrivilegedOutboundPortURI = "privileged-outbound-port-MS";
 	
 	protected static final int stationNbThreads = 4; // useless, meteo stations does not receive
 	protected static final PositionData FREEstationPosition = new PositionData(1, 2);
@@ -122,8 +119,6 @@ public class CVMConcurrentPublicationsTest extends AbstractCVM {
 	// WindTurbine
 	protected final static String WT_URI = "WindTurbine-URI";
 	protected final String WindTurbineReceivingInboundPortURI = "inbound-port-client-WindTurbine";
-	protected final String WindTurbineRegistrationOutboundPortURI = "registration-outbound-port-WindTurbine";
-	protected final String WindTurbinePublishingOutboundPortURI = "publishing-outbound-port-WindTurbine";
 	
 	protected static final int windTurbineNbThreads = 4;
 	protected static final PositionData windTurbinePosition = new PositionData(2, 0);
@@ -454,8 +449,7 @@ public class CVMConcurrentPublicationsTest extends AbstractCVM {
 			
 			String meteoStation_URI_verif = AbstractComponent.createComponent(
 					MeteoStationTest.class.getCanonicalName(),
-					new Object[] { MSReceivingInboundPortURI+id, MSRegistrationOutboundPortURI+id, MSPublishingOutboundPortURI+id, MSPrivilegedOutboundPortURI+id,
-							rc, stationNbThreads, 1, pos, MS_URI+id, testScenario, id});
+					new Object[] { MSReceivingInboundPortURI+id, rc, stationNbThreads, 1, pos, MS_URI+id, testScenario, id});
 			assert (MS_URI+id).equals(meteoStation_URI_verif);
 			assert this.isDeployedComponent(MS_URI+id);
 			this.toggleTracing(MS_URI+id);
@@ -463,8 +457,8 @@ public class CVMConcurrentPublicationsTest extends AbstractCVM {
 		
 		// Creation of 1 WindTurbine
 		String tmp_windTurbine_URI = AbstractComponent.createComponent(WindTurbineTest.class.getCanonicalName(),
-				new Object[] { WindTurbineReceivingInboundPortURI, WindTurbineRegistrationOutboundPortURI, WindTurbinePublishingOutboundPortURI,
-						RegistrationClass.STANDARD, windTurbineNbThreads, 1, windTurbinePosition, MeteoAlertI.Level.ORANGE, WT_URI, testScenario, 1, windTurbineWindFilter, windTurbineAlertFilter});
+				new Object[] { WindTurbineReceivingInboundPortURI, RegistrationClass.STANDARD, windTurbineNbThreads, 1, 
+						windTurbinePosition, MeteoAlertI.Level.ORANGE, WT_URI, testScenario, 1, windTurbineWindFilter, windTurbineAlertFilter});
 		this.toggleTracing(tmp_windTurbine_URI);
 		
 		// Clock server creation

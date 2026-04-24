@@ -33,46 +33,40 @@ public class PublishingOutboundPort extends AbstractOutboundPort implements Publ
 	private static final long serialVersionUID = 2672780904734490388L;
 
 	/**
-	 * Creates the outbound port with the provided {@code uri} redirecting to a {@link PublishingServiceConnector}.
+	 * Creates the outbound port redirecting to a {@link PublishingServiceConnector}.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
-	 * pre {@code uri != null && !uri.isEmpty()}
 	 * pre {@code owner != null}
 	 * post {@code  true}	// no postcondition.
 	 * </pre>
 	 * 
-	 * @param uri    		the URI of the port.
 	 * @param owner  		the component owning this port.
 	 * @throws Exception 	if an error occurs while creating the port
 	 */
-	public PublishingOutboundPort(String uri, ComponentI owner) throws Exception {
-		super(uri, PublishingCI.class, owner);
-		// Precondition checks
-		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
+	public PublishingOutboundPort(ComponentI owner) throws Exception {
+		super(PublishingCI.class, owner);
+		// Precondition check
 		assert(owner != null) : new PreconditionException("owner cannot be null");
 	}
 	
 	/**
-	 * Creates the outbound port with the provided {@code uri} redirecting to a {@link PublishingServiceConnector}.<br>
+	 * Creates the outbound port redirecting to a {@link PublishingServiceConnector}.<br>
 	 * Used by {@link PrivilegedOutboundPort} constructor.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
-	 * pre {@code uri != null && !uri.isEmpty()}
 	 * pre {@code owner != null}
 	 * post {@code  true}	// no postcondition.
 	 * </pre>
 	 * 
-	 * @param uri    					the URI of the port.
 	 * @param implementedInterface    	the implemented interface, extending {@link RequiredCI}.
 	 * @param owner  					the component owning this port.
 	 * @throws Exception 				if an error occurs while creating the port
 	 */
-	public PublishingOutboundPort(String uri, Class<? extends RequiredCI> implementedInterface, ComponentI owner) throws Exception {
-		super(uri, implementedInterface, owner);
-		// Precondition checks
-		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
+	public PublishingOutboundPort(Class<? extends RequiredCI> implementedInterface, ComponentI owner) throws Exception {
+		super(implementedInterface, owner);
+		// Precondition check
 		assert(owner != null) : new PreconditionException("owner cannot be null");
 	}
 	

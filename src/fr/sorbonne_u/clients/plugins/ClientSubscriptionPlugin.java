@@ -10,9 +10,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
+import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.ports.ClientReceivingInboundPort;
-import fr.sorbonne_u.clients.ports.RegistrationOutboundPort;
 import fr.sorbonne_u.components.AbstractPlugin;
 import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.cps.pubsub.exceptions.NotSubscribedChannelException;
@@ -27,12 +27,22 @@ import fr.sorbonne_u.cps.pubsub.plugins.interfaces.ClientSubscriptionI;
 import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
- * The {@link Client} plugin having a {@link ClientReceivingInboundPort}.
+ * The {@link Client} plug-in having a {@link ClientReceivingInboundPort}.
+ * 
+ * <p>
+ * Any concrete {@link Client} must, in its constructor, set up either this ClientSubscriptionPlugin
+ * using the {@link Client#setupSubscriptionPlugin} method, or any other subclass with an equivalent setup.
+ * </p>
+ * 
+ * <p>
+ * Despite having the possibility of being abstract to let concrete sub-classes implement a personalized behavior
+ * on standard reception methods, this is not the case because the contained {@link ClientReceivingInboundPort}
+ * must necessarily be published for just registering on a {@link Broker}, without even having to deal with receptions.
+ * <p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
- * invariant	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
- * invariant	{@code registrationOutboundPort != null}
+ * invariant	{@code registrationPlugin != null && registrationPlugin.isInitialised()}
  * invariant	{@code futureMessages != null}
  * </pre>
  * 
@@ -42,45 +52,38 @@ import fr.sorbonne_u.exceptions.PreconditionException;
 public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSubscriptionI {
 
 	private static final long serialVersionUID = -1472841763925529259L;
+
+	/** 
+	 * Registration plug-in, owning an outbound port requiring {@link RegistrationCI} interface. 
+	 * Some local services are delegated to it.
+	 */
+	protected final ClientRegistrationPlugin registrationPlugin;
 	
 	// RECEPTION
 	
-	/** {@link Client} reception inbound port URI */
-	protected final String receivingInboundPortURI;
-	
 	/** Reception inbound port, set up after plugin installation + initialization */
 	protected ClientReceivingInboundPort receivingInboundPort;
-	
-	// REGISTRATION
-	
-	/** Registration outbound port, owned by {@link ClientRegistrationPlugin} */
-	protected final RegistrationOutboundPort registrationOutboundPort;
 	
 	/** Mapping : channel name -> a queue of futures, each waiting a message from the channel. */
 	protected final ConcurrentHashMap<String, ConcurrentLinkedQueue<CompletableFuture<MessageI>>> futureQueues = new ConcurrentHashMap<>();
 	
 	/**
-	 * Creates a {@link Client} subscription + reception plugin.
+	 * Creates a {@link Client} subscription + reception plug-in.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
-	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
-	 * pre	{@code registrationOutboundPort != null}
+	 * pre	{@code registrationPlugin != null && registrationPlugin.isInitialised()}
 	 * post	class invariants satisfied
 	 * </pre>
 	 * 
-	 * @param receivingInboundPortURI		the client inbound port URI offering {@link ReceivingCI} interface, used for creating the {@link ClientReceivingInboundPort}.
-	 * @param registrationOutboundPort		the client outbound port requiring {@link RegistrationCI} interface.
+	 * @param registrationPlugin		The client registration plug-in owning an outbound port requiring {@link RegistrationCI} interface.
 	 */
-	public ClientSubscriptionPlugin(String receivingInboundPortURI, RegistrationOutboundPort registrationOutboundPort){
+	public ClientSubscriptionPlugin(ClientRegistrationPlugin registrationPlugin){
 		// Precondition checks
-		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : 
-			new PreconditionException("receivingInboundPortURI cannot be null or empty");
-		assert(registrationOutboundPort != null) : 
-			new PreconditionException("registrationOutboundPort cannot be null");
+		assert(registrationPlugin != null  && registrationPlugin.isInitialised()) : 
+			new PreconditionException("registrationPlugin must be initialised");
 		
-		this.receivingInboundPortURI = receivingInboundPortURI;
-		this.registrationOutboundPort = registrationOutboundPort;
+		this.registrationPlugin = registrationPlugin;
 	}
 	
 	// -------------------------------------------------------------------------
@@ -97,7 +100,8 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	@Override
 	public void	initialise() throws Exception {
 		super.initialise();
-		this.receivingInboundPort = new ClientReceivingInboundPort(receivingInboundPortURI, (Client)this.getOwner(), this.getPluginURI());
+		Client owner = (Client)this.getOwner();
+		this.receivingInboundPort = new ClientReceivingInboundPort(owner.receivingInboundPortURI, (Client)this.getOwner(), this.getPluginURI());
 		this.receivingInboundPort.publishPort();
 	}
 	
@@ -112,13 +116,13 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	// Plug-in services implementation
 	// -------------------------------------------------------------------------
 
-	// Precondition and postcondition verifications are delegated to the port used
+	// Precondition and postcondition verifications are delegated to the registration plug-in used,
 	// except for reception methods (on receivingInboundPort)
 	
 	@Override
 	public boolean channelExist(String channel) {
 		try {
-			return registrationOutboundPort.channelExist(channel);
+			return registrationPlugin.channelExist(channel);
 		} catch (Exception e) {
 			e.printStackTrace();
 			return false;
@@ -128,7 +132,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	@Override
 	public boolean channelAuthorised(String channel) throws UnknownClientException, UnknownChannelException {
 		try {
-			return registrationOutboundPort.channelAuthorised(receivingInboundPortURI, channel);
+			return registrationPlugin.channelAuthorised(channel);
 		} catch (UnknownClientException | UnknownChannelException e) {
 			throw e;
 		} catch (Exception e) {
@@ -140,7 +144,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	@Override
 	public boolean subscribed(String channel) throws UnknownClientException, UnknownChannelException {
 		try {
-			return registrationOutboundPort.subscribed(receivingInboundPortURI, channel);
+			return registrationPlugin.subscribed(channel);
 		} catch (UnknownClientException | UnknownChannelException e) {
 			throw e;
 		} catch (Exception e) {
@@ -153,7 +157,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	public void subscribe(String channel, MessageFilterI filter)
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
 		try {
-			registrationOutboundPort.subscribe(receivingInboundPortURI, channel, filter);
+			registrationPlugin.subscribe(channel, filter);
 		} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException e) {
 			throw e;
 		} catch (Exception e) {
@@ -165,7 +169,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	public void unsubscribe(String channel) throws UnknownClientException, UnknownChannelException,
 			UnauthorisedClientException, NotSubscribedChannelException {
 		try {
-			registrationOutboundPort.unsubscribe(receivingInboundPortURI, channel);
+			registrationPlugin.unsubscribe(channel);
 		} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException | NotSubscribedChannelException e) {
 			throw e;
 		} catch (Exception e) {
@@ -177,7 +181,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	public void modifyFilter(String channel, MessageFilterI filter) throws UnknownClientException,
 			UnknownChannelException, UnauthorisedClientException, NotSubscribedChannelException {
 		try {
-			registrationOutboundPort.modifyFilter(receivingInboundPortURI, channel, filter);
+			registrationPlugin.modifyFilter(channel, filter);
 		} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException | NotSubscribedChannelException e) {
 			throw e;
 		} catch (Exception e) {

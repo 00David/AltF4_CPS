@@ -20,10 +20,9 @@ import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.WindData;
 import fr.sorbonne_u.meteo.plugins.WindTurbineReceptionPlugin;
 import fr.sorbonne_u.meteo.tests.WindTurbineTest;
-import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
-import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.TimeFilterI;
+import fr.sorbonne_u.exceptions.InvariantException;
 import fr.sorbonne_u.exceptions.PostconditionException;
 
 /**
@@ -55,7 +54,8 @@ import fr.sorbonne_u.exceptions.PostconditionException;
  * invariant	{@code orientation != null}
  * invariant	{@code maxWorkingLevel != null}
  * invariant	{@code safeModeLock != null}
- * invariant	{@code subscriptionPlugin != null && subscriptionPlugin.isInitialised()}
+ * invariant	{@code this.subscriptionPlugin != null && this.subscriptionPlugin.isInitialised()}
+ * invariant	the WindTurbine has exactly 1 published inbound port implementing ReceivingCI. // informal
  * </pre>
  * 
  * @author Kevin TANG
@@ -84,17 +84,47 @@ public class WindTurbine extends Client {
 	/** {@code safeMode} lock, used when the safemode is accessed for reading/writing */
 	protected final Object safeModeLock = new Object();
 	
-	// SUBSCRIPTION + RECEPTION
-	
-	/** Subscription + reception plugin */
-	protected final WindTurbineReceptionPlugin subscriptionPlugin;
-	
-	
 	/** 
 	 * Indicates if the wind turbine must register itself with default filters on channels "channel0" and "channel1".<br>
 	 * Test sub-classes can set this boolean at false in their constructor, otherwise it is set à true by default.
 	 */
 	protected boolean defaultReceptionOnExec = true;
+	
+	// -------------------------------------------------------------------------
+	// WindTurbine reception plug-in setup method
+	// -------------------------------------------------------------------------
+	
+	/**
+	 * Setup the {@code subscriptionPlugin} plug-in with the wind turbine version ({@link WindTurbineReceptionPlugin}).
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code this.registrationPlugin.isInitialised()}
+	 * post	{@code this.subscriptionPlugin != null && this.subscriptionPlugin.isInitialised()}
+	 * post	the WindTurbine has exactly 1 published inbound port implementing ReceivingCI. // informal
+	 * </pre>
+	 * 
+	 * @throws Exception 	If an error occurs while setuping the plug-in.
+	 */
+	protected void setupWindTurbineSubscriptionPlugin() throws Exception {
+		// Precondition check
+		assert registrationPlugin.isInitialised() : // if initialized, registrationPlugin.getRegistrationOutboundPort() != null
+			new PreconditionException("Registration plugin must be initialized.");
+		
+		// Install the subscription + reception plug-in
+		this.subscriptionPlugin = new WindTurbineReceptionPlugin(registrationPlugin);
+		this.subscriptionPlugin.setPluginURI("subscription");
+		this.installPlugin(this.subscriptionPlugin);
+		
+		// Postcondition checks
+		assert this.subscriptionPlugin.isInitialised() : 
+			new PostconditionException("Subscription (+reception) plugin must be initialized");
+		String[] subscriptionURIs = this.findInboundPortURIsFromInterface(ReceivingCI.class);
+		assert  subscriptionURIs.length == 1 : 
+			new InvariantException("The component must have an inbound port with ReceivingCI implemented interface");
+		assert	this.findPortFromURI(subscriptionURIs[0]).isPublished() :
+			new InvariantException("The component must have a ReceivingCI inbound port published");
+	}
 
 	//--------------------------------------------------------------------------
 	// Constructors
@@ -106,8 +136,6 @@ public class WindTurbine extends Client {
      * <p><strong>Contract</strong></p>
      * <pre>
      * pre  {@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
-     * pre  {@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
-     * pre  {@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
      * pre	{@code rc != null}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
      * pre  {@code pos != null}
@@ -116,8 +144,6 @@ public class WindTurbine extends Client {
      * </pre>
      * 
      * @param receivingInboundPortURI     URI of the inbound port providing {@link ReceivingCI}.
-     * @param registrationOutboundPortURI URI of the outbound port requesting {@link RegistrationCI}.
-     * @param publishingOutboundPortURI   URI of the outbound port requesting {@link PublishingCI}.
 	 * @param rc			  		 	  The registration class of the component.
 	 * @param nbThreads					  Number of threads to be created in the component pool.
 	 * @param nbSchedulableThreads		  Number of threads to be created in the component schedulable pool.
@@ -125,11 +151,11 @@ public class WindTurbine extends Client {
      * @param maxWorkingLevel             Maximum alert level (inclusive) at which the turbine operates.
      * @throws Exception                  If a problem occurs during initialization or port publication.
      */
-	protected WindTurbine(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, 
+	protected WindTurbine(String receivingInboundPortURI, 
 			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData windTurbinePos,LevelI maxWorkingLevel) throws Exception {
-		super(receivingInboundPortURI, registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads);
+		super(receivingInboundPortURI, rc, nbThreads, nbSchedulableThreads);
 		
-		// Some preconditions are checked inside the superconstructor while others are checked here
+		// Some preconditions are checked inside the super-constructor while others are checked here
 		assert (windTurbinePos != null) : 
 			new PreconditionException("WindTurbine position cannot be null");	
 		assert (maxWorkingLevel != null) : 
@@ -139,19 +165,7 @@ public class WindTurbine extends Client {
 		this.maxWorkingLevel = maxWorkingLevel;
 		
 		// Install the subscription + reception plugin (Wind turbine version)
-		this.subscriptionPlugin = new WindTurbineReceptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
-		this.subscriptionPlugin.setPluginURI("subscription");
-		this.installPlugin(this.subscriptionPlugin);
-		
-		// Postcondition checks
-		assert subscriptionPlugin.isInitialised() : 
-			new PostconditionException("Subscription (+reception) plugin must be initialized");
-		assert	this.isPortExisting(receivingInboundPortURI) : 
-			new PostconditionException("The component must have a port with URI " + receivingInboundPortURI);
-		assert	this.findPortFromURI(receivingInboundPortURI).getImplementedInterface().equals(ReceivingCI.class) : 
-			new PostconditionException("The component must have a port with implemented interface ReceivingCI");
-		assert	this.findPortFromURI(receivingInboundPortURI).isPublished() :
-			new PostconditionException("The component must have a port published with URI " + receivingInboundPortURI);
+		setupWindTurbineSubscriptionPlugin();
 		
 		this.getTracer().setTitle("WindTurbine");
 		this.getTracer().setRelativePosition((int)windTurbinePos.getPosX(), (int)windTurbinePos.getPosY());
@@ -166,8 +180,6 @@ public class WindTurbine extends Client {
      * <p><strong>Contract</strong></p>
      * <pre>
      * pre  {@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
-     * pre  {@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
-     * pre  {@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
      * pre	{@code rc != null}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
      * pre  {@code pos != null}
@@ -177,8 +189,6 @@ public class WindTurbine extends Client {
      * </pre>
      * 
      * @param receivingInboundPortURI     URI of the inbound port providing {@link ReceivingCI}.
-     * @param registrationOutboundPortURI URI of the outbound port requesting {@link RegistrationCI}.
-     * @param publishingOutboundPortURI   URI of the outbound port requesting {@link PublishingCI}.
 	 * @param rc			  		 	  	The registration class of the component.
 	 * @param nbThreads					  Number of threads to be created in the component pool.
 	 * @param nbSchedulableThreads		  Number of threads to be created in the component schedulable pool.
@@ -187,11 +197,11 @@ public class WindTurbine extends Client {
 	 * @param reflectionInboundPortURI	  URI of the reflection inbound port to be created in this component.
      * @throws Exception                  If a problem occurs during initialization or port publication.
      */
-	protected WindTurbine(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, 
+	protected WindTurbine(String receivingInboundPortURI, 
 			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData windTurbinePos, LevelI maxWorkingLevel, String reflectionInboundPortURI) throws Exception {
-		super(receivingInboundPortURI, registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
+		super(receivingInboundPortURI, rc, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
 		
-		// Some preconditions are checked inside the superconstructor while others are checked here
+		// Some preconditions are checked inside the super-constructor while others are checked here
 		assert (windTurbinePos != null) : 
 			new PreconditionException("WindTurbine position cannot be null");	
 		assert (maxWorkingLevel != null) : 
@@ -200,20 +210,8 @@ public class WindTurbine extends Client {
 		this.windTurbinePos = windTurbinePos;
 		this.maxWorkingLevel = maxWorkingLevel;
 		
-		// Install the subscription + reception plugin (Wind turbine version)
-		this.subscriptionPlugin = new WindTurbineReceptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
-		this.subscriptionPlugin.setPluginURI("subscription");
-		this.installPlugin(this.subscriptionPlugin);
-		
-		// Postcondition checks
-		assert subscriptionPlugin.isInitialised() : 
-			new PostconditionException("Subscription (+reception) plugin must be initialized");
-		assert	this.isPortExisting(receivingInboundPortURI) : 
-			new PostconditionException("The component must have a port with URI " + receivingInboundPortURI);
-		assert	this.findPortFromURI(receivingInboundPortURI).getImplementedInterface().equals(ReceivingCI.class) : 
-			new PostconditionException("The component must have a port with implemented interface ReceivingCI");
-		assert	this.findPortFromURI(receivingInboundPortURI).isPublished() :
-			new PostconditionException("The component must have a port published with URI " + receivingInboundPortURI);
+		// Install the subscription + reception plug-in (Wind turbine version)
+		setupWindTurbineSubscriptionPlugin();
 		
 		this.getTracer().setTitle("WindTurbine");
 		this.getTracer().setRelativePosition((int)windTurbinePos.getPosX(), (int)windTurbinePos.getPosY());

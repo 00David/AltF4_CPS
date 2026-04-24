@@ -10,9 +10,7 @@ import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.utils.aclocks.ClocksServer;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
-import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
-import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.exceptions.PostconditionException;
 import fr.sorbonne_u.exceptions.PreconditionException;
@@ -46,8 +44,6 @@ public class WindTurbineTest extends WindTurbine {
      * <p><strong>Contract</strong></p>
      * <pre>
      * pre  {@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
-     * pre  {@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
-     * pre  {@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
      * pre	{@code rc != null}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
      * pre  {@code pos != null}
@@ -59,8 +55,6 @@ public class WindTurbineTest extends WindTurbine {
      * </pre>
      * 
      * @param receivingInboundPortURI     URI of the inbound port providing {@link ReceivingCI}.
-     * @param registrationOutboundPortURI URI of the outbound port requesting {@link RegistrationCI}.
-     * @param publishingOutboundPortURI   URI of the outbound port requesting {@link PublishingCI}.
 	 * @param rc			  		 	  The registration class of the component.
 	 * @param nbThreads					  Number of threads to be created in the component pool.
 	 * @param nbSchedulableThreads		  Number of threads to be created in the component schedulable pool.
@@ -73,10 +67,10 @@ public class WindTurbineTest extends WindTurbine {
 	 * @param filterChannel1			  Filter used to register during {@code execute} method on the "channel1".
      * @throws Exception                  If a problem occurs during initialization or port publication.
      */
-	protected WindTurbineTest(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, 
+	protected WindTurbineTest(String receivingInboundPortURI, 
 			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData pos,LevelI maxWorkingLevel, 
 			String reflectionInboundPortURI, TestScenario testScenario, int id, MessageFilterI filterChannel0, MessageFilterI filterChannel1) throws Exception {
-		super(receivingInboundPortURI, registrationOutboundPortURI, publishingOutboundPortURI, rc, nbThreads, nbSchedulableThreads, pos, maxWorkingLevel, reflectionInboundPortURI);
+		super(receivingInboundPortURI, rc, nbThreads, nbSchedulableThreads, pos, maxWorkingLevel, reflectionInboundPortURI);
 		
 		// Preconditions are checked inside the superconstructor
 		
@@ -93,8 +87,6 @@ public class WindTurbineTest extends WindTurbine {
      * <p><strong>Contract</strong></p>
      * <pre>
      * pre  {@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
-     * pre  {@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
-     * pre  {@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
      * pre	{@code rc != null}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
      * pre  {@code pos != null}
@@ -105,8 +97,6 @@ public class WindTurbineTest extends WindTurbine {
      * </pre>
      * 
      * @param receivingInboundPortURI     URI of the inbound port providing {@link ReceivingCI}.
-     * @param registrationOutboundPortURI URI of the outbound port requesting {@link RegistrationCI}.
-     * @param publishingOutboundPortURI   URI of the outbound port requesting {@link PublishingCI}.
 	 * @param rc			  		 	  The registration class of the component.
 	 * @param nbThreads					  Number of threads to be created in the component pool.
 	 * @param nbSchedulableThreads		  Number of threads to be created in the component schedulable pool.
@@ -118,10 +108,10 @@ public class WindTurbineTest extends WindTurbine {
 	 * @param filterChannel1			  Filter used to register during {@code execute} method on the "channel1".
      * @throws Exception                  If a problem occurs during initialization or port publication.
      */
-	protected WindTurbineTest(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, 
+	protected WindTurbineTest(String receivingInboundPortURI, 
 			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData pos,LevelI maxWorkingLevel, 
 			String reflectionInboundPortURI, int id, MessageFilterI filterChannel0, MessageFilterI filterChannel1) throws Exception {
-		super(receivingInboundPortURI, registrationOutboundPortURI, publishingOutboundPortURI, rc, nbThreads, nbSchedulableThreads, pos, maxWorkingLevel, reflectionInboundPortURI);
+		super(receivingInboundPortURI, rc, nbThreads, nbSchedulableThreads, pos, maxWorkingLevel, reflectionInboundPortURI);
 		
 		// Preconditions are checked inside the superconstructor
 		

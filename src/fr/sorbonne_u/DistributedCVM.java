@@ -29,23 +29,15 @@ public class DistributedCVM extends	AbstractDistributedCVM {
 	protected final String Broker3GossipOutboundPortURI = "gossip-outbound-port-Bro3-"; // + "1", +"2", etc..
 	
 	// MeteoBureau (with Broker1)
-	protected final String MBRegistrationOutboundPortURI = "registration-outbound-port-MB";
-	protected final String MBPublishingOutboundPortURI = "publishing-outbound-port-MB";
 	protected final String MBReceivingInboundPortURI = "inbound-port-client-MB";
 	
 	// MeteoStation 1 (with Broker1)
-	protected final String MS1RegistrationOutboundPortURI = "registration-outbound-port-MS1";
-	protected final String MS1PublishingOutboundPortURI = "publishing-outbound-port-MS1";
 	protected final String MS1ReceivingInboundPortURI = "inbound-port-client-MS1";
 	
 	// MeteoStation 2 (with Broker2)
-	protected final String MS2RegistrationOutboundPortURI = "registration-outbound-port-MS2";
-	protected final String MS2PublishingOutboundPortURI = "publishing-outbound-port-MS2";
 	protected final String MS2ReceivingInboundPortURI = "inbound-port-client-MS2";
 	
 	// WindTurbine (with Broker3)
-	protected final String WindTurbineRegistrationOutboundPortURI = "registration-outbound-port-WindTurbine";
-	protected final String WindTurbinePublishingOutboundPortURI = "publishing-outbound-port-WindTurbine";
 	protected final String WindTurbineReceivingInboundPortURI ="inbound-port-client-WindTurbine";
 	
 	// JVM URIs
@@ -136,16 +128,14 @@ public class DistributedCVM extends	AbstractDistributedCVM {
 			// Creation of 1 MeteoBureau
 			this.uriMB = AbstractComponent.createComponent(
 					MeteoBureau.class.getCanonicalName(),
-					new Object[] { MBReceivingInboundPortURI, MBRegistrationOutboundPortURI, MBPublishingOutboundPortURI, "", // privileged port URI empty
-							rc, nbThreads, nbSchedulableThreads, bureauPosition, sleepMinTimeMB, sleepMaxTimeMB});
+					new Object[] { MBReceivingInboundPortURI, rc, nbThreads, nbSchedulableThreads, bureauPosition, sleepMinTimeMB, sleepMaxTimeMB});
 			assert this.isDeployedComponent(this.uriMB);
 			this.toggleTracing(this.uriMB);
 			
 			// Creation of first MeteoStation
 			this.uriMS1 = AbstractComponent.createComponent(
 					MeteoStation.class.getCanonicalName(),
-					new Object[] { MS1ReceivingInboundPortURI, MS1RegistrationOutboundPortURI, MS1PublishingOutboundPortURI, "", // privileged port URI empty
-							rc, nbThreads, nbSchedulableThreads, station1Position, sleepMinTimeMS, sleepMaxTimeMS, windMinXY, windMaxXY});
+					new Object[] { MS1ReceivingInboundPortURI, rc, nbThreads, nbSchedulableThreads, station1Position, sleepMinTimeMS, sleepMaxTimeMS, windMinXY, windMaxXY});
 			assert this.isDeployedComponent(this.uriMS1);
 			this.toggleTracing(this.uriMS1);
 
@@ -171,8 +161,7 @@ public class DistributedCVM extends	AbstractDistributedCVM {
 			// Creation of second MeteoStation
 			this.uriMS2 = AbstractComponent.createComponent(
 					MeteoStation.class.getCanonicalName(),
-					new Object[] { MS2ReceivingInboundPortURI, MS2RegistrationOutboundPortURI, MS2PublishingOutboundPortURI, "", // privileged port URI empty
-							rc, nbThreads, nbSchedulableThreads, station2Position, sleepMinTimeMS, sleepMaxTimeMS, windMinXY, windMaxXY});
+					new Object[] { MS2ReceivingInboundPortURI, rc, nbThreads, nbSchedulableThreads, station2Position, sleepMinTimeMS, sleepMaxTimeMS, windMinXY, windMaxXY});
 			assert this.isDeployedComponent(this.uriMS2);
 			this.toggleTracing(this.uriMS2);
 
@@ -197,8 +186,7 @@ public class DistributedCVM extends	AbstractDistributedCVM {
 			
 			// Creation of 1 WindTurbine, spatially between both MeteoStations
 			this.uriWindTurbine = AbstractComponent.createComponent(WindTurbine.class.getCanonicalName(),
-					new Object[] { WindTurbineReceivingInboundPortURI, WindTurbineRegistrationOutboundPortURI, WindTurbinePublishingOutboundPortURI,
-							rc, nbThreads, nbSchedulableThreads, windTurbinePosition, maxWorkingLevel});
+					new Object[] { WindTurbineReceivingInboundPortURI, rc, nbThreads, nbSchedulableThreads, windTurbinePosition, maxWorkingLevel});
 			assert this.isDeployedComponent(this.uriWindTurbine);
 			this.toggleTracing(this.uriWindTurbine);
 

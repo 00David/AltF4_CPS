@@ -8,21 +8,20 @@ import fr.sorbonne_u.components.AbstractPlugin;
 import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.cps.pubsub.exceptions.AlreadyRegisteredException;
 import fr.sorbonne_u.cps.pubsub.exceptions.UnknownClientException;
+import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
-import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.cps.pubsub.plugins.interfaces.ClientRegistrationI;
-import fr.sorbonne_u.exceptions.PreconditionException;
+import fr.sorbonne_u.cps.pubsub.plugins.interfaces.ClientSubscriptionI;
 
 /**
- * The {@link Client} plugin having a {@link RegistrationOutboundPort}.
+ * The {@link Client} plug-in having a {@link RegistrationOutboundPort}.
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
- * invariant	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
- * invariant	{@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
+ * invariant	{@code true} // no more invariant
  * </pre>
  * 
  * @author Kevin TANG
@@ -32,45 +31,24 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 
 	private static final long serialVersionUID = 612748100445996427L;
 	
-	// RECEPTION
-	
-	/** {@link Client} reception inbound port URI */
-	protected final String receivingInboundPortURI;
-	
 	// REGISTRATION
 	
-	/** {@link Client} registration outbound port URI */
-	protected final String registrationOutboundPortURI;
-	
-	/** Registration outbound port, set up after plugin installation + initialization */
+	/** Registration outbound port, set up after plug-in installation + initialization */
 	protected RegistrationOutboundPort registrationOutboundPort;
 	
 	/** {@link Broker} publication inbound port URI, got after registration on the Broker */
 	protected String brokerPublishingPortURI;
 	
 	/**
-	 * Creates a {@link Client} registration plugin.
+	 * Creates a {@link Client} registration plug-in.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
-	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
-	 * pre	{@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
-	 * post	class invariants satisfied
+	 * pre	{@code true} // no precondition
+	 * post {@code true} // no postcondition
 	 * </pre>
-	 * 
-	 * @param receivingInboundPortURI		the client inbound port URI offering {@link ReceivingCI} interface.
-	 * @param registrationOutboundPortURI	the client outbound port URI requiring {@link RegistrationCI} interface, used for creating the {@link RegistrationOutboundPort}.
 	 */
-	public ClientRegistrationPlugin(String receivingInboundPortURI, String registrationOutboundPortURI){
-		// Precondition checks
-		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : 
-			new PreconditionException("receivingInboundPortURI cannot be null or empty");
-		assert(registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()) : 
-			new PreconditionException("registrationOutboundPortURI cannot be null or empty");
-		
-		this.receivingInboundPortURI = receivingInboundPortURI;
-		this.registrationOutboundPortURI = registrationOutboundPortURI;
-	}
+	public ClientRegistrationPlugin(){}
 	
 	// -------------------------------------------------------------------------
 	// Life cycle
@@ -85,7 +63,7 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	@Override
 	public void	initialise() throws Exception {
 		super.initialise();
-		this.registrationOutboundPort = new RegistrationOutboundPort(registrationOutboundPortURI, this.getOwner());
+		this.registrationOutboundPort = new RegistrationOutboundPort(this.getOwner());
 		this.registrationOutboundPort.publishPort();
 		
 		this.getOwner().doPortConnection(this.registrationOutboundPort.getPortURI(),
@@ -114,8 +92,9 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 
 	@Override
 	public boolean registered() {
+		Client owner = (Client)this.getOwner();
 		try {
-			return registrationOutboundPort.registered(receivingInboundPortURI);
+			return registrationOutboundPort.registered(owner.receivingInboundPortURI);
 		} catch (Exception e) {
 			e.printStackTrace();
 			return false;
@@ -124,8 +103,9 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 
 	@Override
 	public boolean registered(RegistrationClass rc) throws UnknownClientException {
+		Client owner = (Client)this.getOwner();
 		try {
-			return registrationOutboundPort.registered(receivingInboundPortURI, rc);
+			return registrationOutboundPort.registered(owner.receivingInboundPortURI, rc);
 		} catch (UnknownClientException e) {
 			throw e;
 		} catch (Exception e) {
@@ -136,8 +116,9 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 
 	@Override
 	public void register(RegistrationClass rc) throws AlreadyRegisteredException {
+		Client owner = (Client)this.getOwner();
 		try {
-			brokerPublishingPortURI = registrationOutboundPort.register(receivingInboundPortURI, rc);
+			brokerPublishingPortURI = registrationOutboundPort.register(owner.receivingInboundPortURI, rc);
 		} catch (AlreadyRegisteredException e) {
 			throw e;
 		} catch (Exception e) {
@@ -147,8 +128,9 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 
 	@Override
 	public void modifyServiceClass(RegistrationClass rc) throws UnknownClientException, AlreadyRegisteredException {
+		Client owner = (Client)this.getOwner();
 		try {
-			registrationOutboundPort.modifyServiceClass(receivingInboundPortURI, rc);
+			registrationOutboundPort.modifyServiceClass(owner.receivingInboundPortURI, rc);
 		} catch (UnknownClientException | AlreadyRegisteredException e) {
 			throw e;
 		} catch (Exception e) {
@@ -158,8 +140,9 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 
 	@Override
 	public void unregister() throws UnknownClientException {
+		Client owner = (Client)this.getOwner();
 		try {
-			registrationOutboundPort.unregister(receivingInboundPortURI);
+			registrationOutboundPort.unregister(owner.receivingInboundPortURI);
 		} catch (UnknownClientException e) {
 			throw e;
 		} catch (Exception e) {
@@ -168,23 +151,68 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	}
 	
 	// -------------------------------------------------------------------------
-	// Getters
+	// Plug-in services used as a facade for other plug-ins
 	// -------------------------------------------------------------------------
 	
+	// Precondition and postcondition verifications are delegated to the port used
+	// ALL EXCEPTIONS ARE PROPAGATED
+	
 	/**
-	 * Returns the client port requiring the {@link RegistrationCI} interface.
-	 * 
-	 * <p><strong>Contract</strong></p>
-	 * <pre>
-	 * pre	{@code true}	// no precondition.
-	 * post	{@code true}	// no postcondition.
-	 * </pre>
-	 * 
-	 * @return the client port requiring the {@link RegistrationCI} interface.
+	 * @see ClientSubscriptionI#channelExist(String)
 	 */
-	public RegistrationOutboundPort getRegistrationOutboundPort() {
-		return registrationOutboundPort;
+	@SuppressWarnings("javadoc")
+	public boolean channelExist(String channel) throws Exception {
+		return registrationOutboundPort.channelExist(channel);
 	}
+	
+	/**
+	 * @see ClientSubscriptionI#channelAuthorised(String)
+	 */
+	@SuppressWarnings("javadoc")
+	public boolean channelAuthorised(String channel) throws	Exception {
+		Client owner = (Client)this.getOwner();
+		return registrationOutboundPort.channelAuthorised(owner.receivingInboundPortURI, channel);
+	}
+	
+	/**
+	 * @see ClientSubscriptionI#subscribed(String)
+	 */
+	@SuppressWarnings("javadoc")
+	public boolean subscribed(String channel) throws Exception {
+		Client owner = (Client)this.getOwner();
+		return registrationOutboundPort.subscribed(owner.receivingInboundPortURI, channel);
+	}
+	
+	/**
+	 * @see ClientSubscriptionI#subscribe(String, MessageFilterI)
+	 */
+	@SuppressWarnings("javadoc")
+	public void subscribe(String channel, MessageFilterI filter) throws Exception {
+		Client owner = (Client)this.getOwner();
+		registrationOutboundPort.subscribe(owner.receivingInboundPortURI, channel, filter);
+	}
+	
+	/**
+	 * @see ClientSubscriptionI#unsubscribe(String)
+	 */
+	@SuppressWarnings("javadoc")
+	public void	unsubscribe(String channel) throws Exception {
+		Client owner = (Client)this.getOwner();
+		registrationOutboundPort.unsubscribe(owner.receivingInboundPortURI, channel);
+	}
+	
+	/**
+	 * @see ClientSubscriptionI#modifyFilter(String, MessageFilterI)
+	 */
+	@SuppressWarnings("javadoc")
+	public void modifyFilter(String channel, MessageFilterI filter) throws Exception {
+		Client owner = (Client)this.getOwner();
+		registrationOutboundPort.modifyFilter(owner.receivingInboundPortURI, channel, filter);
+	}
+	
+	// -------------------------------------------------------------------------
+	// Getter
+	// -------------------------------------------------------------------------
 	
 	/**
 	 * Returns the broker URI offering either {@link PublishingCI} or {@link PrivilegedClientCI} interface.

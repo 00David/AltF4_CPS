@@ -41,23 +41,15 @@ import fr.sorbonne_u.meteo.data.PositionData;
 public class CVM extends AbstractCVM {
 
 	// MeteoBureau
-	protected final String MBRegistrationOutboundPortURI = "registration-outbound-port-MB";
-	protected final String MBPublishingOutboundPortURI = "publishing-outbound-port-MB";;
 	protected final String MBReceivingInboundPortURI = "inbound-port-client-MB";
 	
 	// MeteoStation 1
-	protected final String MS1RegistrationOutboundPortURI = "registration-outbound-port-MS1";
-	protected final String MS1PublishingOutboundPortURI = "publishing-outbound-port-MS1";
 	protected final String MS1ReceivingInboundPortURI = "inbound-port-client-MS1";
 	
 	// MeteoStation 2
-	protected final String MS2RegistrationOutboundPortURI = "registration-outbound-port-MS2";
-	protected final String MS2PublishingOutboundPortURI = "publishing-outbound-port-MS2";
 	protected final String MS2ReceivingInboundPortURI = "inbound-port-client-MS2";
 	
 	// WindTurbine
-	protected final String WindTurbineRegistrationOutboundPortURI = "registration-outbound-port-WindTurbine";
-	protected final String WindTurbinePublishingOutboundPortURI = "publishing-outbound-port-WindTurbine";
 	protected final String WindTurbineReceivingInboundPortURI ="inbound-port-client-WindTurbine";
 	
 	// Component URIs
@@ -106,8 +98,7 @@ public class CVM extends AbstractCVM {
 		int sleepMaxTimeMB = 30;
 		this.uriMB = AbstractComponent.createComponent(
 				MeteoBureau.class.getCanonicalName(),
-				new Object[] { MBReceivingInboundPortURI, MBRegistrationOutboundPortURI, MBPublishingOutboundPortURI, "", // privileged port URI empty
-						RegistrationClass.FREE, 1, 0, bureauPosition, sleepMinTimeMB, sleepMaxTimeMB});
+				new Object[] { MBReceivingInboundPortURI, RegistrationClass.FREE, 1, 0, bureauPosition, sleepMinTimeMB, sleepMaxTimeMB});
 		assert this.isDeployedComponent(this.uriMB);
 		this.toggleTracing(this.uriMB);
 		
@@ -120,24 +111,21 @@ public class CVM extends AbstractCVM {
 		PositionData station1Position = new PositionData(1, 2);
 		this.uriMS1 = AbstractComponent.createComponent(
 				MeteoStation.class.getCanonicalName(),
-				new Object[] { MS1ReceivingInboundPortURI, MS1RegistrationOutboundPortURI, MS1PublishingOutboundPortURI, "", // privileged port URI empty
-						RegistrationClass.FREE, 1, 0, station1Position, sleepMinTimeMS, sleepMaxTimeMS, windMinXY, windMaxXY});
+				new Object[] { MS1ReceivingInboundPortURI, RegistrationClass.FREE, 1, 0, station1Position, sleepMinTimeMS, sleepMaxTimeMS, windMinXY, windMaxXY});
 		assert this.isDeployedComponent(this.uriMS1);
 		this.toggleTracing(this.uriMS1);
 	
 		PositionData station2Position = new PositionData(3, 2);
 		this.uriMS2 = AbstractComponent.createComponent(
 				MeteoStation.class.getCanonicalName(),
-				new Object[] { MS2ReceivingInboundPortURI, MS2RegistrationOutboundPortURI, MS2PublishingOutboundPortURI, "", // privileged port URI empty
-						RegistrationClass.FREE, 1, 0, station2Position, sleepMinTimeMS, sleepMaxTimeMS, windMinXY, windMaxXY});
+				new Object[] { MS2ReceivingInboundPortURI, RegistrationClass.FREE, 1, 0, station2Position, sleepMinTimeMS, sleepMaxTimeMS, windMinXY, windMaxXY});
 		assert this.isDeployedComponent(this.uriMS2);
 		this.toggleTracing(this.uriMS2);
 		
 		// Creation of 1 WindTurbine between both MeteoStations
 		PositionData windTurbinePosition = new PositionData(2, 2);
 		this.uriWindTurbine = AbstractComponent.createComponent(WindTurbine.class.getCanonicalName(),
-				new Object[] { WindTurbineReceivingInboundPortURI, WindTurbineRegistrationOutboundPortURI, WindTurbinePublishingOutboundPortURI,
-						RegistrationClass.FREE, 1, 0, windTurbinePosition, MeteoAlertI.Level.ORANGE});
+				new Object[] { WindTurbineReceivingInboundPortURI, RegistrationClass.FREE, 1, 0, windTurbinePosition, MeteoAlertI.Level.ORANGE});
 		assert this.isDeployedComponent(this.uriWindTurbine);
 		this.toggleTracing(this.uriWindTurbine);
 
