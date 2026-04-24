@@ -7,7 +7,6 @@ import java.util.Arrays;
 import fr.sorbonne_u.cps.pubsub.exceptions.UnknownPropertyException;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.messages.Message;
-import fr.sorbonne_u.messages.tests.MeteoMessagesTest;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.WindData;
 

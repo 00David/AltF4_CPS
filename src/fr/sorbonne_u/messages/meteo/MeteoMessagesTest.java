@@ -1,7 +1,4 @@
-package fr.sorbonne_u.messages.tests;
-
-import fr.sorbonne_u.messages.meteo.AlertMessage;
-import fr.sorbonne_u.messages.meteo.WindMessage;
+package fr.sorbonne_u.messages.meteo;
 
 import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.AlertType;

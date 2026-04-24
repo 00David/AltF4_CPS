@@ -45,7 +45,8 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.exceptions.InvariantException;
 import fr.sorbonne_u.exceptions.PostconditionException;
 import fr.sorbonne_u.exceptions.PreconditionException;
-import fr.sorbonne_u.messages.GossipMessage;
+import fr.sorbonne_u.messages.gossip.GossipMessage;
+import fr.sorbonne_u.messages.gossip.GossipMessageFactory;
 import fr.sorbonne_u.meteo.data.PositionData;
 
 /**
@@ -572,8 +573,7 @@ public class Broker extends AbstractComponent{
 		
 		// Gossip sending
 		if (fromLocalJVM) {
-			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
-			message.setRegisterMessage(receptionPortURI, rc);
+			GossipMessage message = GossipMessageFactory.createRegisterMessage(getReflectionInboundPortURI(), receptionPortURI, rc);
 			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
 				gossipPlugin.send(new GossipMessageI[] {message});
 			});
@@ -633,8 +633,7 @@ public class Broker extends AbstractComponent{
 		
 		// Gossip sending
 		if (fromLocalJVM) {
-			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
-			message.setUpdateClientClassMessage(receptionPortURI, rc);
+			GossipMessage message = GossipMessageFactory.createUpdateClientClassMessage(getReflectionInboundPortURI(), receptionPortURI, rc);
 			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
 				gossipPlugin.send(new GossipMessageI[] {message});
 			});
@@ -702,8 +701,7 @@ public class Broker extends AbstractComponent{
 		
 		// Gossip sending
 		if (fromLocalJVM) {
-			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
-			message.setUnregisterMessage(receptionPortURI);
+			GossipMessage message = GossipMessageFactory.createUnregisterMessage(getReflectionInboundPortURI(), receptionPortURI);
 			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
 				gossipPlugin.send(new GossipMessageI[] {message});
 			});
@@ -898,8 +896,8 @@ public class Broker extends AbstractComponent{
 		
 		// Gossip sending
 		if (fromLocalJVM) {
-			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
-			message.setSubscribeClientMessage(receptionPortURI, channel, filter);
+			GossipMessage message = GossipMessageFactory.createSubscribeClientMessage(getReflectionInboundPortURI(), 
+					receptionPortURI, channel, filter);
 			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
 				gossipPlugin.send(new GossipMessageI[] {message});
 			});
@@ -965,8 +963,8 @@ public class Broker extends AbstractComponent{
 		
 		// Gossip sending
 		if (fromLocalJVM) {
-			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
-			message.setUnsubscribeClientMessage(receptionPortURI, channel);
+			GossipMessage message = GossipMessageFactory.createUnsubscribeClientMessage(getReflectionInboundPortURI(), 
+					receptionPortURI, channel);
 			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
 				gossipPlugin.send(new GossipMessageI[] {message});
 			});
@@ -1103,8 +1101,8 @@ public class Broker extends AbstractComponent{
 		
 		// Gossip sending
 		if (fromLocalJVM) {
-			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
-			message.setPublishMessages(receptionPortURI, channel, messages);
+			GossipMessage message = GossipMessageFactory.createPublishMessages(getReflectionInboundPortURI(), 
+					receptionPortURI, channel, messages);
 			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
 				gossipPlugin.send(new GossipMessageI[] {message});
 			});
@@ -1225,8 +1223,8 @@ public class Broker extends AbstractComponent{
 		
 		// Gossip sending
 		if (fromLocalJVM) {
-			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
-			message.setCreateChannelMessage(receptionPortURI, channel, autorizedUsers);
+			GossipMessage message = GossipMessageFactory.createCreateChannelMessage(getReflectionInboundPortURI(), 
+					receptionPortURI, channel, autorizedUsers);
 			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
 				gossipPlugin.send(new GossipMessageI[] {message});
 			});
@@ -1300,8 +1298,8 @@ public class Broker extends AbstractComponent{
 		
 		// Gossip sending
 		if (fromLocalJVM) {
-			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
-			message.setUpdateChannelAuthURIsMessage(receptionPortURI, channel, autorizedUsers);
+			GossipMessage message = GossipMessageFactory.createUpdateChannelAuthURIsMessage(getReflectionInboundPortURI(), 
+					receptionPortURI, channel, autorizedUsers);
 			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
 				gossipPlugin.send(new GossipMessageI[] {message});
 			});
@@ -1431,8 +1429,8 @@ public class Broker extends AbstractComponent{
 		
 		// Gossip sending
 		if (fromLocalJVM) {
-			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
-			message.setDestroyChannelMessage(receptionPortURI, channel, false);
+			GossipMessage message = GossipMessageFactory.createDestroyChannelMessage(getReflectionInboundPortURI(), 
+					receptionPortURI, channel, false);
 			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
 				gossipPlugin.send(new GossipMessageI[] {message});
 			});
@@ -1507,8 +1505,8 @@ public class Broker extends AbstractComponent{
 		
 		// Gossip sending
 		if (fromLocalJVM) {
-			GossipMessage message = new GossipMessage(this.getReflectionInboundPortURI());
-			message.setDestroyChannelMessage(receptionPortURI, channel, true);
+			GossipMessage message = GossipMessageFactory.createDestroyChannelMessage(getReflectionInboundPortURI(), 
+					receptionPortURI, channel, true);
 			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
 				gossipPlugin.send(new GossipMessageI[] {message});
 			});

@@ -13,7 +13,6 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.AlertType;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.Level;
 import fr.sorbonne_u.messages.Message;
-import fr.sorbonne_u.messages.tests.MeteoMessagesTest;
 import fr.sorbonne_u.meteo.data.MeteoAlert;
 
 /**

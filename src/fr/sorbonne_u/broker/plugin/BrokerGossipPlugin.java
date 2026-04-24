@@ -25,7 +25,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.exceptions.PostconditionException;
 import fr.sorbonne_u.exceptions.PreconditionException;
-import fr.sorbonne_u.messages.GossipMessage;
+import fr.sorbonne_u.messages.gossip.GossipMessage;
 
 /**
  * The {@link Broker} plugin having a {@link BrokerGossipInboundPort} and a {@link GossipOutboundPort}.
@@ -361,58 +361,58 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 				try {
 					switch (gossipMessage.messageAction()) {
 						case CREATE_CHANNEL:
-							broker.createChannelService((String)parameters.getPropertyValue("receptionPortURI"), 
-									(String)parameters.getPropertyValue("channel"),
-									(String)parameters.getPropertyValue("autorizedUsers"),
+							broker.createChannelService((String)parameters.getPropertyValue(GossipMessage.ARGS_CREATE_CHANNEL.get(0)), 
+									(String)parameters.getPropertyValue(GossipMessage.ARGS_CREATE_CHANNEL.get(1)),
+									(String)parameters.getPropertyValue(GossipMessage.ARGS_CREATE_CHANNEL.get(2)),
 									false);
 							break;
 						case DESTROY_CHANNEL:
-							boolean now = (boolean)parameters.getPropertyValue("now");
+							boolean now = (boolean)parameters.getPropertyValue(GossipMessage.ARGS_DESTROY_CHANNEL.get(2));
 							if (now) {
-								broker.destroyChannelNowService((String)parameters.getPropertyValue("receptionPortURI"), 
-										(String)parameters.getPropertyValue("channel"),
+								broker.destroyChannelNowService((String)parameters.getPropertyValue(GossipMessage.ARGS_DESTROY_CHANNEL.get(0)), 
+										(String)parameters.getPropertyValue(GossipMessage.ARGS_DESTROY_CHANNEL.get(1)),
 										false);
 							} else {
-								broker.destroyChannelService((String)parameters.getPropertyValue("receptionPortURI"), 
-										(String)parameters.getPropertyValue("channel"),
+								broker.destroyChannelService((String)parameters.getPropertyValue(GossipMessage.ARGS_DESTROY_CHANNEL.get(0)), 
+										(String)parameters.getPropertyValue(GossipMessage.ARGS_DESTROY_CHANNEL.get(1)),
 										false);
 							}
 							break;
 						case PUBLISH:
-							broker.publishService((String)parameters.getPropertyValue("receptionPortURI"), 
-									(String)parameters.getPropertyValue("channel"),
-									(ArrayList<MessageI>)parameters.getPayload(),
+							broker.publishService((String)parameters.getPropertyValue(GossipMessage.ARGS_PUBLISH.get(0)), 
+									(String)parameters.getPropertyValue(GossipMessage.ARGS_PUBLISH.get(1)),
+									(ArrayList<MessageI>)parameters.getPropertyValue(GossipMessage.ARGS_PUBLISH.get(2)),
 									false);
 							break;
 						case REGISTER_CLIENT:
-							broker.registerService((String)parameters.getPropertyValue("receptionPortURI"), 
-									(RegistrationClass)parameters.getPropertyValue("rc"),
+							broker.registerService((String)parameters.getPropertyValue(GossipMessage.ARGS_REGISTER_CLIENT.get(0)), 
+									(RegistrationClass)parameters.getPropertyValue(GossipMessage.ARGS_REGISTER_CLIENT.get(1)),
 									false);
 							break;
 						case SUBSCRIBE_CLIENT_CHANNEL:
-							broker.subscribeService((String)parameters.getPropertyValue("receptionPortURI"), 
-									(String)parameters.getPropertyValue("channel"),
-									(MessageFilterI)parameters.getPropertyValue("filter"),
+							broker.subscribeService((String)parameters.getPropertyValue(GossipMessage.ARGS_SUBSCRIBE_CLIENT_CHANNEL.get(0)), 
+									(String)parameters.getPropertyValue(GossipMessage.ARGS_SUBSCRIBE_CLIENT_CHANNEL.get(1)),
+									(MessageFilterI)parameters.getPropertyValue(GossipMessage.ARGS_SUBSCRIBE_CLIENT_CHANNEL.get(2)),
 									false);
 							break;
 						case UNREGISTER_CLIENT:
-							broker.unregisterService((String)parameters.getPropertyValue("receptionPortURI"), 
+							broker.unregisterService((String)parameters.getPropertyValue(GossipMessage.ARGS_UNREGISTER_CLIENT.get(0)), 
 									false);
 							break;
 						case UNSUBSCRIBE_CLIENT_CHANNEL:
-							broker.unsubscribeService((String)parameters.getPropertyValue("receptionPortURI"), 
-									(String)parameters.getPropertyValue("channel"),
+							broker.unsubscribeService((String)parameters.getPropertyValue(GossipMessage.ARGS_UNSUBSCRIBE_CLIENT_CHANNEL.get(0)), 
+									(String)parameters.getPropertyValue(GossipMessage.ARGS_UNSUBSCRIBE_CLIENT_CHANNEL.get(1)),
 									false);
 							break;
 						case UPDATE_CHANNEL_AUTHORIZED_URIS:
-							broker.modifyAuthorisedUsersService((String)parameters.getPropertyValue("receptionPortURI"), 
-									(String)parameters.getPropertyValue("channel"),
-									(String)parameters.getPropertyValue("autorizedUsers"),
+							broker.modifyAuthorisedUsersService((String)parameters.getPropertyValue(GossipMessage.ARGS_UPDATE_CHANNEL_AUTHORIZED_URIS.get(0)), 
+									(String)parameters.getPropertyValue(GossipMessage.ARGS_UPDATE_CHANNEL_AUTHORIZED_URIS.get(1)),
+									(String)parameters.getPropertyValue(GossipMessage.ARGS_UPDATE_CHANNEL_AUTHORIZED_URIS.get(2)),
 									false);
 							break;
 						case UPDATE_CLIENT_SERVICE_CLASS:
-							broker.modifyServiceClassService((String)parameters.getPropertyValue("receptionPortURI"), 
-									(RegistrationClass)parameters.getPropertyValue("rc"),
+							broker.modifyServiceClassService((String)parameters.getPropertyValue(GossipMessage.ARGS_UPDATE_CLIENT_SERVICE_CLASS.get(0)), 
+									(RegistrationClass)parameters.getPropertyValue(GossipMessage.ARGS_UPDATE_CLIENT_SERVICE_CLASS.get(1)),
 									false);
 							break;
 						case NOTHING:
