@@ -20,10 +20,10 @@ import fr.sorbonne_u.filters.MessageFilter;
 import fr.sorbonne_u.filters.property.PropertiesFilter;
 import fr.sorbonne_u.filters.property.PropertyFilter;
 import fr.sorbonne_u.filters.time.JokerTimeFilter;
+import fr.sorbonne_u.meteo.components.MeteoStation;
+import fr.sorbonne_u.meteo.components.WindTurbine;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.WindData;
-import fr.sorbonne_u.meteo.tests.MeteoStationTest;
-import fr.sorbonne_u.meteo.tests.WindTurbineTest;
 import fr.sorbonne_u.utils.aclocks.ClocksServer;
 
 /**
@@ -41,8 +41,8 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  *             <li>4 sending threads</li>
  *         </ul>
  *     </li>
- *     <li>1 {@link WindTurbineTest} accepting everything, with 4 threads</li>
- *     <li>2 STANDARD {@link MeteoStationTest}</li>
+ *     <li>1 {@link WindTurbine} accepting everything, with 4 threads</li>
+ *     <li>2 STANDARD {@link MeteoStation}</li>
  * </ul>
  * 
  * <p>
@@ -166,8 +166,8 @@ public class CVMAbnormalConcurrentPublicationsTest extends AbstractCVM {
 						owner -> {
 							try {
 								System.out.println("STEP 0/"+(NBSTEPS-1)+" ("+STEPS[0]+"s) : MeteoStation1 (STANDARD) creates 'testChannel0' and 'testChannel1'");
-								((MeteoStationTest)owner).createNewChannel("testChannel0", ".*");
-								((MeteoStationTest)owner).createNewChannel("testChannel1", ".*");
+								((MeteoStation)owner).createNewChannel("testChannel0", ".*");
+								((MeteoStation)owner).createNewChannel("testChannel1", ".*");
 							} catch (Exception e) {
 								System.err.println("Step 0 'testChannel0' and 'testChannel1' creation failed with exception " + e);
 							}
@@ -178,8 +178,8 @@ public class CVMAbnormalConcurrentPublicationsTest extends AbstractCVM {
 						owner -> {
 							try {
 								System.out.println("STEP 1/"+(NBSTEPS-1)+" ("+STEPS[1]+"s) : WindTurbine subscribes to channels 'testChannel0' and 'testChannel1'");
-								((WindTurbineTest)owner).subscibeToChannel("testChannel0", windTurbineWindFilter);
-								((WindTurbineTest)owner).subscibeToChannel("testChannel1", windTurbineWindFilter);
+								((WindTurbine)owner).subscibeToChannel("testChannel0", windTurbineWindFilter);
+								((WindTurbine)owner).subscibeToChannel("testChannel1", windTurbineWindFilter);
 							} catch (Exception e) {
 								System.err.println("Step 1 WindTurbine subscrition failed with exception " + e);
 							}
@@ -190,7 +190,7 @@ public class CVMAbnormalConcurrentPublicationsTest extends AbstractCVM {
 						owner -> {
 							try {
 								System.out.println("STEP 2/"+(NBSTEPS-1)+" ("+STEPS[2]+"s) : MeteoStation1 attempts to publish a message with a notification to a non-existing channel, 'testChannel7'");
-								((MeteoStationTest)owner).publishWindData(2, 2, "testChannel7", true);
+								((MeteoStation)owner).publishWindData(2, 2, "testChannel7", true);
 							} catch (Exception e) {
 								System.err.println("Step 2 wind data publishing failed with exception " + e);
 							}
@@ -201,7 +201,7 @@ public class CVMAbnormalConcurrentPublicationsTest extends AbstractCVM {
 						owner -> {
 							try {
 								System.out.println("STEP 3/"+(NBSTEPS-1)+" ("+STEPS[3]+"s) : MeteoStation1 sends "+NBTOOMUCHWINDS+" wind datas to 'testChannel0'");
-								((MeteoStationTest)owner).publishWindDatas(ms1_too_much_winds, "testChannel0", false);
+								((MeteoStation)owner).publishWindDatas(ms1_too_much_winds, "testChannel0", false);
 							} catch (Exception e) {
 								System.err.println("Step 3 wind data publishing failed with exception " + e);
 							}
@@ -212,7 +212,7 @@ public class CVMAbnormalConcurrentPublicationsTest extends AbstractCVM {
 						owner -> {
 							try {
 								System.out.println("STEP 4/"+(NBSTEPS-1)+" ("+STEPS[4]+"s) : MeteoStation2 almost simultaneously destroys 'testChannel0', interrupting publishing");
-								((MeteoStationTest)owner).destroyChannelAndVerifies("testChannel0", false);
+								((MeteoStation)owner).destroyChannelAndVerifies("testChannel0", false);
 							} catch (Exception e) {
 								System.err.println("Step 4 channel destruction failed with exception " + e);
 							}
@@ -223,7 +223,7 @@ public class CVMAbnormalConcurrentPublicationsTest extends AbstractCVM {
 						owner -> {
 							try {
 								System.out.println("STEP 5/"+(NBSTEPS-1)+" ("+STEPS[5]+"s) : MeteoStation1 sends "+NBTOOMUCHWINDS+" wind datas to 'testChannel1'");
-								((MeteoStationTest)owner).publishWindDatas(ms1_too_much_winds, "testChannel1", false);
+								((MeteoStation)owner).publishWindDatas(ms1_too_much_winds, "testChannel1", false);
 							} catch (Exception e) {
 								System.err.println("Step 5 wind data publishing failed with exception " + e);
 							}
@@ -234,7 +234,7 @@ public class CVMAbnormalConcurrentPublicationsTest extends AbstractCVM {
 						owner -> {
 							try {
 								System.out.println("STEP 6/"+(NBSTEPS-1)+" ("+STEPS[6]+"s) : MeteoStation2 almost simultaneously destroys NOW 'testChannel1', interrupting publishing");
-								((MeteoStationTest)owner).destroyChannelAndVerifies("testChannel1", true);
+								((MeteoStation)owner).destroyChannelAndVerifies("testChannel1", true);
 							} catch (Exception e) {
 								System.err.println("Step 6 channel destruction failed with exception " + e);
 							}
@@ -245,7 +245,7 @@ public class CVMAbnormalConcurrentPublicationsTest extends AbstractCVM {
 						owner -> {
 							try {
 								System.out.println("STEP 7/"+(NBSTEPS-1)+" ("+STEPS[7]+"s) : we print WindTurbine current number of wind datas (impossible to predict)");
-								int nbWTdatas = ((WindTurbineTest)owner).getNbWindDatasReceived();
+								int nbWTdatas = ((WindTurbine)owner).getNbWindDatasReceived();
 								System.out.println("WindTurbine has "+nbWTdatas+" wind datas,\n"
 										+ "got everything for the first sending ? "+(nbWTdatas >= NBTOOMUCHWINDS)+"\n"
 										+ "got everything whith the second sending ? "+(nbWTdatas == 2*NBTOOMUCHWINDS));
@@ -288,7 +288,7 @@ public class CVMAbnormalConcurrentPublicationsTest extends AbstractCVM {
 		
 		// Creation of 2 MeteoStations
 		String meteoStation1_URI_verif = AbstractComponent.createComponent(
-				MeteoStationTest.class.getCanonicalName(),
+				MeteoStation.class.getCanonicalName(),
 				new Object[] { MSReceivingInboundPortURI+1, RegistrationClass.STANDARD, stationNbThreads, 1, 
 						stationPosition1, MS_URI+1, testScenario, 1});
 		assert (MS_URI+1).equals(meteoStation1_URI_verif);
@@ -296,7 +296,7 @@ public class CVMAbnormalConcurrentPublicationsTest extends AbstractCVM {
 		this.toggleTracing(MS_URI+1);
 		
 		String meteoStation2_URI_verif = AbstractComponent.createComponent(
-				MeteoStationTest.class.getCanonicalName(),
+				MeteoStation.class.getCanonicalName(),
 				new Object[] { MSReceivingInboundPortURI+2, RegistrationClass.STANDARD, stationNbThreads, 1, 
 						stationPosition2, MS_URI+2, testScenario, 2});
 		assert (MS_URI+2).equals(meteoStation2_URI_verif);
@@ -304,7 +304,7 @@ public class CVMAbnormalConcurrentPublicationsTest extends AbstractCVM {
 		this.toggleTracing(MS_URI+2);
 		
 		// Creation of 1 WindTurbine
-		String tmp_windTurbine_URI = AbstractComponent.createComponent(WindTurbineTest.class.getCanonicalName(),
+		String tmp_windTurbine_URI = AbstractComponent.createComponent(WindTurbine.class.getCanonicalName(),
 				new Object[] { WindTurbineReceivingInboundPortURI, RegistrationClass.STANDARD, windTurbineNbThreads, 1, 
 						windTurbinePosition, MeteoAlertI.Level.ORANGE, WT_URI, testScenario, 1, windTurbineWindFilter, windTurbineAlertFilter});
 		this.toggleTracing(tmp_windTurbine_URI);

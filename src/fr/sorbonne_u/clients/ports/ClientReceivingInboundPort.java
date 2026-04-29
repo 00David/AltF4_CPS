@@ -1,13 +1,7 @@
 package fr.sorbonne_u.clients.ports;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.stream.Stream;
-
 import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
-import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.ports.AbstractInboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
@@ -15,12 +9,8 @@ import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
  * Inbound port of a {@link Client}, allowing the handling of messages reception.
- * 
- * <p>
- * Redirects messages received to its {@link ClientSubscriptionPlugin}, by either completing futures 
- * waiting those messages into the plugin, or by delegating the reception to the {@code receive} plugin method 
- * (through {@link AbstractComponent#runTask(fr.sorbonne_u.components.ComponentI.FComponentTask)}.
- * </p>
+
+ *<p>Redirects incoming messages to its {@link ClientSubscriptionPlugin}.</p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -57,65 +47,18 @@ public class ClientReceivingInboundPort extends AbstractInboundPort implements R
 		assert(owner != null) : new PreconditionException("owner cannot be null");
 		assert(pluginURI != null && !pluginURI.isEmpty()) : new PreconditionException("pluginURI cannot be null or empty");
 	}
+	
+	// Precondition and postcondition verifications are delegated to the ClientSubscriptionPlugin
 
 	@Override
 	public void receive(String channel, MessageI message) throws Exception {
-		// Precondition checks
-		assert(channel != null && !channel.isEmpty());
-		assert(message != null);
-		
 		ClientSubscriptionPlugin csp = (ClientSubscriptionPlugin) this.getOwnerPlugin(this.pluginURI);
-		ConcurrentHashMap<String, ConcurrentLinkedQueue<CompletableFuture<MessageI>>> futureQueues = csp.getFutureQueues();
-		
-		// Locks the whole map to ensure that the future queue for the channel exists
-		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = csp.getOrCreateChannelFutureQueue(futureQueues, channel);
-		
-		// If there is a future waiting a message into the channel future queue : completes and retrieves the future from the queue
-		// Otherwise : redirects the message to the the appropriate 'receive' method
-		CompletableFuture<MessageI> future = channelFutureMessagesQueue.poll();
-		if (future != null) {
-			future.complete(message);
-		} else {
-			// Delegation through runTask for 'receive' method
-			this.getOwner().runTask(client -> csp.receive(channel, message));
-		}
+		this.getOwner().runTask(client -> csp.handleIncomingReception(channel, new MessageI[] {message}));
 	}
 
 	@Override
 	public void receive(String channel, MessageI[] messages) throws Exception {
-		// Precondition checks
-		assert(channel != null && !channel.isEmpty());
-		assert(messages != null && messages.length > 0);
-		assert(Stream.of(messages).allMatch(m -> m != null));
-		
 		ClientSubscriptionPlugin csp = (ClientSubscriptionPlugin) this.getOwnerPlugin(this.pluginURI);
-		ConcurrentHashMap<String, ConcurrentLinkedQueue<CompletableFuture<MessageI>>> futureQueues = csp.getFutureQueues();
-		
-		// Locks the whole map to ensure that the future queue for the channel exists
-		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = csp.getOrCreateChannelFutureQueue(futureQueues, channel);
-		
-		// While there is still a future waiting a message into the channel future queue : completes and retrieves the futures from the queue
-		// When there is no more futures : redirects remaining messages to consider to the the appropriate 'receive' method
-		for (int i=0; i<messages.length; i++) {
-			MessageI message = messages[i];
-			
-			CompletableFuture<MessageI> future = channelFutureMessagesQueue.poll();
-			if (future != null) {
-				future.complete(message);
-			} else {
-				MessageI[] remainingMessages = new MessageI[messages.length-i];
-				for (int j=i; j<messages.length; j++) {
-					remainingMessages[j-i] = messages[j];
-				}
-				
-				// Delegation through runTask for 'receive' method
-				if (remainingMessages.length == 1) {
-					this.getOwner().runTask(client -> csp.receive(channel, remainingMessages[0]));
-				} else {
-					this.getOwner().runTask(client -> csp.receive(channel, remainingMessages));
-				}
-				break;
-			}
-		}
+		this.getOwner().runTask(client -> csp.handleIncomingReception(channel, messages));
 	}
 }

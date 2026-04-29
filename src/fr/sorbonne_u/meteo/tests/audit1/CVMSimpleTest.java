@@ -24,11 +24,11 @@ import fr.sorbonne_u.filters.property.PropertyFilter;
 import fr.sorbonne_u.filters.time.GreaterOrEqualTimeFilter;
 import fr.sorbonne_u.filters.value.meteo.PositionInRegionsValueFilter;
 import fr.sorbonne_u.messages.meteo.AlertMessage;
+import fr.sorbonne_u.meteo.components.MeteoBureau;
+import fr.sorbonne_u.meteo.components.MeteoStation;
+import fr.sorbonne_u.meteo.components.WindTurbine;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.RegionData;
-import fr.sorbonne_u.meteo.tests.MeteoBureauTest;
-import fr.sorbonne_u.meteo.tests.MeteoStationTest;
-import fr.sorbonne_u.meteo.tests.WindTurbineTest;
 import fr.sorbonne_u.utils.aclocks.ClocksServer;
 
 /**
@@ -147,7 +147,7 @@ public class CVMSimpleTest extends AbstractCVM {
 					owner -> {
 						try {
 							System.out.println("STEP 0/"+(NBSTEPS-1)+" ("+STEPS[0]+"s) : MeteoStation1 sends wind data to 'channel0'");
-							((MeteoStationTest)owner).publishWindData(2.0, 2.0, "channel0", false);
+							((MeteoStation)owner).publishWindData(2.0, 2.0, "channel0", false);
 						} catch (Exception e) {
 							System.err.println("Step 0 wind data publication failed with exception " + e);
 						}
@@ -160,7 +160,7 @@ public class CVMSimpleTest extends AbstractCVM {
 					owner -> {
 						try {
 							System.out.println("STEP 1/"+(NBSTEPS-1)+" ("+STEPS[1]+"s) : MeteoStation2 sends wind data to 'channel0'");
-							((MeteoStationTest)owner).publishWindData(1.0, 1.0, "channel0", false);
+							((MeteoStation)owner).publishWindData(1.0, 1.0, "channel0", false);
 						} catch (Exception e) {
 							System.err.println("Step 1 wind data publication failed with exception " + e);
 						}
@@ -173,7 +173,7 @@ public class CVMSimpleTest extends AbstractCVM {
 						owner -> {
 							try {
 								System.out.println("STEP 2/"+(NBSTEPS-1)+" ("+STEPS[2]+"s) : MeteoBureau sends a dangerous alert to 'channel1'");
-								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.RED, 
+								((MeteoBureau)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.RED, 
 										step2_3_regions, step_Instants[2], Duration.ofSeconds((long)((STEPS[3]-STEPS[2])/ACCELERATION_FACTOR)), "channel1");
 							} catch (Exception e) {
 								System.err.println("Step 2 alert publication failed with exception " + e);
@@ -187,7 +187,7 @@ public class CVMSimpleTest extends AbstractCVM {
 						owner -> {
 							try {
 								System.out.println("STEP 3/"+(NBSTEPS-1)+" ("+STEPS[3]+"s) : MeteoBureau sends an end-of-danger alert to 'channel1'");
-								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.GREEN, 
+								((MeteoBureau)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.GREEN, 
 										step2_3_regions, step_Instants[3], Duration.ofSeconds((long)((STEPS[3]-STEPS[2])/ACCELERATION_FACTOR)), "channel1");
 							} catch (Exception e) {
 								System.err.println("Step 3 alert publication failed with exception " + e);
@@ -201,7 +201,7 @@ public class CVMSimpleTest extends AbstractCVM {
 					owner -> {
 						try {
 							System.out.println("STEP 4/"+(NBSTEPS-1)+" ("+STEPS[4]+"s) : MeteoStation1 sends wind data to 'channel0'");
-							((MeteoStationTest)owner).publishWindData(2.0, 2.0, "channel0", false);
+							((MeteoStation)owner).publishWindData(2.0, 2.0, "channel0", false);
 						} catch (Exception e) {
 							System.err.println("Step 4 wind data publication failed with exception " + e);
 						}
@@ -214,7 +214,7 @@ public class CVMSimpleTest extends AbstractCVM {
 						owner -> {
 							try {
 								System.out.println("STEP 5/"+(NBSTEPS-1)+" ("+STEPS[5]+"s) :  MeteoBureau sends a dangerous alert to 'channel1', not affecting the wind turbine region");
-								((MeteoBureauTest)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.RED, 
+								((MeteoBureau)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.RED, 
 										step5_regions, step_Instants[5], Duration.ofSeconds((long)((STEPS[3]-STEPS[2])/ACCELERATION_FACTOR)), "channel1");
 							} catch (Exception e) {
 								System.err.println("Step 5 alert publication failed with exception " + e);
@@ -255,7 +255,7 @@ public class CVMSimpleTest extends AbstractCVM {
 		// Creation of 1 MeteoBureau
 		
 		String meteoBureau_URI_verif = AbstractComponent.createComponent(
-				MeteoBureauTest.class.getCanonicalName(),
+				MeteoBureau.class.getCanonicalName(),
 				new Object[] { MBReceivingInboundPortURI, RegistrationClass.FREE, 1, 1, bureauPosition, MB_URI, testScenario, 1});
 		assert MB_URI.equals(meteoBureau_URI_verif);
 		assert this.isDeployedComponent(MB_URI);
@@ -264,7 +264,7 @@ public class CVMSimpleTest extends AbstractCVM {
 		// Creation of 2 MeteoStation
 		
 		String meteoStation1_URI_verif = AbstractComponent.createComponent(
-				MeteoStationTest.class.getCanonicalName(),
+				MeteoStation.class.getCanonicalName(),
 				new Object[] { MS1ReceivingInboundPortURI, RegistrationClass.FREE, 1, 1, station1Position, MS1_URI, testScenario, 1});
 		assert MS1_URI.equals(meteoStation1_URI_verif);
 		assert this.isDeployedComponent(MS1_URI);
@@ -272,7 +272,7 @@ public class CVMSimpleTest extends AbstractCVM {
 	
 		
 		String meteoStation2_URI_verif = AbstractComponent.createComponent(
-				MeteoStationTest.class.getCanonicalName(),
+				MeteoStation.class.getCanonicalName(),
 				new Object[] { MS2ReceivingInboundPortURI, RegistrationClass.FREE, 1, 1, station2Position, MS2_URI, testScenario, 2});
 		assert MS2_URI.equals(meteoStation2_URI_verif);
 		assert this.isDeployedComponent(MS2_URI);
@@ -280,8 +280,9 @@ public class CVMSimpleTest extends AbstractCVM {
 		
 		// Creation of 1 WindTurbine between both MeteoStations
 		
-		String tmp_windTurbine_URI = AbstractComponent.createComponent(WindTurbineTest.class.getCanonicalName(),
-				new Object[] { WindTurbineReceivingInboundPortURI, RegistrationClass.FREE, 1, 1, windTurbinePosition, maxWorkingLevelWT, WT_URI, 1, windTurbineWindFilter, windTurbineAlertFilter});
+		String tmp_windTurbine_URI = AbstractComponent.createComponent(WindTurbine.class.getCanonicalName(),
+				new Object[] { WindTurbineReceivingInboundPortURI, RegistrationClass.FREE, 1, 1, windTurbinePosition, maxWorkingLevelWT, 
+						WT_URI, 1, windTurbineWindFilter, windTurbineAlertFilter});
 		this.toggleTracing(tmp_windTurbine_URI);
 		
 		// Clock server creation

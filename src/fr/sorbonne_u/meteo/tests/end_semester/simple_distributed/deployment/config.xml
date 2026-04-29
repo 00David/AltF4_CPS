@@ -10,14 +10,14 @@
   	<jvm2hostname jvmuri="broker1"
   	    rmiRegistryCreator="true"
         hostname="localhost"
-        mainclass="fr.sorbonne_u.DistributedCVM"/>
+        mainclass="fr.sorbonne_u.meteo.tests.end_semester.simple_distributed.DCVMSimpleTest"/>
   	<jvm2hostname jvmuri="broker2"
   	    rmiRegistryCreator="false"
         hostname="localhost"
-        mainclass="fr.sorbonne_u.DistributedCVM"/>
+        mainclass="fr.sorbonne_u.meteo.tests.end_semester.simple_distributed.DCVMSimpleTest"/>
   	<jvm2hostname jvmuri="broker3"
   	    rmiRegistryCreator="false"
         hostname="localhost"
-        mainclass="fr.sorbonne_u.DistributedCVM"/>
+        mainclass="fr.sorbonne_u.meteo.tests.end_semester.simple_distributed.DCVMSimpleTest"/>
   </jvms2hostnames>
 </deployment>
