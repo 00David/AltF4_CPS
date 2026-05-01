@@ -32,7 +32,7 @@ import fr.sorbonne_u.meteo.tests.audit1.CVMSimpleTest;
 import fr.sorbonne_u.utils.aclocks.ClocksServer;
 
 /**
- * Distributed version of {@link CVMSimpleTest}. 
+ * Test distributed version of {@link CVMSimpleTest}. 
  * 
  * <p>
  * In terms of JVM occupations :
@@ -44,7 +44,7 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * </ul>
  * </p>
  * 
- * Test class to simulate the following scenario from the start of the DCVM:
+ * The scenario from the start of the DCVM:
  * 
  * <ul>
  * 	<li> - After 30 seconds, <strong>MeteoStation n°1</strong> sends wind data to 'channel0'.

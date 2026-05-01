@@ -162,8 +162,6 @@ public class CVMCompleteTest extends AbstractCVM {
 	
 	// WindTurbine 2
 	protected final String WT2ReceivingInboundPortURI = "inbound-port-client-WT2";
-	protected final String WT2RegistrationOutboundPortURI = "registration-outbound-port-WT2";
-	protected final String WT2PublishingOutboundPortURI = "publishing-outbound-port-WT2";
 	protected static final PositionData windTurbine2Position = new PositionData(2, 0);
 	protected static final RegistrationClass WT2rc = RegistrationClass.STANDARD;
 	protected static final MeteoAlertI.Level maxWorkingLevelWT2 = MeteoAlertI.Level.ORANGE; // inclusive
@@ -176,8 +174,6 @@ public class CVMCompleteTest extends AbstractCVM {
 	
 	// WindTurbine 3
 	protected final String WT3ReceivingInboundPortURI = "inbound-port-client-WT3";
-	protected final String WT3RegistrationOutboundPortURI = "registration-outbound-port-WT3";
-	protected final String WT3PublishingOutboundPortURI = "publishing-outbound-port-WT3";
 	protected static final PositionData windTurbine3Position = new PositionData(3, 0);
 	protected static final RegistrationClass WT3rc = RegistrationClass.FREE;
 	protected static final MeteoAlertI.Level maxWorkingLevelWT3 = MeteoAlertI.Level.ORANGE; // inclusive
@@ -235,7 +231,7 @@ public class CVMCompleteTest extends AbstractCVM {
 		WT3_region.add(new RegionData(windTurbine3Position.getPosX(), windTurbine3Position.getPosX(), 
 				windTurbine3Position.getPosY(), windTurbine3Position.getPosY()));
 		
-		// Subscription filter on Step 6 subscription, accepts everything
+		// Subscription filter on Step 6 subscriptions, accepts everything
         MessageFilterI accept_all_filter = new MessageFilter(new PropertyFilterI[0], new PropertiesFilter[0], timeFilterJoker);
 		
 		return new TestScenario(
@@ -406,7 +402,7 @@ public class CVMCompleteTest extends AbstractCVM {
 								System.err.println("Step 10 alert publication failed with exception " + e);
 							}
 						}),
-				// MeteoBureau11 destroys its "testChannel" and verifies that it is has been deleted
+				// MeteoBureau1 destroys its "testChannel" and verifies that it is has been deleted
 				new TestStep(
 						CLOCK_URI,
 						MB1_URI,

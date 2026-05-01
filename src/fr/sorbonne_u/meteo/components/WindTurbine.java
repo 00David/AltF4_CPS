@@ -185,7 +185,7 @@ public class WindTurbine extends Client {
 		// Install the subscription + reception plugin (Wind turbine version)
 		setupWindTurbineSubscriptionPlugin();
 		
-		this.getTracer().setTitle("WindTurbine");
+		this.getTracer().setTitle("WindTurbine "+id);
 		this.getTracer().setRelativePosition((int)windTurbinePos.getPosX(), (int)windTurbinePos.getPosY());
 	}
 	
