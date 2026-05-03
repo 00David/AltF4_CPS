@@ -71,22 +71,33 @@ public class CVMSimpleTest extends AbstractCVM {
 	// Component datas
 	// -------------------------------------------------------------------------
 	
+	// Number of threads
+	protected final int brokerNbThreads = 1;
+	protected final int brokerNbSchedulableThreads = 0;
+	protected final int brokerNbFreeLoadersThreads = 1;
+	protected final int brokerNbUnloadersThreads = 1;
+	protected final int brokerNbSendersThreads = 1;
+	protected final int brokerNbGossipThreads = 1; // unused
+	
+	protected final int clientNbThreads = 1;
+	protected final int clientNbSchedulableThreads = 1;
+	
 	// MeteoBureau
 	protected final String MBReceivingInboundPortURI = "inbound-port-client-MB";
 	protected static final PositionData bureauPosition = new PositionData(2, 1);
 	
 	// MeteoStation 1
 	protected final String MS1ReceivingInboundPortURI = "inbound-port-client-MS1";
-	protected static final PositionData station1Position = new PositionData(1, 2);
+	protected final PositionData station1Position = new PositionData(1, 2);
 	
 	// MeteoStation 2
 	protected final String MS2ReceivingInboundPortURI = "inbound-port-client-MS2";
-	protected static final PositionData station2Position = new PositionData(3, 2);
+	protected final PositionData station2Position = new PositionData(3, 2);
 	
 	// WindTurbine
 	protected final String WindTurbineReceivingInboundPortURI = "inbound-port-client-WindTurbine";
-	protected static final PositionData windTurbinePosition = new PositionData(2, 2);
-	protected static final MeteoAlertI.Level maxWorkingLevelWT = MeteoAlertI.Level.ORANGE; // inclusive
+	protected final PositionData windTurbinePosition = new PositionData(2, 2);
+	protected final MeteoAlertI.Level maxWorkingLevelWT = MeteoAlertI.Level.ORANGE; // inclusive
 	
     // Creation of a filter only accepting messages after the start of the scenario
     protected TimeFilterI timeFilter = new GreaterOrEqualTimeFilter(Instant.parse(START_INSTANT));
@@ -96,6 +107,11 @@ public class CVMSimpleTest extends AbstractCVM {
     protected PropertyFilterI[] propFiltersAlert = {new PropertyFilter(AlertMessage.ALERT_REGIONS_PROPERTY, new PositionInRegionsValueFilter(windTurbinePosition))};
     protected MessageFilterI windTurbineAlertFilter = new MessageFilter(propFiltersAlert, new PropertiesFilter[0], timeFilter);
 	
+	// Broker parameters
+	protected final int nbDefaultChannels = 2;
+	protected final int nbMaxChannelsStd = 2;
+	protected final int nbMaxChannelsPrem = 4;
+    
 	// Component URIs for tests (without the Broker)
 	protected static String MB_URI = "MeteoBureau-URI";
 	protected static String MS1_URI = "MeteoStation1-URI";
@@ -242,12 +258,11 @@ public class CVMSimpleTest extends AbstractCVM {
 		// ---------------------------------------------------------------------
 		
 		// Broker creation
-		int nbMaxChannelsSTD = 2;
-		int nbMaxChannelsPREM = 4;
 		String broker_URI = AbstractComponent.createComponent(
 				Broker.class.getCanonicalName(),
-				new Object[] {1, new PositionData(0, 4), 2, nbMaxChannelsSTD, nbMaxChannelsPREM, 1, 0, 1, 1, 1, 
-						1, "BrokerGossipInboundPortURI", new ArrayList<>(), new ArrayList<>()}); // Gossip protocol unused here
+				new Object[] {1, new PositionData(0, 4), nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, brokerNbThreads, 
+						brokerNbSchedulableThreads, brokerNbFreeLoadersThreads, brokerNbUnloadersThreads, brokerNbSendersThreads, 
+						brokerNbGossipThreads, "BrokerGossipInboundPortURI", new ArrayList<>(), new ArrayList<>()}); // Gossip protocol unused here
 		assert this.isDeployedComponent(broker_URI);
 		this.toggleTracing(broker_URI);
 
@@ -256,7 +271,8 @@ public class CVMSimpleTest extends AbstractCVM {
 		
 		String meteoBureau_URI_verif = AbstractComponent.createComponent(
 				MeteoBureau.class.getCanonicalName(),
-				new Object[] { MBReceivingInboundPortURI, RegistrationClass.FREE, 1, 1, bureauPosition, MB_URI, testScenario, 1});
+				new Object[] {1, MB_URI, MBReceivingInboundPortURI, RegistrationClass.FREE, clientNbThreads, clientNbSchedulableThreads, 
+						bureauPosition, testScenario});
 		assert MB_URI.equals(meteoBureau_URI_verif);
 		assert this.isDeployedComponent(MB_URI);
 		this.toggleTracing(MB_URI);
@@ -265,7 +281,8 @@ public class CVMSimpleTest extends AbstractCVM {
 		
 		String meteoStation1_URI_verif = AbstractComponent.createComponent(
 				MeteoStation.class.getCanonicalName(),
-				new Object[] { MS1ReceivingInboundPortURI, RegistrationClass.FREE, 1, 1, station1Position, MS1_URI, testScenario, 1});
+				new Object[] {1, MS1_URI, MS1ReceivingInboundPortURI, RegistrationClass.FREE, clientNbThreads, clientNbSchedulableThreads, 
+						station1Position, testScenario});
 		assert MS1_URI.equals(meteoStation1_URI_verif);
 		assert this.isDeployedComponent(MS1_URI);
 		this.toggleTracing(MS1_URI);
@@ -273,7 +290,8 @@ public class CVMSimpleTest extends AbstractCVM {
 		
 		String meteoStation2_URI_verif = AbstractComponent.createComponent(
 				MeteoStation.class.getCanonicalName(),
-				new Object[] { MS2ReceivingInboundPortURI, RegistrationClass.FREE, 1, 1, station2Position, MS2_URI, testScenario, 2});
+				new Object[] {2, MS2_URI, MS2ReceivingInboundPortURI, RegistrationClass.FREE, clientNbThreads, clientNbSchedulableThreads, 
+						station2Position, testScenario});
 		assert MS2_URI.equals(meteoStation2_URI_verif);
 		assert this.isDeployedComponent(MS2_URI);
 		this.toggleTracing(MS2_URI);
@@ -281,8 +299,8 @@ public class CVMSimpleTest extends AbstractCVM {
 		// Creation of 1 WindTurbine between both MeteoStations
 		
 		String tmp_windTurbine_URI = AbstractComponent.createComponent(WindTurbine.class.getCanonicalName(),
-				new Object[] { WindTurbineReceivingInboundPortURI, RegistrationClass.FREE, 1, 1, windTurbinePosition, maxWorkingLevelWT, 
-						WT_URI, 1, windTurbineWindFilter, windTurbineAlertFilter});
+				new Object[] {1, WT_URI, WindTurbineReceivingInboundPortURI, RegistrationClass.FREE, clientNbThreads, clientNbSchedulableThreads, 
+						windTurbinePosition, maxWorkingLevelWT, true, windTurbineWindFilter, windTurbineAlertFilter});
 		this.toggleTracing(tmp_windTurbine_URI);
 		
 		// Clock server creation

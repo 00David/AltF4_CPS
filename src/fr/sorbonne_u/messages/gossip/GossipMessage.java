@@ -79,10 +79,18 @@ public class GossipMessage implements GossipMessageI{
 	// Internal attributes
 	//--------------------------------------------------------------------------
 	
-	/** The URI of the component emiting the gossip message. */
+	/** 
+	 * The URI of the component emiting the gossip message.
+	 * 
+	 * <p>
+	 * Given the 'final' aspect of this attribute, each new re-emission, which requires to update this URI, 
+	 * creates a new copied gossip message with the update emitter URI.<br>
+	 * This ensures that there are no shared gossip message references manipulated simultaneously on multiple Brokers.
+	 * </p>
+	 */
 	public final String emitterURI;
 	
-	/** The URI of the gossip message, created by the {@code generateGossipMessageURI} method. */
+	/** The unique URI of the gossip message, created by the {@code generateGossipMessageURI} method. */
 	protected final String messageURI;
 	
 	/** Gives the action needed for the carried {@code message}. */
@@ -143,7 +151,7 @@ public class GossipMessage implements GossipMessageI{
 		if (emitterURI == null || emitterURI.isEmpty()) 
 			throw new IllegalArgumentException("emitterURI cannot be null or empty");
 		if (messageURI == null || messageURI.isEmpty()) 
-			throw new IllegalArgumentException("emitterURI cannot be null or empty");
+			throw new IllegalArgumentException("messageURI cannot be null or empty");
 		
 		this.emitterURI = emitterURI;
 		this.messageURI = messageURI;
@@ -246,7 +254,9 @@ public class GossipMessage implements GossipMessageI{
 		if (newGossipEmitterURI == null || newGossipEmitterURI.isEmpty()) 
 			throw new IllegalArgumentException("newGossipEmitterURI cannot be null or empty");
 		
-		GossipMessage newMessage = new GossipMessage(newGossipEmitterURI, this.messageURI); // The same messageURI is kept in the copy
+		// The same messageURI is kept in the copy
+		GossipMessage newMessage = new GossipMessage(newGossipEmitterURI, this.messageURI);
+		
 		newMessage.messageAction = this.messageAction;
 		if (this.message != null) newMessage.message = this.message.copy();
 		return newMessage;

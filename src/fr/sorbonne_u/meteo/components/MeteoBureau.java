@@ -24,6 +24,7 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * <p><strong>Invariants</strong></p>
  * <pre>
  * invariant	{@code bureauPosition != null}
+ * invariant	{@code testScenario != null}
  * invariant	{@code this.subscriptionPlugin != null && this.subscriptionPlugin.isInitialised()}
  * invariant	the Client has exactly 1 published inbound port implementing ReceivingCI. // informal
  * </pre>
@@ -36,7 +37,7 @@ public class MeteoBureau extends Client {
 	/** The component position. */
 	protected final PositionData bureauPosition;
 	
-	/** The test scenario followed by the component, if there is one. */
+	/** The test scenario followed by the component. */
 	protected final TestScenario testScenario;
 
 	//--------------------------------------------------------------------------
@@ -48,30 +49,33 @@ public class MeteoBureau extends Client {
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
+	 * pre	{@code reflectionInboundPortURI != null && !reflectionInboundPortURI.isEmpty()}
 	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
 	 * pre	{@code bureauPosition != null}
-	 * pre	{@code reflectionInboundPortURI != null && !reflectionInboundPortURI.isEmpty()}
+	 * pre  {@code testScenario != null}
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 * 
+	 * @param id							A number identifying the component, just for tracer window.
+	 * @param reflectionInboundPortURI		URI of the reflection inbound port to be created in this component.
 	 * @param receivingInboundPortURI       URI of the inbound port offering {@link ReceivingCI}.
 	 * @param rc			   				The registration class of the component.
 	 * @param nbThreads					  	Number of threads to be created in the component pool.
 	 * @param nbSchedulableThreads		  	Number of threads to be created in the component schedulable pool.
 	 * @param bureauPosition                The position of the office.
-	 * @param reflectionInboundPortURI		URI of the reflection inbound port to be created in this component.
-	 * @param testScenario					Test scenario in which this component participate, if it is the case.
-	 * @param id							A number identifying the component, just for tracer window.
+	 * @param testScenario					Test scenario in which this component participate.
 	 * @throws Exception                    If an error occurs during initialization or port publication.
 	 */
-	protected MeteoBureau(String receivingInboundPortURI, RegistrationClass rc, int nbThreads, int nbSchedulableThreads, 
-			PositionData bureauPosition, String reflectionInboundPortURI, TestScenario testScenario, int id) throws Exception {
-		super(receivingInboundPortURI, rc, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
+	protected MeteoBureau(int id, String reflectionInboundPortURI, String receivingInboundPortURI, RegistrationClass rc, int nbThreads, int nbSchedulableThreads, 
+			PositionData bureauPosition, TestScenario testScenario) throws Exception {
+		super(reflectionInboundPortURI, receivingInboundPortURI, rc, nbThreads, nbSchedulableThreads);
 		
 		// Some preconditions are checked inside the super-constructor while others are checked here
 		assert(bureauPosition != null) : 
 			new PreconditionException("bureauPosition cannot be null");
+		assert (testScenario != null) : 
+			new PreconditionException("testScenario cannot be null");	
 		
 		this.bureauPosition = bureauPosition;
 		this.testScenario = testScenario;

@@ -220,46 +220,8 @@ public abstract class Client extends AbstractComponent implements AbnormalTermin
 	}
 	
 	// -------------------------------------------------------------------------
-	// Constructors
+	// Constructor
 	// -------------------------------------------------------------------------
-	
-	/**
-	 * Creates a client component of the publish/subscribe system.
-	 * 
-	 * <p><strong>Contract</strong></p>
-	 * <pre>
-	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
-	 * pre	{@code registrationClass != null}
-	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
-	 * post	class invariants satisfied
-	 * </pre>
-	 * 
-	 * @param receivingInboundPortURI     	The URI of the inbound port offering {@link ReceivingCI}.
-	 * @param registrationClass				The registration class of the component.
-	 * @param nbThreads						Number of threads to be created in the component pool.
-	 * @param nbSchedulableThreads			Number of threads to be created in the component schedulable pool.
-	 * @throws Exception                  	If an error occurs during registration plugin installation.
-	 */
-	protected Client(String receivingInboundPortURI, 
-			RegistrationClass registrationClass, int nbThreads, int nbSchedulableThreads) throws Exception {
-		super(nbThreads,nbSchedulableThreads);
-		
-		// Precondition checks
-		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : 
-			new PreconditionException("receivingInboundPortURI cannot be empty or null");
-		assert(registrationClass != null) : 
-			new PreconditionException("registrationClass cannot be null");
-		assert(nbThreads >= 0 && nbSchedulableThreads >= 0) : 
-			new PreconditionException("cannot have a negative number of threads");
-		
-		// Install the registration plug-in
-		setupRegistrationPlugin();
-		
-		this.receivingInboundPortURI = receivingInboundPortURI;
-		this.registrationClass = registrationClass;
-		
-
-	}
 	
 	/**
 	 * Creates a client component of the publish/subscribe system, by providing the {@code reflectionInboundPortURI} of the component.
@@ -268,22 +230,22 @@ public abstract class Client extends AbstractComponent implements AbnormalTermin
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
+	 * pre	{@code reflectionInboundPortURI != null && !reflectionInboundPortURI.isEmpty()}
 	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
 	 * pre	{@code registrationClass != null}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
-	 * pre	{@code reflectionInboundPortURI != null && !reflectionInboundPortURI.isEmpty()}
 	 * post	class invariants satisfied
 	 * </pre>
 	 * 
+	 * @param reflectionInboundPortURI		URI of the reflection inbound port to be created in this component.
 	 * @param receivingInboundPortURI     	The URI of the inbound port offering {@link ReceivingCI}.
 	 * @param registrationClass				The registration class of the component.
 	 * @param nbThreads						Number of threads to be created in the component pool.
 	 * @param nbSchedulableThreads			Number of threads to be created in the component schedulable pool.
-	 * @param reflectionInboundPortURI		URI of the reflection inbound port to be created in this component.
 	 * @throws Exception                  	If an error occurs during registration plugin installation.
 	 */
-	protected Client(String receivingInboundPortURI, 
-			RegistrationClass registrationClass, int nbThreads, int nbSchedulableThreads, String reflectionInboundPortURI) throws Exception {
+	protected Client(String reflectionInboundPortURI, String receivingInboundPortURI, RegistrationClass registrationClass, 
+			int nbThreads, int nbSchedulableThreads) throws Exception {
 		super(reflectionInboundPortURI, nbThreads,nbSchedulableThreads);
 		
 		// Precondition checks

@@ -78,19 +78,33 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 	// GOSSIP PROTOCOL INFORMATIONS
 	
 	/** 
-	 * List of received {@link GossipMessage}s. 
+	 * Set of received {@link GossipMessage}s. 
+	 * 
+	 * <p>
+	 * This set is either expanded before sending local messages, via the {@link BrokerGossipPlugin#send(GossipMessageI[])} method,
+	 * or on foreign messages reception, in the {@link BrokerGossipPlugin#receive(GossipMessageI[])} method.<br>
+	 * If a received message is already present (via its message URI), it is not taken into account.
+	 * </p>
+	 * 
+	 * <p>
+	 * This set can also be reduced at the end of the {@link BrokerGossipPlugin#update(GossipMessageI[])} method, if
+	 * old gossip messages are present. See the {@code GOSSIP_MESSAGES_THRESHOLD} and {@code MAX_SECONDS_DIFF} attributes.
+	 * <p/>
+	 * 
+	 * <p>
 	 * To prevent simultaneous multi-thread accesses, its synchronized(...) monitor lock is used.
 	 * (every time the monitor lock is taken, it is for a potential write in the set) 
+	 * </p>
 	 */
 	protected final Set<GossipMessage> receivedMessages = new HashSet<>();
 	
 	/** 
-	 * If the number of stored treated messages ({@code this.gossipMessages}) exceeds the threshold, 
+	 * If the number of stored received messages ({@code this.receivedMessages}) exceeds the threshold, 
 	 * gossip messages that were created since more than {@code MAX_SECONDS_DIFF} will be deleted.
 	 */
 	public static final int GOSSIP_MESSAGES_THRESHOLD = 1000;
 	
-	/** Gossip messages created since more than 120 seconds might be deleted. */
+	/** Stored received gossip messages created since more than 120 seconds might be deleted. */
 	public static final int MAX_SECONDS_DIFF = 120;
 
 	/**
@@ -259,7 +273,8 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 	 * <ul>
 	 * 	<li>First sorts {@code gossipMessages} by keeping only gossip messages not yet locally received, and in the same 
 	 * 		time marks every received gossip message as locally received from now, by adding them into {@code this.receivedMessages}.</li>
-	 * 	<li>Then delegates to other gossip threads the propagation of received messages not previously received (those kept in the sorted array).</li>
+	 * 	<li>Then delegates to other gossip threads the propagation of received messages not previously received 
+	 * 		(those kept in the 'keptGossipMessages' array).</li>
 	 * 	<li>Finally, delegates {@link Broker} updates through a call to the {@code update} method.</li>
 	 * <ul>
 	 * 
@@ -279,14 +294,13 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 		assert(Stream.of(gossipMessages).allMatch(m -> m != null && m instanceof GossipMessage)) : new PreconditionException("Must contain only non null GossipMessage");
 		
 		Broker broker = (Broker)this.getOwner();
-		//broker.logMessage("Thread "+Thread.currentThread().getId()+": "+gossipMessages.length+" gossip message(s) received");
 		
 		List<GossipMessage> messagesToKeep = new ArrayList<>(); // must be instances of 'GossipMessage'
 		
 		synchronized(this.receivedMessages) {
 			for (int i=0; i<gossipMessages.length; i++) {
 				GossipMessage gossipMessage = (GossipMessage)gossipMessages[i];
-				// if the message has not yet been locally received, keeps it
+				// if the message has not yet been locally received, keeps it for treatment
 				if (!(this.receivedMessages.contains(gossipMessage))) messagesToKeep.add(gossipMessage);
 				// marks the message as locally received
 				this.receivedMessages.add(gossipMessage);
@@ -296,26 +310,28 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 		int l = messagesToKeep.size();
 		if (l > 0) {
 			
-			GossipMessageI[] keptGossipMessages = new GossipMessageI[l]; // List to Array
+			GossipMessageI[] keptGossipMessages = new GossipMessageI[l]; // List 'messagesToKeep' to Array
 			for (int j=0; j<l; j++) {
 				keptGossipMessages[j] = messagesToKeep.get(j);
 			}
 			
-			GossipMessageI[] messagesToSendToNeighbours = new GossipMessageI[l]; // Copies gossip messages before propagation
+			GossipMessageI[] messagesToSendToNeighbours = new GossipMessageI[l]; // Copies gossip messages for propagation
 			for (int j=0; j<l; j++) {
 				messagesToSendToNeighbours[j] = keptGossipMessages[j].copyWithNewEmitterURI(broker.getReflectionInboundPortURI());
 			}
 			
-			// Delegates propagation of messages previously not received to other gossip threads
+			// Delegates propagation of messages previously not received to other gossip threads.
 			for (Map.Entry<String, OutboundConnection> e : gossipOutboundPorts.entrySet()) {
-				broker.runTask(Broker.GOSSIP_POOL_URI, o -> {
-					GossipOutboundPort gossipOutboundPort = e.getValue().gossipOutboundPort;
-					try {
-						gossipOutboundPort.send(messagesToSendToNeighbours);
-					} catch (Exception eSend) {
-						eSend.printStackTrace();
-					}
-				});
+				OutboundConnection connection = e.getValue();
+					broker.runTask(Broker.GOSSIP_POOL_URI, o -> {
+						GossipOutboundPort gossipOutboundPort = connection.gossipOutboundPort;
+						try {
+							gossipOutboundPort.send(messagesToSendToNeighbours);
+						} catch (Exception eSend) {
+							eSend.printStackTrace();
+						}
+					});
+
 			}
 			
 			// Delegates Broker updates through a call to the update method

@@ -100,29 +100,37 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 	// Component datas
 	// -------------------------------------------------------------------------
 	
-	// Broker
-	protected static final int brokerNbThreads = 4;
-	protected static final int brokerNbFreeLoadersThreads = 2; // Broker's constructor automatically scales at 4 and 8 threads for Standard and Premium senders.
-	protected static final int brokerNbUnloadersThreads = 4;
-	protected static final int brokerNbSendersThreads = 4;
+	// Number of threads
+	protected final int brokerNbThreads = 4;
+	protected final int brokerNbSchedulableThreads = 0;
+	protected final int brokerNbFreeLoadersThreads = 2; // Broker's constructor automatically scales at 4 and 8 threads for Standard and Premium senders.
+	protected final int brokerNbUnloadersThreads = 4;
+	protected final int brokerNbSendersThreads = 4;
+	protected final int brokerNbGossipThreads = 1; // unused
 	
-	// MeteoStation URI
-	protected final static String MS_URI = "MeteoStation-URI";
+	protected final int clientNbThreads = 4;
+	protected final int clientNbSchedulableThreads = 1;
+	
+	// MeteoStation
 	protected final String MSReceivingInboundPortURI = "inbound-port-client-MS";
-	
-	protected static final int stationNbThreads = 4; // useless, meteo stations does not receive
-	protected static final PositionData stationPosition = new PositionData(1, 2);
+	protected final PositionData stationPosition = new PositionData(1, 2);
 	
 	// WindTurbine
-	protected final static String WT_URI = "WindTurbine-URI";
 	protected final String WindTurbineReceivingInboundPortURI = "inbound-port-client-WindTurbine";
+	protected final PositionData windTurbinePosition = new PositionData(2, 0);
 	
-	protected static final int windTurbineNbThreads = 4;
-	protected static final PositionData windTurbinePosition = new PositionData(2, 0);
-	
-    protected static final TimeFilterI timeFilter = new JokerTimeFilter();
-    protected static final MessageFilterI windTurbineWindFilter = new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], timeFilter);
-    protected static final MessageFilterI windTurbineAlertFilter = new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], timeFilter);
+    protected final TimeFilterI timeFilter = new JokerTimeFilter();
+    protected final MessageFilterI windTurbineWindFilter = new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], timeFilter);
+    protected final MessageFilterI windTurbineAlertFilter = new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], timeFilter);
+    
+	// Broker parameters
+	protected final int nbDefaultChannels = 2;
+	protected final int nbMaxChannelsStd = 2;
+	protected final int nbMaxChannelsPrem = 4;
+    
+	// Component URIs for tests (without the Broker)
+	protected static String MS_URI = "MeteoStation-URI";
+	protected static String WT_URI = "WindTurbine-URI";
 	
 	// -------------------------------------------------------------------------
 	// Test scenario steps
@@ -323,30 +331,28 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 		// ---------------------------------------------------------------------
 		
 		// Broker creation
-		int nbMaxChannelsSTD = 2;
-		int nbMaxChannelsPREM = 4;
 		String broker_URI = AbstractComponent.createComponent(
 				Broker.class.getCanonicalName(),
-				new Object[] {1, new PositionData(0, 4), 2, nbMaxChannelsSTD, nbMaxChannelsPREM, brokerNbThreads, 0, 
-						brokerNbFreeLoadersThreads, brokerNbUnloadersThreads, brokerNbSendersThreads, 
-						1, "BrokerGossipInboundPortURI", new ArrayList<>(), new ArrayList<>()}); // Gossip protocol unused here
+				new Object[] {1, new PositionData(0, 4), nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, brokerNbThreads, 
+						brokerNbSchedulableThreads, brokerNbFreeLoadersThreads, brokerNbUnloadersThreads, brokerNbSendersThreads, 
+						brokerNbGossipThreads, "BrokerGossipInboundPortURI", new ArrayList<>(), new ArrayList<>()}); // Gossip protocol unused here
 		assert this.isDeployedComponent(broker_URI);
 		this.toggleTracing(broker_URI);
 		
 		// Creation of 1 MeteoStation
-		String meteoStation_URI_verif = AbstractComponent.createComponent(
+		MS_URI = AbstractComponent.createComponent(
 				MeteoStation.class.getCanonicalName(),
-				new Object[] { MSReceivingInboundPortURI, RegistrationClass.STANDARD, stationNbThreads, 1, 
-						stationPosition, MS_URI, testScenario, 1});
-		assert (MS_URI).equals(meteoStation_URI_verif);
+				new Object[] {1, MS_URI, MSReceivingInboundPortURI, RegistrationClass.STANDARD, clientNbThreads, clientNbSchedulableThreads, 
+						stationPosition, testScenario});
 		assert this.isDeployedComponent(MS_URI);
 		this.toggleTracing(MS_URI);
 		
 		// Creation of 1 WindTurbine
-		String tmp_windTurbine_URI = AbstractComponent.createComponent(WindTurbine.class.getCanonicalName(),
-				new Object[] { WindTurbineReceivingInboundPortURI, RegistrationClass.STANDARD, windTurbineNbThreads, 1, 
-						windTurbinePosition, MeteoAlertI.Level.ORANGE, WT_URI, testScenario, 1, windTurbineWindFilter, windTurbineAlertFilter});
-		this.toggleTracing(tmp_windTurbine_URI);
+		WT_URI = AbstractComponent.createComponent(WindTurbine.class.getCanonicalName(),
+				new Object[] {1, WT_URI, WindTurbineReceivingInboundPortURI, RegistrationClass.STANDARD, clientNbThreads, clientNbSchedulableThreads, 
+						windTurbinePosition, MeteoAlertI.Level.ORANGE, true, windTurbineWindFilter, windTurbineAlertFilter, testScenario});
+		assert this.isDeployedComponent(WT_URI);
+		this.toggleTracing(WT_URI);
 		
 		// Clock server creation
 		String serv = AbstractComponent.createComponent(

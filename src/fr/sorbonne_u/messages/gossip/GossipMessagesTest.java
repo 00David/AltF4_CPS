@@ -36,6 +36,7 @@ public class GossipMessagesTest {
         GossipMessage msg1 = new GossipMessage(emitterURI);
         Instant after = Instant.now();
 
+        // Verify each attribute information
         assertEquals(emitterURI, msg1.emitterURI);
         assertNotNull(msg1.gossipMessageURI());
         assertTrue(msg1.gossipMessageURI().startsWith(emitterURI + "_"));
@@ -52,6 +53,7 @@ public class GossipMessagesTest {
         assertFalse(msg1.timestamp().isBefore(before));
         assertFalse(msg1.timestamp().isAfter(after));
 
+        // Invalid parameters tests
         assertThrows(IllegalArgumentException.class, () -> new GossipMessage(null));
         assertThrows(IllegalArgumentException.class, () -> new GossipMessage(""));
     }
@@ -66,6 +68,7 @@ public class GossipMessagesTest {
 
         GossipMessageI copy = original.copyWithNewEmitterURI("broker-2");
 
+        // Check that the new gossip message content is as expected
         assertEquals("broker-2", ((GossipMessage) copy).emitterURI);
         assertEquals(original.gossipMessageURI(), copy.gossipMessageURI());
         assertEquals(original.messageAction(), ((GossipMessage) copy).messageAction());
@@ -79,6 +82,8 @@ public class GossipMessagesTest {
 
         GossipMessageI copy = original.copyWithNewEmitterURI("broker-2");
 
+        // Check that the new gossip message content is as expected, 
+        // with the same contained message
         assertNotNull(((GossipMessage) copy).message());
         assertEquals("broker-2", ((GossipMessage) copy).emitterURI);
         assertEquals(original.gossipMessageURI(), copy.gossipMessageURI());
@@ -89,6 +94,7 @@ public class GossipMessagesTest {
     public void testCopyErrors() {
         GossipMessage original = new GossipMessage("broker-1");
 
+        // Invalid parameters tests
         assertThrows(IllegalArgumentException.class,
             () -> original.copyWithNewEmitterURI(null));
         assertThrows(IllegalArgumentException.class,
@@ -120,6 +126,7 @@ public class GossipMessagesTest {
         GossipMessage msg = GossipMessageFactory.createPublishMessages(
             "broker-1", "port", "channel", messages);
 
+        // Ensures that the gossip message informations have correctly been set
         assertEquals(Action.PUBLISH, msg.messageAction());
 
         assertEquals("port",
@@ -135,6 +142,7 @@ public class GossipMessagesTest {
         GossipMessage msg = GossipMessageFactory.createRegisterMessage(
             "broker-1", "port", RegistrationClass.FREE);
 
+        // Ensures that the gossip message informations have correctly been set
         assertEquals(Action.REGISTER_CLIENT, msg.messageAction());
 
         assertEquals("port",
@@ -148,6 +156,7 @@ public class GossipMessagesTest {
         GossipMessage msg = GossipMessageFactory.createUnregisterMessage(
             "broker-1", "port");
 
+        // Ensures that the gossip message informations have correctly been set
         assertEquals(Action.UNREGISTER_CLIENT, msg.messageAction());
 
         assertEquals("port",
@@ -159,6 +168,7 @@ public class GossipMessagesTest {
         GossipMessage msg = GossipMessageFactory.createCreateChannelMessage(
             "broker-1", "port", "channel", ".*");
 
+        // Ensures that the gossip message informations have correctly been set
         assertEquals(Action.CREATE_CHANNEL, msg.messageAction());
 
         assertEquals("port",
@@ -174,6 +184,7 @@ public class GossipMessagesTest {
         GossipMessage msg = GossipMessageFactory.createDestroyChannelMessage(
             "broker-1", "port", "channel", true);
 
+        // Ensures that the gossip message informations have correctly been set
         assertEquals(Action.DESTROY_CHANNEL, msg.messageAction());
 
         assertEquals("port",
@@ -194,6 +205,7 @@ public class GossipMessagesTest {
         GossipMessage msg = GossipMessageFactory.createSubscribeClientMessage(
             "broker-1", "port", "channel", filter);
 
+        // Ensures that the gossip message informations have correctly been set
         assertEquals(Action.SUBSCRIBE_CLIENT_CHANNEL, msg.messageAction());
 
         assertEquals("port",
@@ -209,6 +221,7 @@ public class GossipMessagesTest {
         GossipMessage msg = GossipMessageFactory.createUnsubscribeClientMessage(
             "broker-1", "port", "channel");
 
+        // Ensures that the gossip message informations have correctly been set
         assertEquals(Action.UNSUBSCRIBE_CLIENT_CHANNEL, msg.messageAction());
 
         assertEquals("port",
@@ -222,6 +235,7 @@ public class GossipMessagesTest {
         GossipMessage msg = GossipMessageFactory.createUpdateClientClassMessage(
             "broker-1", "port", RegistrationClass.PREMIUM);
 
+        // Ensures that the gossip message informations have correctly been set
         assertEquals(Action.UPDATE_CLIENT_SERVICE_CLASS, msg.messageAction());
 
         assertEquals("port",
@@ -235,6 +249,7 @@ public class GossipMessagesTest {
         GossipMessage msg = GossipMessageFactory.createUpdateChannelAuthURIsMessage(
             "broker-1", "port", "channel", ".*");
 
+        // Ensures that the gossip message informations have correctly been set
         assertEquals(Action.UPDATE_CHANNEL_AUTHORIZED_URIS, msg.messageAction());
 
         assertEquals("port",

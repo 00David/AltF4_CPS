@@ -124,34 +124,45 @@ public class CVMCompleteTest extends AbstractCVM {
 	// Component datas
 	// -------------------------------------------------------------------------
 	
+	// Number of threads
+	protected final int brokerNbThreads = 1;
+	protected final int brokerNbSchedulableThreads = 0;
+	protected final int brokerNbFreeLoadersThreads = 1;
+	protected final int brokerNbUnloadersThreads = 1;
+	protected final int brokerNbSendersThreads = 1;
+	protected final int brokerNbGossipThreads = 1; // unused
+	
+	protected final int clientNbThreads = 1;
+	protected final int clientNbSchedulableThreads = 1;
+	
 	// MeteoBureau 1
 	protected final String MB1ReceivingInboundPortURI = "inbound-port-client-MB1";
-	protected static final PositionData bureau1Position = new PositionData(2, 1);
-	protected static final RegistrationClass MB1rc = RegistrationClass.PREMIUM;
+	protected final PositionData bureau1Position = new PositionData(2, 1);
+	protected final RegistrationClass MB1rc = RegistrationClass.PREMIUM;
 	
 	// MeteoBureau 2
 	protected final String MB2ReceivingInboundPortURI = "inbound-port-client-MB2";
-	protected static final PositionData bureau2Position = new PositionData(3, 1);
-	protected static final RegistrationClass MB2rc = RegistrationClass.FREE;
+	protected final PositionData bureau2Position = new PositionData(3, 1);
+	protected final RegistrationClass MB2rc = RegistrationClass.FREE;
 	
 	// MeteoStation 1
 	protected final String MS1ReceivingInboundPortURI = "inbound-port-client-MS1";
-	protected static final PositionData station1Position = new PositionData(2, 2);
-	protected static final RegistrationClass MS1rc = RegistrationClass.STANDARD;
+	protected final PositionData station1Position = new PositionData(2, 2);
+	protected final RegistrationClass MS1rc = RegistrationClass.STANDARD;
 	
 	// MeteoStation 2
 	protected final String MS2ReceivingInboundPortURI = "inbound-port-client-MS2";
-	protected static final PositionData station2Position = new PositionData(3, 2);
-	protected static final RegistrationClass MS2rc = RegistrationClass.FREE;
+	protected final PositionData station2Position = new PositionData(3, 2);
+	protected final RegistrationClass MS2rc = RegistrationClass.FREE;
 	
 	// Except for Wind turbine 3, this time filter is used : no constraint on time
 	protected final static TimeFilterI timeFilterJoker = new JokerTimeFilter();
 	
 	// WindTurbine 1
 	protected final static String WT1ReceivingInboundPortURI = "inbound-port-client-WT1";
-	protected static final PositionData windTurbine1Position = new PositionData(1, 0);
-	protected static final RegistrationClass WT1rc = RegistrationClass.STANDARD;
-	protected static final MeteoAlertI.Level maxWorkingLevelWT1 = MeteoAlertI.Level.ORANGE; // inclusive
+	protected final static PositionData windTurbine1Position = new PositionData(1, 0);
+	protected final RegistrationClass WT1rc = RegistrationClass.STANDARD;
+	protected final MeteoAlertI.Level maxWorkingLevelWT1 = MeteoAlertI.Level.ORANGE; // inclusive
 	
 	// On winds received, filter keeps only close winds (distance <= 10) && with a force not exceeding 10.
 	protected final PropertiesFilter[] WT1_props =  {new PropertiesFilter(new StrongWindMultiValuesFilter(windTurbine1Position, 10, 10))};
@@ -162,9 +173,9 @@ public class CVMCompleteTest extends AbstractCVM {
 	
 	// WindTurbine 2
 	protected final String WT2ReceivingInboundPortURI = "inbound-port-client-WT2";
-	protected static final PositionData windTurbine2Position = new PositionData(2, 0);
-	protected static final RegistrationClass WT2rc = RegistrationClass.STANDARD;
-	protected static final MeteoAlertI.Level maxWorkingLevelWT2 = MeteoAlertI.Level.ORANGE; // inclusive
+	protected final PositionData windTurbine2Position = new PositionData(2, 0);
+	protected final RegistrationClass WT2rc = RegistrationClass.STANDARD;
+	protected final MeteoAlertI.Level maxWorkingLevelWT2 = MeteoAlertI.Level.ORANGE; // inclusive
 	
 	// Accepts every wind data
 	protected final MessageFilterI WT2Windfilters =  new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], timeFilterJoker);
@@ -174,17 +185,22 @@ public class CVMCompleteTest extends AbstractCVM {
 	
 	// WindTurbine 3
 	protected final String WT3ReceivingInboundPortURI = "inbound-port-client-WT3";
-	protected static final PositionData windTurbine3Position = new PositionData(3, 0);
-	protected static final RegistrationClass WT3rc = RegistrationClass.FREE;
-	protected static final MeteoAlertI.Level maxWorkingLevelWT3 = MeteoAlertI.Level.ORANGE; // inclusive
+	protected final static PositionData windTurbine3Position = new PositionData(3, 0);
+	protected final RegistrationClass WT3rc = RegistrationClass.FREE;
+	protected final MeteoAlertI.Level maxWorkingLevelWT3 = MeteoAlertI.Level.ORANGE; // inclusive
 	
 	// Time constraint, filters accepts messages 80 (=STEP3) seconds after the start of the scenario
-	protected final static TimeFilterI WT3timeFilterGE = new GreaterOrEqualTimeFilter(Instant.now().plusSeconds((long)(STEPS[3]/ACCELERATION_FACTOR)));
+	protected final TimeFilterI WT3timeFilterGE = new GreaterOrEqualTimeFilter(Instant.now().plusSeconds((long)(STEPS[3]/ACCELERATION_FACTOR)));
 	// Accepts every wind data
 	protected final MessageFilterI WT3Windfilters =  new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], WT3timeFilterGE);
 	// On alerts received, filter keeps only alerts with a region containing wind turbine's position
 	protected final PropertyFilterI[] WT3_prop = {new PropertyFilter(AlertMessage.ALERT_REGIONS_PROPERTY, new PositionInRegionsValueFilter(windTurbine3Position))};
 	protected final MessageFilterI WT3Alertfilters =  new MessageFilter(WT3_prop, new PropertiesFilter[0], WT3timeFilterGE);
+	
+	// Broker parameters
+	protected final int nbDefaultChannels = 2;
+	protected final int nbMaxChannelsStd = 2;
+	protected final int nbMaxChannelsPrem = 4;
 	
 	// Component URIs for tests (without the Broker)
 	protected static String MB1_URI = "MeteoBureau1-URI";
@@ -330,9 +346,9 @@ public class CVMCompleteTest extends AbstractCVM {
 						owner -> {
 							try {
 								System.out.println("STEP 6/"+(NBSTEPS-1)+" ("+STEPS[6]+"s) : WindTurbine1 unsubscribes from channels 'channel0' and 'channel1',\nWindTurbine1 + WindTurbine2 subscribe to channel 'testChannel'");
-								((WindTurbine)owner).unsubscibeFromChannel("channel0");
-								((WindTurbine)owner).unsubscibeFromChannel("channel1");
-								((WindTurbine)owner).subscibeToChannel("testChannel", accept_all_filter);
+								((WindTurbine)owner).unsubscribeFromChannel("channel0");
+								((WindTurbine)owner).unsubscribeFromChannel("channel1");
+								((WindTurbine)owner).subscribeToChannel("testChannel", accept_all_filter);
 							} catch (Exception e) {
 								System.err.println("Step 6 WT1 unsubscriptions + subscription failed with exception " + e);
 							}
@@ -344,7 +360,7 @@ public class CVMCompleteTest extends AbstractCVM {
 						step_Instants[6],
 						owner -> {
 							try {
-								((WindTurbine)owner).subscibeToChannel("testChannel", accept_all_filter);
+								((WindTurbine)owner).subscribeToChannel("testChannel", accept_all_filter);
 							} catch (Exception e) {
 								System.err.println("Step 6 WT2 subscription failed with exception " + e);
 							}
@@ -437,12 +453,11 @@ public class CVMCompleteTest extends AbstractCVM {
 		// ---------------------------------------------------------------------
 		
 		// Broker creation
-		int nbMaxChannelsSTD = 2;
-		int nbMaxChannelsPREM = 4;
 		String broker_URI = AbstractComponent.createComponent(
 				Broker.class.getCanonicalName(),
-				new Object[] {1, new PositionData(0, 4), 2, nbMaxChannelsSTD, nbMaxChannelsPREM, 1, 0, 1, 1, 1,
-						1, "BrokerGossipInboundPortURI", new ArrayList<>(), new ArrayList<>()}); // Gossip protocol unused here
+				new Object[] {1, new PositionData(0, 4), nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, brokerNbThreads, 
+						brokerNbSchedulableThreads, brokerNbFreeLoadersThreads, brokerNbUnloadersThreads, brokerNbSendersThreads,
+						brokerNbGossipThreads, "BrokerGossipInboundPortURI", new ArrayList<>(), new ArrayList<>()}); // Gossip protocol unused here
 		assert this.isDeployedComponent(broker_URI);
 		this.toggleTracing(broker_URI);
 
@@ -451,14 +466,16 @@ public class CVMCompleteTest extends AbstractCVM {
 		
 		String meteoBureau1_URI_verif = AbstractComponent.createComponent(
 				MeteoBureau.class.getCanonicalName(),
-				new Object[] { MB1ReceivingInboundPortURI, MB1rc, 1, 1, bureau1Position, MB1_URI, testScenario, 1});
+				new Object[] {1, MB1_URI, MB1ReceivingInboundPortURI, MB1rc, clientNbThreads, clientNbSchedulableThreads, 
+						bureau1Position, testScenario});
 		assert MB1_URI.equals(meteoBureau1_URI_verif);
 		assert this.isDeployedComponent(MB1_URI);
 		this.toggleTracing(MB1_URI);
 		
 		String meteoBureau2_URI_verif = AbstractComponent.createComponent(
 				MeteoBureau.class.getCanonicalName(),
-				new Object[] { MB2ReceivingInboundPortURI, MB2rc, 1, 1, bureau2Position, MB2_URI, testScenario, 2});
+				new Object[] {2, MB2_URI, MB2ReceivingInboundPortURI, MB2rc, clientNbThreads, clientNbSchedulableThreads, 
+						bureau2Position, testScenario});
 		assert MB2_URI.equals(meteoBureau2_URI_verif);
 		assert this.isDeployedComponent(MB2_URI);
 		this.toggleTracing(MB2_URI);
@@ -467,7 +484,8 @@ public class CVMCompleteTest extends AbstractCVM {
 		
 		String meteoStation1_URI_verif = AbstractComponent.createComponent(
 				MeteoStation.class.getCanonicalName(),
-				new Object[] { MS1ReceivingInboundPortURI, MS1rc, 1, 1, station1Position, MS1_URI, testScenario, 1});
+				new Object[] {1, MS1_URI, MS1ReceivingInboundPortURI, MS1rc, clientNbThreads, clientNbSchedulableThreads, 
+						station1Position, testScenario});
 		assert MS1_URI.equals(meteoStation1_URI_verif);
 		assert this.isDeployedComponent(MS1_URI);
 		this.toggleTracing(MS1_URI);
@@ -475,7 +493,8 @@ public class CVMCompleteTest extends AbstractCVM {
 		
 		String meteoStation2_URI_verif = AbstractComponent.createComponent(
 				MeteoStation.class.getCanonicalName(),
-				new Object[] { MS2ReceivingInboundPortURI, MS2rc, 1, 1, station2Position, MS2_URI, testScenario, 2});
+				new Object[] {2, MS2_URI, MS2ReceivingInboundPortURI, MS2rc, clientNbThreads, clientNbSchedulableThreads, 
+						station2Position, testScenario});
 		assert MS2_URI.equals(meteoStation2_URI_verif);
 		assert this.isDeployedComponent(MS2_URI);
 		this.toggleTracing(MS2_URI);
@@ -483,18 +502,18 @@ public class CVMCompleteTest extends AbstractCVM {
 		// Creation of WindTurbines
 		
 		String windTurbine1_URI_verif = AbstractComponent.createComponent(WindTurbine.class.getCanonicalName(),
-				new Object[] { WT1ReceivingInboundPortURI, WT1rc, 1, 1, windTurbine1Position, maxWorkingLevelWT1, 
-						WT1_URI, testScenario, 1, WT1Windfilters, WT1Alertfilters});
+				new Object[] {1, WT1_URI, WT1ReceivingInboundPortURI, WT1rc, clientNbThreads, clientNbSchedulableThreads, 
+						windTurbine1Position, maxWorkingLevelWT1, true, WT1Windfilters, WT1Alertfilters, testScenario});
 		this.toggleTracing(windTurbine1_URI_verif);
 		
 		String windTurbine2_URI_verif = AbstractComponent.createComponent(WindTurbine.class.getCanonicalName(),
-				new Object[] { WT2ReceivingInboundPortURI, WT2rc, 1, 1, windTurbine2Position, maxWorkingLevelWT2, 
-						WT2_URI, testScenario, 2, WT2Windfilters, WT2Alertfilters});
+				new Object[] {2, WT2_URI, WT2ReceivingInboundPortURI, WT2rc, clientNbThreads, clientNbSchedulableThreads, 
+						windTurbine2Position, maxWorkingLevelWT2, true, WT2Windfilters, WT2Alertfilters, testScenario});
 		this.toggleTracing(windTurbine2_URI_verif);
 		
 		String windTurbine3_URI_verif = AbstractComponent.createComponent(WindTurbine.class.getCanonicalName(),
-				new Object[] { WT3ReceivingInboundPortURI, WT3rc, 1, 1, windTurbine3Position, maxWorkingLevelWT3, 
-						WT3_URI, testScenario, 3, WT3Windfilters, WT3Alertfilters});
+				new Object[] {3, WT3_URI, WT3ReceivingInboundPortURI, WT3rc, clientNbThreads, clientNbSchedulableThreads, 
+						windTurbine3Position, maxWorkingLevelWT3, true, WT3Windfilters, WT3Alertfilters, testScenario});
 		this.toggleTracing(windTurbine3_URI_verif);
 		
 		// Clock server creation

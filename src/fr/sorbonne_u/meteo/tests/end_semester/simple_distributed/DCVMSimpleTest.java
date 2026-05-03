@@ -47,6 +47,7 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * The scenario from the start of the DCVM:
  * 
  * <ul>
+ * 	<li> - After 5 seconds, <strong>WindTurbine</strong> subscribes to default channels "channel0" and "channel1".
  * 	<li> - After 30 seconds, <strong>MeteoStation n°1</strong> sends wind data to 'channel0'.
  * 	<li> - After 60 seconds, <strong>MeteoStation n°2</strong> sends wind data to 'channel0'.
  * 	<li> - After 90 seconds, <strong>MeteoBureau</strong> sends a dangerous alert to 'channel1'.
@@ -76,12 +77,23 @@ public class DCVMSimpleTest extends AbstractDistributedCVM {
 														/ACCELERATION_FACTOR));
 	
 	// Delay after the start when steps will be executed, in seconds
-	public static long[] STEPS = new long[] {30, 60, 90, 120, 150, 180};
+	public static long[] STEPS = new long[] {5, 30, 60, 90, 120, 150, 180};
 	public static final int NBSTEPS = STEPS.length;
 
 	// -------------------------------------------------------------------------
 	// Component datas
 	// -------------------------------------------------------------------------
+	
+	// Number of threads
+	protected final int brokerNbThreads = 1;
+	protected final int brokerNbSchedulableThreads = 0;
+	protected final int brokerNbFreeLoadersThreads = 1;
+	protected final int brokerNbUnloadersThreads = 1;
+	protected final int brokerNbSendersThreads = 1;
+	protected final int brokerNbGossipThreads = 1;
+	
+	protected final int clientNbThreads = 1;
+	protected final int clientNbSchedulableThreads = 1;
 	
 	// Broker1
 	protected final String Broker1GossipInboundPortURI = "gossip-inbound-port-Bro1";
@@ -104,52 +116,46 @@ public class DCVMSimpleTest extends AbstractDistributedCVM {
 	
 	// MeteoStation 1 (with Broker1)
 	protected final String MS1ReceivingInboundPortURI = "inbound-port-client-MS1";
-	protected static final PositionData station1Position = new PositionData(1, 2);
+	protected final PositionData station1Position = new PositionData(1, 2);
 	
 	// MeteoStation 2 (with Broker2)
 	protected final String MS2ReceivingInboundPortURI = "inbound-port-client-MS2";
-	protected static final PositionData station2Position = new PositionData(3, 2);
+	protected final PositionData station2Position = new PositionData(3, 2);
 	
 	// WindTurbine (with Broker3)
 	protected final String WindTurbineReceivingInboundPortURI = "inbound-port-client-WindTurbine";
-	protected static final PositionData windTurbinePosition = new PositionData(2, 2);
-	protected static final MeteoAlertI.Level maxWorkingLevelWT = MeteoAlertI.Level.ORANGE; // inclusive
+	protected final static PositionData windTurbinePosition = new PositionData(2, 2);
+	protected final MeteoAlertI.Level maxWorkingLevelWT = MeteoAlertI.Level.ORANGE; // inclusive
 	
     // Creation of a filter only accepting messages after the start of the scenario
-    protected TimeFilterI timeFilter = new GreaterOrEqualTimeFilter(Instant.parse(START_INSTANT));
+    protected final static TimeFilterI timeFilter = new GreaterOrEqualTimeFilter(Instant.parse(START_INSTANT));
     // No special constraint on wind data reception
-    protected MessageFilterI windTurbineWindFilter = new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], timeFilter);
+    protected final static MessageFilterI windTurbineWindFilter = new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], timeFilter);
     // On alert reception : creation of a filter accepting alerts with targeted regions containing the wind turbine position
-    protected PropertyFilterI[] propFiltersAlert = {new PropertyFilter(AlertMessage.ALERT_REGIONS_PROPERTY, new PositionInRegionsValueFilter(windTurbinePosition))};
-    protected MessageFilterI windTurbineAlertFilter = new MessageFilter(propFiltersAlert, new PropertiesFilter[0], timeFilter);
-	
-	// JVM URIs
-	protected String JVMbroker1 = "broker1";
-	protected String JVMbroker2 = "broker2";
-	protected String JVMbroker3 = "broker3";
-    
-	// Component URIs
-	protected static String uriBroker1 = "Broker1-URI";
-	protected static String uriBroker2 = "Broker2-URI";
-	protected static String uriBroker3 = "Broker3-URI";
-	protected static String uriMB = "MeteoBureau-URI";
-	protected static String uriMS1 = "MeteoStation1-URI";
-	protected static String uriMS2 = "MeteoStation2-URI";
-	protected static String uriWindTurbine = "WindTurbine-URI";
+    protected final static PropertyFilterI[] propFiltersAlert = {new PropertyFilter(AlertMessage.ALERT_REGIONS_PROPERTY, new PositionInRegionsValueFilter(windTurbinePosition))};
+    protected final static MessageFilterI windTurbineAlertFilter = new MessageFilter(propFiltersAlert, new PropertiesFilter[0], timeFilter);
 	
 	// Component general parameters
-	protected final int nbThreads = 1; // classic thread pool
-	protected final int nbSchedulableThreads = 1;
 	protected final RegistrationClass rc = RegistrationClass.FREE;
 	
-	// Broker parameters, same for each
+	// Broker common parameters
 	protected final int nbDefaultChannels = 2;
 	protected final int nbMaxChannelsStd = 2;
 	protected final int nbMaxChannelsPrem = 4;
-	protected final int nbFreeLoadersThreads = 1;
-	protected final int nbUnloadersThreads = 1;
-	protected final int nbSendersThreads = 1;
-	protected final int nbGossipThreads = 1;
+    
+	// JVM URIs
+	protected final String JVMbroker1 = "broker1";
+	protected final String JVMbroker2 = "broker2";
+	protected final String JVMbroker3 = "broker3";
+    
+	// Component URIs
+	protected static String BROKER1_URI = "Broker1-URI";
+	protected static String BROKER2_URI = "Broker2-URI";
+	protected static String BROKER3_URI = "Broker3-URI";
+	protected static String MB_URI = "MeteoBureau-URI";
+	protected static String MS1_URI = "MeteoStation1-URI";
+	protected static String MS2_URI = "MeteoStation2-URI";
+	protected static String WT_URI = "WindTurbine-URI";
 
 	// -------------------------------------------------------------------------
 	// Test scenario steps
@@ -189,103 +195,129 @@ public class DCVMSimpleTest extends AbstractDistributedCVM {
 			startInstant,
 			endInstant,
 			new TestStepI[] {
+				new TestStep(
+						CLOCK_URI,
+						MB_URI, // MeteoBureau component is used for printing logs on the console
+						step_Instants[0],
+						owner -> {
+							System.out.println("STEP 0/"+(NBSTEPS-1)+" ("+STEPS[0]+"s) : WindTurbine subscribes to default channels 'channel0' and 'channel1'");
+						}),
+				// WindTurbine subscribes to default channels "channel0" and "channel1"
+				new TestStep(
+						CLOCK_URI, 
+						WT_URI, 
+						step_Instants[0],
+						owner -> {
+							try {
+								((WindTurbine)owner).subscribeToChannel("channel0", windTurbineWindFilter);
+								((WindTurbine)owner).subscribeToChannel("channel1", windTurbineAlertFilter);
+							} catch (Exception e) {
+								System.err.println("Step 0 WT subscriptions failed with exception " + e);
+							}
+						}),
+				
 				// MeteoStation1 sends wind data to 'channel0'.
 				new TestStep(
 						CLOCK_URI,
-						uriMB, // MeteoBureau component is used for printing logs on the console
-						step_Instants[0],
+						MB_URI, // MeteoBureau component is used for printing logs on the console
+						step_Instants[1],
 						owner -> {
-							System.out.println("STEP 0/"+(NBSTEPS-1)+" ("+STEPS[0]+"s) : MeteoStation1 sends wind data to 'channel0'");
+							System.out.println("STEP 1/"+(NBSTEPS-1)+" ("+STEPS[1]+"s) : MeteoStation1 sends wind data to 'channel0'");
 						}),
 				new TestStep(
 					CLOCK_URI,
-					uriMS1,
-					step_Instants[0],
+					MS1_URI,
+					step_Instants[1],
 					owner -> {
 						try {
 							((MeteoStation)owner).publishWindData(2.0, 2.0, "channel0", false);
 						} catch (Exception e) {
-							System.err.println("Step 0 wind data publication failed with exception " + e);
+							System.err.println("Step 1 wind data publication failed with exception " + e);
 						}
 					}),
+				
 				// MeteoStation2 sends wind data to 'channel0'.
 				new TestStep(
 						CLOCK_URI,
-						uriMB, // MeteoBureau component is used for printing logs on the console
-						step_Instants[1],
+						MB_URI, // MeteoBureau component is used for printing logs on the console
+						step_Instants[2],
 						owner -> {
-							System.out.println("STEP 1/"+(NBSTEPS-1)+" ("+STEPS[1]+"s) : MeteoStation2 sends wind data to 'channel0'");
+							System.out.println("STEP 2/"+(NBSTEPS-1)+" ("+STEPS[2]+"s) : MeteoStation2 sends wind data to 'channel0'");
 						}),
 				new TestStep(
 					CLOCK_URI,
-					uriMS2,
-					step_Instants[1],
+					MS2_URI,
+					step_Instants[2],
 					owner -> {
 						try {
 							((MeteoStation)owner).publishWindData(1.0, 1.0, "channel0", false);
 						} catch (Exception e) {
-							System.err.println("Step 1 wind data publication failed with exception " + e);
+							System.err.println("Step 2 wind data publication failed with exception " + e);
 						}
 					}),
+				
 				// MeteoBureau sends a dangerous alert to 'channel1'.
 				new TestStep(
 						CLOCK_URI,
-						uriMB,
-						step_Instants[2],
-						owner -> {
-							try {
-								System.out.println("STEP 2/"+(NBSTEPS-1)+" ("+STEPS[2]+"s) : MeteoBureau sends a dangerous alert to 'channel1'");
-								((MeteoBureau)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.RED, 
-										step2_3_regions, step_Instants[2], Duration.ofSeconds((long)((STEPS[3]-STEPS[2])/ACCELERATION_FACTOR)), "channel1");
-							} catch (Exception e) {
-								System.err.println("Step 2 alert publication failed with exception " + e);
-							}
-						}),
-				// MeteoBureau sends an end-of-danger alert to 'channel1'.
-				new TestStep(
-						CLOCK_URI,
-						uriMB,
+						MB_URI,
 						step_Instants[3],
 						owner -> {
 							try {
-								System.out.println("STEP 3/"+(NBSTEPS-1)+" ("+STEPS[3]+"s) : MeteoBureau sends an end-of-danger alert to 'channel1'");
-								((MeteoBureau)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.GREEN, 
-										step2_3_regions, step_Instants[3], Duration.ofSeconds((long)((STEPS[3]-STEPS[2])/ACCELERATION_FACTOR)), "channel1");
+								System.out.println("STEP 3/"+(NBSTEPS-1)+" ("+STEPS[3]+"s) : MeteoBureau sends a dangerous alert to 'channel1'");
+								((MeteoBureau)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.RED, 
+										step2_3_regions, step_Instants[3], Duration.ofSeconds((long)((STEPS[4]-STEPS[3])/ACCELERATION_FACTOR)), "channel1");
 							} catch (Exception e) {
 								System.err.println("Step 3 alert publication failed with exception " + e);
 							}
 						}),
+				
+				// MeteoBureau sends an end-of-danger alert to 'channel1'.
+				new TestStep(
+						CLOCK_URI,
+						MB_URI,
+						step_Instants[4],
+						owner -> {
+							try {
+								System.out.println("STEP 4/"+(NBSTEPS-1)+" ("+STEPS[4]+"s) : MeteoBureau sends an end-of-danger alert to 'channel1'");
+								((MeteoBureau)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.GREEN, 
+										step2_3_regions, step_Instants[3], Duration.ofSeconds((long)((STEPS[4]-STEPS[3])/ACCELERATION_FACTOR)), "channel1");
+							} catch (Exception e) {
+								System.err.println("Step 4 alert publication failed with exception " + e);
+							}
+						}),
+				
 				// MeteoStation1 sends wind data to 'channel0'.
 				new TestStep(
 						CLOCK_URI,
-						uriMB, // MeteoBureau component is used for printing logs on the console
-						step_Instants[4],
+						MB_URI, // MeteoBureau component is used for printing logs on the console
+						step_Instants[5],
 						owner -> {
-							System.out.println("STEP 4/"+(NBSTEPS-1)+" ("+STEPS[4]+"s) : MeteoStation1 sends wind data to 'channel0'");
+							System.out.println("STEP 5/"+(NBSTEPS-1)+" ("+STEPS[5]+"s) : MeteoStation1 sends wind data to 'channel0'");
 						}),
 				new TestStep(
 						CLOCK_URI,
-						uriMS1,
-						step_Instants[4],
+						MS1_URI,
+						step_Instants[5],
 						owner -> {
 							try {
 								((MeteoStation)owner).publishWindData(2.0, 2.0, "channel0", false);
 							} catch (Exception e) {
-								System.err.println("Step 4 wind data publication failed with exception " + e);
+								System.err.println("Step 5 wind data publication failed with exception " + e);
 							}
 						}),
+				
 				// MeteoBureau sends a dangerous alert to 'channel1', not affecting the wind turbine region.
 				new TestStep(
 						CLOCK_URI,
-						uriMB,
-						step_Instants[5],
+						MB_URI,
+						step_Instants[6],
 						owner -> {
 							try {
-								System.out.println("STEP 5/"+(NBSTEPS-1)+" ("+STEPS[5]+"s) :  MeteoBureau sends a dangerous alert to 'channel1', not affecting the wind turbine region");
+								System.out.println("STEP 6/"+(NBSTEPS-1)+" ("+STEPS[6]+"s) :  MeteoBureau sends a dangerous alert to 'channel1', not affecting the wind turbine region");
 								((MeteoBureau)owner).publishAlert(MeteoAlertI.AlertType.EARTHQUAKE, MeteoAlertI.Level.RED, 
-										step5_regions, step_Instants[5], Duration.ofSeconds((long)((STEPS[3]-STEPS[2])/ACCELERATION_FACTOR)), "channel1");
+										step5_regions, step_Instants[6], Duration.ofSeconds((long)((STEPS[4]-STEPS[3])/ACCELERATION_FACTOR)), "channel1");
 							} catch (Exception e) {
-								System.err.println("Step 5 alert publication failed with exception " + e);
+								System.err.println("Step 6 alert publication failed with exception " + e);
 							}
 						})
 				});
@@ -315,27 +347,29 @@ public class DCVMSimpleTest extends AbstractDistributedCVM {
 			broker1ConnectedTo.add(Broker3GossipInboundPortURI);
 			
 			// Broker creation
-			uriBroker1 = AbstractComponent.createComponent(
+			BROKER1_URI = AbstractComponent.createComponent(
 					Broker.class.getCanonicalName(),
-					new Object[] {1, broker1Postion, nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, nbThreads, nbSchedulableThreads, 
-							nbFreeLoadersThreads, nbUnloadersThreads, nbSendersThreads, nbGossipThreads,
-							Broker1GossipInboundPortURI, broker1OutboundPorts, broker1ConnectedTo});
-			assert this.isDeployedComponent(uriBroker1);
-			this.toggleTracing(uriBroker1);
+					new Object[] {1, broker1Postion, nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, brokerNbThreads, 
+							brokerNbSchedulableThreads, brokerNbFreeLoadersThreads, brokerNbUnloadersThreads, brokerNbSendersThreads, 
+							brokerNbGossipThreads, Broker1GossipInboundPortURI, broker1OutboundPorts, broker1ConnectedTo});
+			assert this.isDeployedComponent(BROKER1_URI);
+			this.toggleTracing(BROKER1_URI);
 			
 			// Creation of 1 MeteoBureau
-			uriMB = AbstractComponent.createComponent(
+			MB_URI = AbstractComponent.createComponent(
 					MeteoBureau.class.getCanonicalName(),
-					new Object[] { MBReceivingInboundPortURI, rc, nbThreads, nbSchedulableThreads, bureauPosition, uriMB, testScenario, 1});
-			assert this.isDeployedComponent(uriMB);
-			this.toggleTracing(uriMB);
+					new Object[] {1, MB_URI, MBReceivingInboundPortURI, rc, clientNbThreads, clientNbSchedulableThreads, 
+							bureauPosition, testScenario});
+			assert this.isDeployedComponent(MB_URI);
+			this.toggleTracing(MB_URI);
 			
 			// Creation of first MeteoStation
-			uriMS1 = AbstractComponent.createComponent(
+			MS1_URI = AbstractComponent.createComponent(
 					MeteoStation.class.getCanonicalName(),
-					new Object[] { MS1ReceivingInboundPortURI, rc, nbThreads, nbSchedulableThreads, station1Position, uriMS1, testScenario, 1});
-			assert this.isDeployedComponent(uriMS1);
-			this.toggleTracing(uriMS1);
+					new Object[] {1, MS1_URI, MS1ReceivingInboundPortURI, rc, clientNbThreads, clientNbSchedulableThreads, 
+							station1Position, testScenario});
+			assert this.isDeployedComponent(MS1_URI);
+			this.toggleTracing(MS1_URI);
 			
 			// Clock server creation
 			String serv = AbstractComponent.createComponent(
@@ -359,20 +393,21 @@ public class DCVMSimpleTest extends AbstractDistributedCVM {
 			broker2ConnectedTo.add(Broker3GossipInboundPortURI);
 			
 			// Broker creation
-			uriBroker2 = AbstractComponent.createComponent(
+			BROKER2_URI = AbstractComponent.createComponent(
 					Broker.class.getCanonicalName(),
-					new Object[] {2, broker2Postion, nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, nbThreads, nbSchedulableThreads, 
-							nbFreeLoadersThreads, nbUnloadersThreads, nbSendersThreads, nbGossipThreads,
-							Broker2GossipInboundPortURI, broker2OutboundPorts, broker2ConnectedTo});
-			assert this.isDeployedComponent(uriBroker2);
-			this.toggleTracing(uriBroker2);
+					new Object[] {2, broker2Postion, nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, brokerNbThreads, 
+							brokerNbSchedulableThreads, brokerNbFreeLoadersThreads, brokerNbUnloadersThreads, brokerNbSendersThreads, 
+							brokerNbGossipThreads, Broker2GossipInboundPortURI, broker2OutboundPorts, broker2ConnectedTo});
+			assert this.isDeployedComponent(BROKER2_URI);
+			this.toggleTracing(BROKER2_URI);
 			
 			// Creation of second MeteoStation
-			uriMS2 = AbstractComponent.createComponent(
+			MS2_URI = AbstractComponent.createComponent(
 					MeteoStation.class.getCanonicalName(),
-					new Object[] { MS2ReceivingInboundPortURI, rc, nbThreads, nbSchedulableThreads, station2Position, uriMS2, testScenario, 2});
-			assert this.isDeployedComponent(uriMS2);
-			this.toggleTracing(uriMS2);
+					new Object[] {2, MS2_URI, MS2ReceivingInboundPortURI, rc, clientNbThreads, clientNbSchedulableThreads, 
+							station2Position, testScenario});
+			assert this.isDeployedComponent(MS2_URI);
+			this.toggleTracing(MS2_URI);
 
 		} else if (thisJVMURI.equals(JVMbroker3)) {
 			
@@ -385,20 +420,20 @@ public class DCVMSimpleTest extends AbstractDistributedCVM {
 			broker3ConnectedTo.add(Broker2GossipInboundPortURI);
 			
 			// Broker creation
-			uriBroker3 = AbstractComponent.createComponent(
+			BROKER3_URI = AbstractComponent.createComponent(
 					Broker.class.getCanonicalName(),
-					new Object[] {3, broker3Postion, nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, nbThreads, nbSchedulableThreads, 
-							nbFreeLoadersThreads, nbUnloadersThreads, nbSendersThreads, nbGossipThreads,
-							Broker3GossipInboundPortURI, broker3OutboundPorts, broker3ConnectedTo});
-			assert this.isDeployedComponent(uriBroker3);
-			this.toggleTracing(uriBroker3);
+					new Object[] {3, broker3Postion, nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, brokerNbThreads, 
+							brokerNbSchedulableThreads, brokerNbFreeLoadersThreads, brokerNbUnloadersThreads, brokerNbSendersThreads, 
+							brokerNbGossipThreads, Broker3GossipInboundPortURI, broker3OutboundPorts, broker3ConnectedTo});
+			assert this.isDeployedComponent(BROKER3_URI);
+			this.toggleTracing(BROKER3_URI);
 			
 			// Creation of 1 WindTurbine, spatially between both MeteoStations
-			uriWindTurbine = AbstractComponent.createComponent(WindTurbine.class.getCanonicalName(),
-					new Object[] { WindTurbineReceivingInboundPortURI, rc, nbThreads, nbSchedulableThreads, windTurbinePosition, maxWorkingLevelWT, 
-							uriWindTurbine, 1, windTurbineWindFilter, windTurbineAlertFilter});
-			assert this.isDeployedComponent(uriWindTurbine);
-			this.toggleTracing(uriWindTurbine);
+			WT_URI = AbstractComponent.createComponent(WindTurbine.class.getCanonicalName(),
+					new Object[] {1, WT_URI, WindTurbineReceivingInboundPortURI, rc, clientNbThreads, clientNbSchedulableThreads, 
+							windTurbinePosition, maxWorkingLevelWT, false, windTurbineWindFilter, windTurbineAlertFilter, testScenario});
+			assert this.isDeployedComponent(WT_URI);
+			this.toggleTracing(WT_URI);
 
 		} else {
 			System.err.println("Unknown JVM URI... " + thisJVMURI);

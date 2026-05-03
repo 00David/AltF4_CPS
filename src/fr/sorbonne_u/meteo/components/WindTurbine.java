@@ -61,10 +61,23 @@ public class WindTurbine extends Client {
 	/** The test scenario followed by the component, if there is one. */
 	protected final TestScenario testScenario;
 	
-	/** The component registers itself on the "channel0" during execute() with this filter. */
+	/** 
+	 * Indicates if the wind turbine must subscribe to default channels 'channel0' and 'channel1' on execute().<br>
+	 * True for non-distributed test scenarios, false for distributed scenarios because otherwise we could have
+	 * subscription gossip messages propagating faster than registration gossip messages during setup, leading to errors.
+	 */
+	protected boolean subscriptionOnSetup;
+	
+	/** 
+	 * The component registers itself on the "channel0" during execute() with this filter, if {@code subscriptionOnSetup == true}. 
+	 * Otherwise stays null.
+	 */
 	protected MessageFilterI filterChannel0;
 	
-	/** The component registers itself on the "channel1" during execute() with this filter. */
+	/** 
+	 * The component registers itself on the "channel1" during execute() with this filter, if {@code subscriptionOnSetup == true}. 
+	 * Otherwise stays null.
+	 */
 	protected MessageFilterI filterChannel1;
 	
 	// Internal datas
@@ -135,34 +148,36 @@ public class WindTurbine extends Client {
      * 
      * <p><strong>Contract</strong></p>
      * <pre>
+	 * pre	{@code reflectionInboundPortURI != null && !reflectionInboundPortURI.isEmpty()}
      * pre  {@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
      * pre	{@code rc != null}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
      * pre  {@code windTurbinePos != null}
      * pre  {@code maxWorkingLevel != null}
-	 * pre	{@code reflectionInboundPortURI != null && !reflectionInboundPortURI.isEmpty()}
-	 * pre  {@code testScenario != null}
 	 * pre  {@code filterChannel0 != null && filterChannel01!= null}
+	 * pre  {@code testScenario != null}
      * post {@code true} // no postcondition.
      * </pre>
      * 
+	 * @param id						  	A number identifying the component, just for tracer window.
+	 * @param reflectionInboundPortURI	  	URI of the reflection inbound port to be created in this component.
      * @param receivingInboundPortURI     	URI of the inbound port providing {@link ReceivingCI}.
 	 * @param rc			  		 	  	The registration class of the component.
 	 * @param nbThreads					  	Number of threads to be created in the component pool.
 	 * @param nbSchedulableThreads		  	Number of threads to be created in the component schedulable pool.
      * @param windTurbinePos				The position of the wind turbine.
      * @param maxWorkingLevel             	Maximum alert level (inclusive) at which the turbine operates.
-	 * @param reflectionInboundPortURI	  	URI of the reflection inbound port to be created in this component.
-	 * @param testScenario				  	Test scenario in which this component participate.
-	 * @param id						  	A number identifying the component, just for tracer window.
+	 * @param subscriptionOnSetup			Indicates if the wind turbine must subscribe to default channels 'channel0' and 'channel1' on execute.
 	 * @param filterChannel0			  	Filter used to register during {@code execute} method on the "channel0".
 	 * @param filterChannel1			  	Filter used to register during {@code execute} method on the "channel1".
+	 * @param testScenario				  	Test scenario in which this component participate.
      * @throws Exception                  	If a problem occurs during initialization or port publication.
      */
-	protected WindTurbine(String receivingInboundPortURI, RegistrationClass rc, int nbThreads, int nbSchedulableThreads, 
-			PositionData windTurbinePos, LevelI maxWorkingLevel, String reflectionInboundPortURI, TestScenario testScenario, int id, 
-			MessageFilterI filterChannel0, MessageFilterI filterChannel1) throws Exception {
-		super(receivingInboundPortURI, rc, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
+	protected WindTurbine(int id, String reflectionInboundPortURI, String receivingInboundPortURI, RegistrationClass rc, 
+			int nbThreads, int nbSchedulableThreads, PositionData windTurbinePos, LevelI maxWorkingLevel, 
+			boolean subscriptionOnSetup, MessageFilterI filterChannel0, MessageFilterI filterChannel1, TestScenario testScenario) 
+					throws Exception {
+		super(reflectionInboundPortURI, receivingInboundPortURI, rc, nbThreads, nbSchedulableThreads);
 		
 		// Some preconditions are checked inside the super-constructor while others are checked here
 		assert (windTurbinePos != null) : 
@@ -179,6 +194,7 @@ public class WindTurbine extends Client {
 		this.windTurbinePos = windTurbinePos;
 		this.maxWorkingLevel = maxWorkingLevel;
 		this.testScenario = testScenario;
+		this.subscriptionOnSetup = subscriptionOnSetup;
 		this.filterChannel0 = filterChannel0;
 		this.filterChannel1 = filterChannel1;
 		
@@ -194,32 +210,33 @@ public class WindTurbine extends Client {
      * 
      * <p><strong>Contract</strong></p>
      * <pre>
+	 * pre	{@code reflectionInboundPortURI != null && !reflectionInboundPortURI.isEmpty()}
      * pre  {@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
      * pre	{@code rc != null}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
      * pre  {@code windTurbinePos != null}
      * pre  {@code maxWorkingLevel != null}
-	 * pre	{@code reflectionInboundPortURI != null && !reflectionInboundPortURI.isEmpty()}
 	 * pre  {@code filterChannel0 != null && filterChannel01!= null}
      * post {@code true} // no postcondition.
      * </pre>
      * 
+	 * @param id						  	A number identifying the component, just for tracer window.
+	 * @param reflectionInboundPortURI	  	URI of the reflection inbound port to be created in this component.
      * @param receivingInboundPortURI     	URI of the inbound port providing {@link ReceivingCI}.
 	 * @param rc			  		 	  	The registration class of the component.
 	 * @param nbThreads					  	Number of threads to be created in the component pool.
 	 * @param nbSchedulableThreads		  	Number of threads to be created in the component schedulable pool.
      * @param windTurbinePos 				The position of the wind turbine.
      * @param maxWorkingLevel             	Maximum alert level (inclusive) at which the turbine operates.
-	 * @param reflectionInboundPortURI	  	URI of the reflection inbound port to be created in this component.
-	 * @param id						  	A number identifying the component, just for tracer window.
+	 * @param subscriptionOnSetup			Indicates if the wind turbine must subscribe to default channels 'channel0' and 'channel1' on execute.
 	 * @param filterChannel0			  	Filter used to register during {@code execute} method on the "channel0".
 	 * @param filterChannel1			  	Filter used to register during {@code execute} method on the "channel1".
      * @throws Exception                  	If a problem occurs during initialization or port publication.
      */
-	protected WindTurbine(String receivingInboundPortURI, RegistrationClass rc, int nbThreads, int nbSchedulableThreads, 
-			PositionData windTurbinePos, LevelI maxWorkingLevel, String reflectionInboundPortURI, int id, 
-			MessageFilterI filterChannel0, MessageFilterI filterChannel1) throws Exception {
-		super(receivingInboundPortURI, rc, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
+	protected WindTurbine(int id, String reflectionInboundPortURI, String receivingInboundPortURI, RegistrationClass rc, 
+			int nbThreads, int nbSchedulableThreads, PositionData windTurbinePos, LevelI maxWorkingLevel, 
+			boolean subscriptionOnSetup, MessageFilterI filterChannel0, MessageFilterI filterChannel1) throws Exception {
+		super(reflectionInboundPortURI, receivingInboundPortURI, rc, nbThreads, nbSchedulableThreads);
 		
 		// Some preconditions are checked inside the super-constructor while others are checked here
 		assert (windTurbinePos != null) : 
@@ -234,6 +251,7 @@ public class WindTurbine extends Client {
 		this.windTurbinePos = windTurbinePos;
 		this.maxWorkingLevel = maxWorkingLevel;
 		this.testScenario = null;
+		this.subscriptionOnSetup = subscriptionOnSetup;
 		this.filterChannel0 = filterChannel0;
 		this.filterChannel1 = filterChannel1;
 		
@@ -258,13 +276,15 @@ public class WindTurbine extends Client {
 		assert (registrationPlugin.getBrokerPublishingPortURI() != null);
 		this.logMessage("WindTurbine registered");
 		
-        // Wind data subscription
-        subscriptionPlugin.subscribe("channel0", filterChannel0);
-        this.logMessage("Thread "+Thread.currentThread().getId()+": WindTurbine subscribed to channel0");
+		if (subscriptionOnSetup) {
+	        // Wind data subscription
+	        subscriptionPlugin.subscribe("channel0", filterChannel0);
+	        this.logMessage("Thread "+Thread.currentThread().getId()+": WindTurbine subscribed to channel0");
 
-        // Alert data subscription
-        subscriptionPlugin.subscribe("channel1", filterChannel1);
-        this.logMessage("Thread "+Thread.currentThread().getId()+": WindTurbine subscribed to channel1");
+	        // Alert data subscription
+	        subscriptionPlugin.subscribe("channel1", filterChannel1);
+	        this.logMessage("Thread "+Thread.currentThread().getId()+": WindTurbine subscribed to channel1");
+		}
         
 		// Install the privileged plug-in if it is allowed.
 		if (this.registrationClass == RegistrationClass.STANDARD || this.registrationClass == RegistrationClass.PREMIUM) {
@@ -491,7 +511,7 @@ public class WindTurbine extends Client {
 	 * @param channel		The channel from which the turbine must unsubscribe.
 	 * @throws Exception	If an error occurs while unsubscribing.
 	 */
-	public void unsubscibeFromChannel(String channel)  throws Exception  {
+	public void unsubscribeFromChannel(String channel)  throws Exception  {
 		// Precondition check
 		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
 		
@@ -516,7 +536,7 @@ public class WindTurbine extends Client {
 	 * @param filter		The filter to apply on the {@code channel}
 	 * @throws Exception	If an error occurs while subscribing.
 	 */
-	public void subscibeToChannel(String channel, MessageFilterI filter)  throws Exception  {
+	public void subscribeToChannel(String channel, MessageFilterI filter)  throws Exception  {
 		// Precondition check
 		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
 		assert(filter != null) : new PreconditionException("filter cannot be null");
