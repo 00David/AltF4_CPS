@@ -448,7 +448,7 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 				Instant iNow = Instant.now();
 				this.receivedMessages.removeIf(msg -> {
 					Duration duration = Duration.between(msg.timestamp(), iNow);
-					return duration.toMillis() > MAX_SECONDS_DIFF;
+					return duration.toMillis() > MAX_SECONDS_DIFF*1000;
 				});
 			}
 		}
