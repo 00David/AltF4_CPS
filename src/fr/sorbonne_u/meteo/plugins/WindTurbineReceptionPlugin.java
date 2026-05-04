@@ -72,8 +72,10 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 			windTurbine.considerNewAlert((MeteoAlert) payload);
 			
 		// Handling of received wind data while in safe mode (nothing)
-		} else {
+		} else if (windTurbine.inSafeMode()) {
 			
+		} else {
+			System.err.println("Unknown received message class");
 		}
 	}
 
@@ -107,8 +109,10 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 				windTurbine.considerNewAlert((MeteoAlert) payload);
 				
 			// Handling of received wind data while in safe mode (nothing)
-			} else {
+			} else if (windTurbine.inSafeMode()) {
 				
+			} else {
+				System.err.println("Unknown received message class");
 			}
 		}
 	}
