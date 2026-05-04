@@ -2,16 +2,14 @@ package fr.sorbonne_u.clients.connectors;
 
 import java.util.ArrayList;
 
-import fr.sorbonne_u.broker.components.Broker;
-import fr.sorbonne_u.broker.ports.BrokerPublishingInboundPort;
 import fr.sorbonne_u.components.connectors.AbstractConnector;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
-import fr.sorbonne_u.clients.components.Client;
+import fr.sorbonne_u.clients.ports.PublishingOutboundPort;
 
 /**
- * Connector between an outbound port of the {@link Client} component and an inbound port of a {@link Broker}.<br>
- * Delegates message publication to the {@link BrokerPublishingInboundPort}
+ * Connector between a {@link PublishingOutboundPort} and a port implementing PublishingCI, 
+ * delegates message publication to this port.
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -21,9 +19,9 @@ import fr.sorbonne_u.clients.components.Client;
  * @author Kevin Tang
  * @author David Vadimon
  */
-public class ClientPublishingServiceConnector extends AbstractConnector implements PublishingCI{
+public class PublishingServiceConnector extends AbstractConnector implements PublishingCI {
 	
-	// Precondition and postcondition verifications are delegated to the the BrokerPublishingInboundPort
+	// Precondition and postcondition verifications are delegated to the the port implementing PublishingCI
 	
 	@Override
 	public void publish(String receptionPortURI, String channel, MessageI message) throws Exception {

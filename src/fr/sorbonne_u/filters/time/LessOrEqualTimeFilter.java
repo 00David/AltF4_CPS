@@ -35,7 +35,10 @@ public class LessOrEqualTimeFilter implements TimeFilterI{
 	 * @throws IllegalArgumentException		if {@code timestampFilter} == {@code null}.
 	 */
 	public LessOrEqualTimeFilter(Instant timestampFilter) {
-        if (timestampFilter == null) throw new IllegalArgumentException("Timestamp cannot be null");
+		// Precondition check
+        if (timestampFilter == null) 
+        	throw new IllegalArgumentException("Timestamp cannot be null");
+        
 		this.timestampFilter = timestampFilter;
 	}
 	

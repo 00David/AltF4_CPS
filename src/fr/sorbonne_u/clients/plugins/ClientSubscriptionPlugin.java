@@ -10,9 +10,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
+import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.clients.components.Client;
-import fr.sorbonne_u.clients.ports.ClientReceivingPluginInboundPort;
-import fr.sorbonne_u.clients.ports.ClientRegistrationOutboundPort;
+import fr.sorbonne_u.clients.ports.ClientReceivingInboundPort;
 import fr.sorbonne_u.components.AbstractPlugin;
 import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.cps.pubsub.exceptions.NotSubscribedChannelException;
@@ -27,12 +27,22 @@ import fr.sorbonne_u.cps.pubsub.plugins.interfaces.ClientSubscriptionI;
 import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
- * The {@link Client} plugin having a {@link ClientReceivingPluginInboundPort}.
+ * The {@link Client} plug-in having a {@link ClientReceivingInboundPort}.
+ * 
+ * <p>
+ * Any concrete {@link Client} must, in its constructor, set up either this ClientSubscriptionPlugin
+ * using the {@link Client#setupSubscriptionPlugin} method, or any other subclass with an equivalent setup.
+ * </p>
+ * 
+ * <p>
+ * Despite having the possibility of being abstract to let concrete sub-classes implement a personalized behavior
+ * on standard reception methods, this is not the case because the contained {@link ClientReceivingInboundPort}
+ * must necessarily be published for just registering on a {@link Broker}, without even having to deal with receptions.
+ * <p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
- * invariant	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
- * invariant	{@code registrationOutboundPort != null}
+ * invariant	{@code registrationPlugin != null && registrationPlugin.isInitialised()}
  * invariant	{@code futureMessages != null}
  * </pre>
  * 
@@ -42,43 +52,38 @@ import fr.sorbonne_u.exceptions.PreconditionException;
 public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSubscriptionI {
 
 	private static final long serialVersionUID = -1472841763925529259L;
+
+	/** 
+	 * Registration plug-in, owning an outbound port requiring {@link RegistrationCI} interface. 
+	 * Some local services are delegated to it.
+	 */
+	protected final ClientRegistrationPlugin registrationPlugin;
 	
 	// RECEPTION
 	
-	/** {@link Client} reception inbound port URI */
-	protected final String receivingInboundPortURI;
-	
 	/** Reception inbound port, set up after plugin installation + initialization */
-	protected ClientReceivingPluginInboundPort receivingInboundPort;
-	
-	// REGISTRATION
-	
-	/** Registration outbound port, owned by {@link ClientRegistrationPlugin} */
-	protected final ClientRegistrationOutboundPort registrationOutboundPort;
+	protected ClientReceivingInboundPort receivingInboundPort;
 	
 	/** Mapping : channel name -> a queue of futures, each waiting a message from the channel. */
 	protected final ConcurrentHashMap<String, ConcurrentLinkedQueue<CompletableFuture<MessageI>>> futureQueues = new ConcurrentHashMap<>();
 	
 	/**
-	 * Creates a {@link Client} subscription + reception plugin.
+	 * Creates a {@link Client} subscription + reception plug-in.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
-	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
-	 * pre	{@code registrationOutboundPort != null}
+	 * pre	{@code registrationPlugin != null && registrationPlugin.isInitialised()}
 	 * post	class invariants satisfied
 	 * </pre>
 	 * 
-	 * @param receivingInboundPortURI		the client inbound port URI offering {@link ReceivingCI} interface, used for creating the {@link ClientReceivingPluginInboundPort}.
-	 * @param registrationOutboundPort		the client outbound port requiring {@link RegistrationCI} interface.
+	 * @param registrationPlugin		The client registration plug-in owning an outbound port requiring {@link RegistrationCI} interface.
 	 */
-	public ClientSubscriptionPlugin(String receivingInboundPortURI, ClientRegistrationOutboundPort registrationOutboundPort){
+	public ClientSubscriptionPlugin(ClientRegistrationPlugin registrationPlugin){
 		// Precondition checks
-		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : new PreconditionException("receivingInboundPortURI cannot be null or empty");
-		assert(registrationOutboundPort != null) : new PreconditionException("registrationOutboundPort cannot be null");
+		assert(registrationPlugin != null  && registrationPlugin.isInitialised()) : 
+			new PreconditionException("registrationPlugin must be initialised");
 		
-		this.receivingInboundPortURI = receivingInboundPortURI;
-		this.registrationOutboundPort = registrationOutboundPort;
+		this.registrationPlugin = registrationPlugin;
 	}
 	
 	// -------------------------------------------------------------------------
@@ -94,28 +99,30 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	
 	@Override
 	public void	initialise() throws Exception {
-		this.receivingInboundPort = new ClientReceivingPluginInboundPort(receivingInboundPortURI, this.getOwner(), this.getPluginURI());
-		this.receivingInboundPort.publishPort();
 		super.initialise();
+		Client owner = (Client)this.getOwner();
+		this.receivingInboundPort = new ClientReceivingInboundPort(owner.receivingInboundPortURI, (Client)this.getOwner(), this.getPluginURI());
+		this.receivingInboundPort.publishPort();
 	}
 	
 	@Override
 	public void uninstall() throws Exception {
 		this.receivingInboundPort.unpublishPort();
 		this.removeOfferedInterface(ReceivingCI.class);
+		super.uninstall();
 	}
 	
 	// -------------------------------------------------------------------------
 	// Plug-in services implementation
 	// -------------------------------------------------------------------------
 
-	// Precondition and postcondition verifications are delegated to the port used
+	// Precondition and postcondition verifications are delegated to the registration plug-in used,
 	// except for reception methods (on receivingInboundPort)
 	
 	@Override
 	public boolean channelExist(String channel) {
 		try {
-			return registrationOutboundPort.channelExist(channel);
+			return registrationPlugin.channelExist(channel);
 		} catch (Exception e) {
 			e.printStackTrace();
 			return false;
@@ -125,7 +132,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	@Override
 	public boolean channelAuthorised(String channel) throws UnknownClientException, UnknownChannelException {
 		try {
-			return registrationOutboundPort.channelAuthorised(receivingInboundPortURI, channel);
+			return registrationPlugin.channelAuthorised(channel);
 		} catch (UnknownClientException | UnknownChannelException e) {
 			throw e;
 		} catch (Exception e) {
@@ -137,7 +144,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	@Override
 	public boolean subscribed(String channel) throws UnknownClientException, UnknownChannelException {
 		try {
-			return registrationOutboundPort.subscribed(receivingInboundPortURI, channel);
+			return registrationPlugin.subscribed(channel);
 		} catch (UnknownClientException | UnknownChannelException e) {
 			throw e;
 		} catch (Exception e) {
@@ -150,7 +157,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	public void subscribe(String channel, MessageFilterI filter)
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
 		try {
-			registrationOutboundPort.subscribe(receivingInboundPortURI, channel, filter);
+			registrationPlugin.subscribe(channel, filter);
 		} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException e) {
 			throw e;
 		} catch (Exception e) {
@@ -162,7 +169,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	public void unsubscribe(String channel) throws UnknownClientException, UnknownChannelException,
 			UnauthorisedClientException, NotSubscribedChannelException {
 		try {
-			registrationOutboundPort.unsubscribe(receivingInboundPortURI, channel);
+			registrationPlugin.unsubscribe(channel);
 		} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException | NotSubscribedChannelException e) {
 			throw e;
 		} catch (Exception e) {
@@ -174,7 +181,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	public void modifyFilter(String channel, MessageFilterI filter) throws UnknownClientException,
 			UnknownChannelException, UnauthorisedClientException, NotSubscribedChannelException {
 		try {
-			registrationOutboundPort.modifyFilter(receivingInboundPortURI, channel, filter);
+			registrationPlugin.modifyFilter(channel, filter);
 		} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException | NotSubscribedChannelException e) {
 			throw e;
 		} catch (Exception e) {
@@ -257,8 +264,8 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 		Client client = (Client)this.getOwner();
 		client.logMessage("Thread "+Thread.currentThread().getId()+": Waiting next message from channel '" + channel + "'");
 		
-		// Locks the whole map to ensure that the future queue for the channel exists
-		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = getOrCreateChannelFutureQueue(futureQueues, channel);
+		// Gets the future queue for the channel
+		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = getOrCreateChannelFutureQueue(channel);
 		
 		// Creates and inserts the future into the queue
 		CompletableFuture<MessageI> future = new CompletableFuture<>();
@@ -292,8 +299,8 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 		Client client = (Client)this.getOwner();
 		client.logMessage("Thread "+Thread.currentThread().getId()+": Waiting next message with a timeout ("+d.getSeconds()+"s) from channel '" + channel + "'");
 		
-		// Locks the whole map to ensure that the future queue for the channel exists
-		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = getOrCreateChannelFutureQueue(futureQueues, channel);
+		// Gets the future queue for the channel
+		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = getOrCreateChannelFutureQueue(channel);
 		
 		// Creates and inserts the future into the queue
 		CompletableFuture<MessageI> future = new CompletableFuture<>();
@@ -329,8 +336,8 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 		Client client = (Client)this.getOwner();
 		client.logMessage("Thread "+Thread.currentThread().getId()+": Creates a message future for the channel '" + channel + "'");
 		
-		// Locks the whole map to ensure that the future queue for the channel exists
-		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = getOrCreateChannelFutureQueue(futureQueues, channel);
+		// Gets the future queue for the channel
+		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = getOrCreateChannelFutureQueue(channel);
 		
 		// Creates and inserts the future into the queue
 		CompletableFuture<MessageI> future = new CompletableFuture<>();
@@ -341,46 +348,31 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	}
 	
 	// -------------------------------------------------------------------------
-	// Plug-in getters for the future queues
+	// Internal helper method
 	// -------------------------------------------------------------------------
 	
 	/**
-	 * Returns a mapping : channel name -> a queue of futures, each future waiting a message from the channel.<br>
-	 * Used by the {@link ClientReceivingPluginInboundPort}.
+	 * Returns a multi-thread safe queue, able to contain futures waiting to be completed 
+	 * on message reception from the desired {@code channel}.<br>
+	 * If the queue does not already exist, it is created.
 	 * 
-	 * <p><strong>Contract</strong></p>
-	 * <pre>
-	 * pre	{@code true} // no precondition
-	 * post	{@code return != null}
-	 * </pre>
-	 * 
-	 * @return	a mapping : channel name -> a queue of futures, each future waiting a message from the channel.
-	 */
-	public ConcurrentHashMap<String, ConcurrentLinkedQueue<CompletableFuture<MessageI>>> getFutureQueues() {
-		return futureQueues;
-	}
-	
-	/**
-	 * Returns a queue of futures, each future waiting a message from the {@code channel}.<br>
-	 * Used by the {@link ClientReceivingPluginInboundPort}.
+	 * <p>
+	 * This method locks the whole {@code this.futureQueues} map, to ensure that the future 
+	 * queue for the channel exists.
+	 * </p>
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre	{@code channel != null && !channel.isEmpty()}
-	 * pre	{@code futureQueues != null}
 	 * post	{@code return != null}
 	 * </pre>
-	 * 
-	 * @param futureQueues		a queue of futures, each future waiting a message from the {@code channel}.
+
 	 * @param channel			name of the channel from which a message is waited to be received.
-	 * 
-	 * @return	a mapping : channel name -> a queue of futures, each future waiting a message from the channel.
+	 * @return					a multi-thread safe queue that may contain futures waiting a message from the {@code channel}.
 	 */
-	public ConcurrentLinkedQueue<CompletableFuture<MessageI>> getOrCreateChannelFutureQueue
-		(ConcurrentHashMap<String, ConcurrentLinkedQueue<CompletableFuture<MessageI>>> futureQueues, String channel) {
-		// Precondition checks
+	private ConcurrentLinkedQueue<CompletableFuture<MessageI>> getOrCreateChannelFutureQueue(String channel) {
+		// Precondition check
 		assert(channel != null && !channel.isEmpty());
-		assert(futureQueues != null);
 		
 		synchronized(futureQueues) {
 			ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = futureQueues.get(channel);
@@ -391,6 +383,72 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 			
 			// Postcondition verified by construction 
 			return channelFutureMessagesQueue;
+		}
+	}
+	
+	// -------------------------------------------------------------------------
+	// Plug-in reception handling
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Handles the reception of incoming messages from the given {@code channel}.
+	 * <p>
+	 * The method gets the associated future queue and processes messages as follows :
+	 * </p>
+	 * <ul>
+	 *   <li>
+	 *     While futures are waiting in the queue, each incoming message is used to
+	 *     complete the next future, which is then removed from the queue.
+	 *   </li>
+	 *   <li>
+	 *     Once no more futures are waiting, the remaining messages are forwarded
+	 *     to the appropriate {@code receive} method.
+	 *   </li>
+	 * </ul>
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * pre	{@code messages != null && messages.size() > 0}
+	 * pre	{@code Stream.of(messages).allMatch(m -> m != null)}
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 *
+	 * @param channel		name of the channel from which {@code messsage} is received.
+	 * @param messages		array of messages received by the component.
+	 */
+	public void handleIncomingReception(String channel, MessageI[] messages) {
+		// Precondition checks
+		assert(channel != null && !channel.isEmpty());
+		assert(messages != null && messages.length > 0);
+		assert(Stream.of(messages).allMatch(m -> m != null));
+
+		// Gets the future queue for the channel
+		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = getOrCreateChannelFutureQueue(channel);
+
+		for (int i=0; i<messages.length; i++) {
+			MessageI message = messages[i];
+			
+			// Removes the next future from the queue
+			CompletableFuture<MessageI> future = channelFutureMessagesQueue.poll();
+			
+			if (future != null) { // If it is not null : completes it
+				future.complete(message);
+			
+			} else { // Else : redirects the remaining incoming messages to a receive method
+				MessageI[] remainingMessages = new MessageI[messages.length-i];
+				for (int j=i; j<messages.length; j++) {
+					remainingMessages[j-i] = messages[j];
+				}
+				
+				// Delegation through runTask
+				if (remainingMessages.length == 1) {
+					this.getOwner().runTask(client -> receive(channel, remainingMessages[0]));
+				} else {
+					this.getOwner().runTask(client -> receive(channel, remainingMessages));
+				}
+				break;
+			}
 		}
 	}
 	

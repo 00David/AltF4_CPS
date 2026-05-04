@@ -41,9 +41,9 @@ public abstract class AbstractMultiValuesFilter implements MultiValuesFilterI {
 	 */
 	public AbstractMultiValuesFilter(String[] propertyNames) {
 		// Precondition checks
-        if (propertyNames == null || propertyNames.length < 2) {
+        if (propertyNames == null || propertyNames.length < 2)
             throw new IllegalArgumentException( "A multi-values filter must target at least two properties");
-        }
+        
 		this.propertyNames = propertyNames;
 	}
 	

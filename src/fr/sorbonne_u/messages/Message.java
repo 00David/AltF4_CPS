@@ -24,13 +24,13 @@ public class Message implements MessageI {
 	private static final long serialVersionUID = -6675042347367398334L;
 	
 	/** The payload of the message */
-	private Serializable payload;
+	protected Serializable payload;
 	
 	/** The timeStamp of the message, initialized with the message creation time (not while setting the payload) */
-	private Instant timeStamp;
+	protected Instant timeStamp;
 	
 	/** A mapping : name of a message's property -> the corresponding property object */
-	private HashMap<String, PropertyI> properties;
+	protected HashMap<String, PropertyI> properties;
 	
 	/**
 	 * Creates an empty message.
@@ -54,7 +54,8 @@ public class Message implements MessageI {
 	@Override
 	public boolean propertyExists(String name) {
 		// Precondition checks
-		if (name == null || name.isEmpty()) throw new IllegalArgumentException("A name cannot be null or empty");
+		if (name == null || name.isEmpty()) 
+			throw new IllegalArgumentException("A name cannot be null or empty");
 		
 		return this.properties.containsKey(name);
 	}
@@ -66,8 +67,10 @@ public class Message implements MessageI {
 	@Override
 	public void putProperty(String name, Serializable value) {
 		// Precondition checks
-		if (name == null || name.isEmpty()) throw new IllegalArgumentException("A name cannot be null or empty");
-		if (propertyExists(name)) throw new IllegalArgumentException("A property already has that name");
+		if (name == null || name.isEmpty()) 
+			throw new IllegalArgumentException("A name cannot be null or empty");
+		if (propertyExists(name)) 
+			throw new IllegalArgumentException("A property already has that name");
 		
 		this.properties.put(name, new Property(name, value));
 		assert(propertyExists(name)); // Postcondition check
@@ -80,9 +83,11 @@ public class Message implements MessageI {
 	@Override
 	public void removeProperty(String name) throws UnknownPropertyException {
 		// Precondition checks
-		if (name == null || name.isEmpty()) throw new IllegalArgumentException("A name cannot be null or empty");
+		if (name == null || name.isEmpty()) 
+			throw new IllegalArgumentException("A name cannot be null or empty");
 		
-		if(!propertyExists(name)) throw new UnknownPropertyException("Cannot remove '" + name + "' property because it does not exists");
+		if(!propertyExists(name)) 
+			throw new UnknownPropertyException("Cannot remove '" + name + "' property because it does not exists");
 		
 		this.properties.remove(name);
 		assert(!propertyExists(name)); // Postcondition check
@@ -95,10 +100,11 @@ public class Message implements MessageI {
 	@Override
 	public Serializable getPropertyValue(String name) throws UnknownPropertyException {
 		// Precondition checks
-		if (name == null || name.isEmpty()) throw new IllegalArgumentException("A name cannot be null or empty");
+		if (name == null || name.isEmpty()) 
+			throw new IllegalArgumentException("A name cannot be null or empty");
 		
 		if (propertyExists(name)) {
-			return this.properties.get(name);
+			return this.properties.get(name).getValue();
 		} else {
 			throw new UnknownPropertyException("Cannot get value of '" + name + "' property because it does not exists");
 		}

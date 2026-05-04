@@ -16,6 +16,11 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * Created by the {@link Broker}, handles loading (copies of) messages into a specific channel, 
  * and submits an {@link UnloaderTask} for unloading those messages.
  * 
+ * <p>
+ * An {@link UnknownChannelException} can be thrown while checking if the channel still exists before loading, 
+ * in that case an error log appears both in the Broker log window and on the console.
+ * </p>
+ * 
  * <p><strong>Invariants</strong></p>
  * <pre>
  * invariant	{@code broker != null}
@@ -88,7 +93,7 @@ public class LoaderTask extends AbstractTask {
 			if (chanInfos == null) throw new UnknownChannelException("Channel "+channel+" doesn't exist anymore.");
 			
 			// The maximum number of messages to unload, PER UNLOADER
-			int nbMaxUnloadMessages = UnloaderTask.NB_MAX_UNLOAD_MSG_FREE_CHANNEL;
+			int nbMaxUnloadMessages = UnloaderTask.NB_MAX_UNLOAD_MSG_NORMAL_CHANNEL;
 			
 			// If the creator is still registered on the system, and is standard or premium, then the maximum number increases
 			String channelCreator = chanInfos.getCreator();
@@ -116,7 +121,8 @@ public class LoaderTask extends AbstractTask {
 			
 			//broker.logMessage("LOADER "+Thread.currentThread().getId()+" ended task") ;
 		} catch (UnknownChannelException e) {
-			System.err.println("Thread "+Thread.currentThread().getId()+": Loader UnknownChannelException : "+e.getMessage());
+			System.err.println("Broker"+broker.id+", Thread "+Thread.currentThread().getId()+": Loader UnknownChannelException : "+e.getMessage());
+			broker.logMessage("[ERROR] Thread "+Thread.currentThread().getId()+": Loader UnknownChannelException : "+e.getMessage());
 		}
 	}
 }

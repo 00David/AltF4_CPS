@@ -17,6 +17,11 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * Created by a {@link LoaderTask}, handles unloading messages from a specific channel, 
  * and submits {@link SenderTask}s for sending those messages to targeted clients.
  * 
+ * <p>
+ * An {@link UnknownChannelException} can be thrown while checking if the channel still exists before each individual unloading, 
+ * in that case an error log appears both in the Broker log window and on the console.
+ * </p>
+ * 
  * <p><strong>Invariants</strong></p>
  * <pre>
  * invariant	{@code broker != null}
@@ -47,8 +52,8 @@ public class UnloaderTask extends AbstractTask {
 	/** The maximum number of messages to unload from {@code channel}. */
 	private int nbMaxUnloadMessages;
 	
-	/** The maximum number of unloaded messages when the {@code channel} creator is the {@code broker}, or has unregistered from the system, or is FREE. */
-	public static final int NB_MAX_UNLOAD_MSG_FREE_CHANNEL = 1;
+	/** The maximum number of unloaded messages when the {@code channel} creator is the {@code broker}, or has unregistered from the system. */
+	public static final int NB_MAX_UNLOAD_MSG_NORMAL_CHANNEL = 1;
 	
 	/** The maximum number of unloaded messages when the {@code channel} creator is STANDARD. */
 	public static final int NB_MAX_UNLOAD_MSG_STD_CHANNEL = 5;
@@ -76,10 +81,14 @@ public class UnloaderTask extends AbstractTask {
 	public UnloaderTask(Broker broker, Map<String, ClientBrokerInfos> clientsInfos, ChannelBrokerInfos chanInfos, 
 			String channel, int nbMaxUnloadMessages) {
 		// Precondition checks
-		assert(broker != null) : new PreconditionException("broker cannot be null");
-		assert(clientsInfos != null) : new PreconditionException("clientsInfos cannot be null");
-		assert(chanInfos != null) : new PreconditionException("chanInfos cannot be null");
-		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
+		assert(broker != null) : 
+			new PreconditionException("broker cannot be null");
+		assert(clientsInfos != null) : 
+			new PreconditionException("clientsInfos cannot be null");
+		assert(chanInfos != null) : 
+			new PreconditionException("chanInfos cannot be null");
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
 		
 		this.broker = broker;
 		this.clientsInfos = clientsInfos;
@@ -109,7 +118,9 @@ public class UnloaderTask extends AbstractTask {
 				while (nbMessages < nbMaxUnloadMessages && isUnloading) {
 					
 					// If the channel has been destroyed (with destroyChannelService for instance) : throws an UnknownChannelException
-					if (!broker.channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist anymore (destroyed).");
+					if (!broker.channelExistService(channel)) {
+						throw new UnknownChannelException("Channel "+channel+" doesn't exist anymore (destroyed).");
+					}
 					
 					// Unloads a message
 					MessageI msg = chanInfos.unloadMessage();
@@ -122,8 +133,10 @@ public class UnloaderTask extends AbstractTask {
 					// Gets the channel clients targeted by this message AT THIS MOMENT + updates the map
 					List<String> targetClientsPortURI = chanInfos.targetSubscribers(msg);
 					for (String target : targetClientsPortURI) {
-						if (!targetsMessages.containsKey(target)) targetsMessages.put(target, new ArrayList<>());
-						targetsMessages.get(target).add(msg);
+						if (!targetsMessages.containsKey(target)) { // Creates an ArrayList for the target messages, if not yet existing
+							targetsMessages.put(target, new ArrayList<>());
+						}
+						targetsMessages.get(target).add(msg); // Puts the message in the target messages list
 					}
 				}
 				
@@ -133,7 +146,8 @@ public class UnloaderTask extends AbstractTask {
 
 			//broker.logMessage("UNLOADER "+Thread.currentThread().getId()+" ended task") ;
 		} catch (UnknownChannelException e) {
-			System.err.println("Thread "+Thread.currentThread().getId()+": Unloader UnknownChannelException : "+e.getMessage());
+			System.err.println("Broker"+broker.id+", Thread "+Thread.currentThread().getId()+": Unloader UnknownChannelException : "+e.getMessage());
+			broker.logMessage("[ERROR] Thread "+Thread.currentThread().getId()+": Unloader UnknownChannelException : "+e.getMessage());
 			
 			// If an unloading is interrupted, with for instance a channel destruction,
 			// it will still send unloaded messages currently in its map
@@ -166,7 +180,9 @@ public class UnloaderTask extends AbstractTask {
 			
 			int l = listMessagesToSend.size();
 			MessageI[] messagesToSend = new MessageI[l];
-			for(int i=0; i<l; i++) messagesToSend[i] = listMessagesToSend.get(i);
+			for(int i=0; i<l; i++) {
+				messagesToSend[i] = listMessagesToSend.get(i);
+			}
 			
 			broker.runTask(Broker.SENDERS_POOL_URI, new SenderTask(broker, clientsInfos, channel, targetPortURI, messagesToSend));
 		}

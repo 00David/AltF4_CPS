@@ -2,7 +2,9 @@ package fr.sorbonne_u.broker.components.infos;
 
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.broker.components.infos.exceptions.ChannelNumberNotInitializedException;
-import fr.sorbonne_u.broker.ports.BrokerReceivingOutboundPort;
+import fr.sorbonne_u.broker.components.infos.tests.ClientBrokerInfosTest;
+import fr.sorbonne_u.broker.components.tasks.SenderTask;
+import fr.sorbonne_u.broker.ports.ReceivingOutboundPort;
 import fr.sorbonne_u.clients.components.Client;
 import fr.sorbonne_u.cps.pubsub.exceptions.ChannelQuotaExceededException;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
@@ -15,7 +17,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
  * </p>
  * 
  * <p>
- * In case of multiple threads accessing on the same instance informations that can be modified, a global lock is used :
+ * In case of multiple threads accessing on the same instance informations that can be modified, a global lock is used : 
  * because of having only short operations, it does not cost a lot in terms of performances.
  * </p>
  * 
@@ -29,7 +31,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
  * <ul>
  *   <li>The URI of the client port.</li>
  *   <li>The {@link RegistrationClass} of the client.</li>
- *   <li>The {@link BrokerReceivingOutboundPort}, outbound port towards this client.</li>
+ *   <li>The {@link ReceivingOutboundPort}, outbound port towards this client. {@code null} if the client is not in the same JVM as the Broker.</li>
  *   <li>The number of remaining channels the client can create. When one its channels is destroyed, the number is increased.</li>
  * </ul>
  * 
@@ -58,8 +60,11 @@ public class ClientBrokerInfos {
 	/** The registration class of the client */
 	private RegistrationClass rc;
 	
-	/** The outbound port towards this client */
-	private final BrokerReceivingOutboundPort clientOutboundPort;
+	/** 
+	 * The outbound port towards this client. {@code null} if the client is not in the same JVM as the Broker.<br>
+	 * If the client is subscribed to multiple channels, this same port will always be used for sending him messages.
+	 */
+	private final ReceivingOutboundPort clientOutboundPort;
 	
 	/** The number of remaining channels the client can create */
 	private int nbRemainingChannels;
@@ -78,16 +83,22 @@ public class ClientBrokerInfos {
 	 * 
 	 * @param clientPortURI         				the URI of the client's inbound port offering the {@code ReceivingCI} component interface.
 	 * @param rc                    				the registration class of the client.
-	 * @param clientOutboundPort    				the outbound port of the {@link Broker} requiring the {@code ReceivingCI} interface, associated with the client.
+	 * @param clientOutboundPort    				the outbound port of the {@link Broker} requiring the {@code ReceivingCI} interface, associated with the client. 
+	 * 												{@code null} if the client is not in the same JVM as the Broker.
 	 * @throws IllegalArgumentException 			if a precondition is not satisfied, except for {@code nbMaxChannelsStd} and {@code nbMaxChannelsPrem}.
 	 * @throws ChannelNumberNotInitializedException	if {@code nbMaxChannelsStd} or {@code nbMaxChannelsPrem} have not yet been initialized by the {@link Broker}.
+	 * @throws IllegalArgumentException 			if the given {@code rc} has no switch case here.
 	 */
-	public ClientBrokerInfos(String clientPortURI, RegistrationClass rc, BrokerReceivingOutboundPort clientOutboundPort) {
-		if (clientPortURI == null || clientPortURI.isEmpty()) throw new IllegalArgumentException("A client port URI cannot be null or empty");
-		if (rc == null) throw new IllegalArgumentException("A registration class cannot be null");
+	public ClientBrokerInfos(String clientPortURI, RegistrationClass rc, ReceivingOutboundPort clientOutboundPort) {
+		if (clientPortURI == null || clientPortURI.isEmpty()) 
+			throw new IllegalArgumentException("A client port URI cannot be null or empty");
+		if (rc == null) 
+			throw new IllegalArgumentException("A registration class cannot be null");
 		
-		if (nbMaxChannelsStd < 0) throw new ChannelNumberNotInitializedException("Number of max channels for standard clients cannot be negative");
-		if (nbMaxChannelsPrem < 0) throw new ChannelNumberNotInitializedException("Number of max channels for premium clients cannot be negative");
+		if (nbMaxChannelsStd < 0) 
+			throw new ChannelNumberNotInitializedException("Number of max channels for standard clients cannot be negative");
+		if (nbMaxChannelsPrem < 0) 
+			throw new ChannelNumberNotInitializedException("Number of max channels for premium clients cannot be negative");
 		
 		this.clientPortURI = clientPortURI;
 		this.rc = rc;
@@ -100,9 +111,11 @@ public class ClientBrokerInfos {
 		case STANDARD:
 			this.nbRemainingChannels = nbMaxChannelsStd;
 			break;
-		default:
+		case PREMIUM:
 			this.nbRemainingChannels = nbMaxChannelsPrem;
 			break;
+		default:
+			throw new IllegalArgumentException("Undefined registration class");
 		}
 	}
 	
@@ -150,7 +163,15 @@ public class ClientBrokerInfos {
 	// -------------------------------------------------------------------------
 	
 	/**
-	 * Returns the {@link BrokerReceivingOutboundPort} associated with the client.
+	 * Returns the unique {@link ReceivingOutboundPort} associated with the client. 
+	 * {@code null} if the client is not in the same JVM as the Broker.
+	 * 
+	 * <p>
+	 * This method being used by the {@link Broker}, {@link ClientBrokerInfosTest}, and {@link SenderTask}, each in different packages, 
+	 * having a package visibility for this method would imply to have a package with at least the Broker, this client information class, 
+	 * the client information test class, and the sender task class.<br>
+	 * It would be too incoherent to have such a package mixing Broker logic, test logic and task logic.
+	 * <p>
 	 * 
      * <p><strong>Contract</strong></p>
      * <pre>
@@ -158,9 +179,9 @@ public class ClientBrokerInfos {
      * post {@code != null}
      * </pre>
 	 * 
-	 * @return the client's {@link BrokerReceivingOutboundPort}.
+	 * @return the client's {@link ReceivingOutboundPort}. {@code null} if the client is not in the same JVM as the Broker.
 	 */
-	public BrokerReceivingOutboundPort getOutboundPort() {
+	public ReceivingOutboundPort getOutboundPort() {
 		return clientOutboundPort; // clientOutboundPort cannot not be modified, so no need to protect it from a data race
 	}
 	
@@ -196,7 +217,8 @@ public class ClientBrokerInfos {
 	 */
 	public synchronized void decreaseRemainingChannels() throws ChannelQuotaExceededException{
 		// Precondition check
-		if (nbRemainingChannels == 0) throw new ChannelQuotaExceededException("The number of remaining channels cannot become negative");
+		if (nbRemainingChannels == 0) 
+			throw new ChannelQuotaExceededException("The number of remaining channels cannot become negative");
 			
 		nbRemainingChannels--;
 			
@@ -217,7 +239,8 @@ public class ClientBrokerInfos {
 	 */
 	public synchronized void increaseRemainingChannels() throws ChannelQuotaExceededException{
 		// Precondition check
-		if (rc == RegistrationClass.FREE) throw new ChannelQuotaExceededException("A free client cannot increase its number of remaining channels (0 by default)");
+		if (rc == RegistrationClass.FREE) 
+			throw new ChannelQuotaExceededException("A free client cannot increase its number of remaining channels (0 by default)");
 		
 		nbRemainingChannels++;
 	}

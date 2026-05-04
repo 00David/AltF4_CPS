@@ -1,15 +1,14 @@
 package fr.sorbonne_u.clients.connectors;
 
-import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.broker.ports.BrokerRegistrationInboundPort;
 import fr.sorbonne_u.components.connectors.AbstractConnector;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
-import fr.sorbonne_u.clients.components.Client;
+import fr.sorbonne_u.clients.ports.RegistrationOutboundPort;
 
 /**
- * Connector between an outbound port of the {@link Client} component and an inbound port of a {@link Broker}.<br>
- * Delegates registration to the {@link BrokerRegistrationInboundPort}
+ * Connector between a {@link RegistrationOutboundPort} and a port implementing RegistrationCI, 
+ * delegates registration to the {@link BrokerRegistrationInboundPort}
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -19,9 +18,9 @@ import fr.sorbonne_u.clients.components.Client;
  * @author Kevin Tang
  * @author David Vadimon
  */
-public class ClientRegistrationServiceConnector extends AbstractConnector implements RegistrationCI {
+public class RegistrationServiceConnector extends AbstractConnector implements RegistrationCI {
 
-	// Precondition and postcondition verifications are delegated to the the BrokerRegistrationInboundPort
+	// Precondition and postcondition verifications are delegated to the the port implementing RegistrationCI
 	
 	@Override
 	public boolean registered(String receptionPortURI) throws Exception {

@@ -2,6 +2,7 @@ package fr.sorbonne_u.meteo.tests.audit2;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
 import fr.sorbonne_u.broker.components.Broker;
@@ -19,9 +20,9 @@ import fr.sorbonne_u.filters.MessageFilter;
 import fr.sorbonne_u.filters.property.PropertiesFilter;
 import fr.sorbonne_u.filters.property.PropertyFilter;
 import fr.sorbonne_u.filters.time.JokerTimeFilter;
+import fr.sorbonne_u.meteo.components.MeteoStation;
+import fr.sorbonne_u.meteo.components.WindTurbine;
 import fr.sorbonne_u.meteo.data.PositionData;
-import fr.sorbonne_u.meteo.tests.MeteoStationTest;
-import fr.sorbonne_u.meteo.tests.WindTurbineTest;
 import fr.sorbonne_u.utils.aclocks.ClocksServer;
 
 /**
@@ -39,8 +40,8 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  *             <li>4 sending threads</li>
  *         </ul>
  *     </li>
- *     <li>1 {@link WindTurbineTest} accepting everything, with 4 threads</li>
- *     <li>1 STANDARD {@link MeteoStationTest}</li>
+ *     <li>1 {@link WindTurbine} accepting everything, with 4 threads</li>
+ *     <li>1 STANDARD {@link MeteoStation}</li>
  * </ul>
  * 
  * <p>
@@ -99,34 +100,37 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 	// Component datas
 	// -------------------------------------------------------------------------
 	
-	// Broker
-	protected static final int brokerNbThreads = 4;
-	protected static final int brokerNbFreeLoadersThreads = 2; // Broker's constructor automatically scales at 4 and 8 threads for Standard and Premium senders.
-	protected static final int brokerNbUnloadersThreads = 4;
-	protected static final int brokerNbSendersThreads = 4;
+	// Number of threads
+	protected final int brokerNbThreads = 4;
+	protected final int brokerNbSchedulableThreads = 0;
+	protected final int brokerNbFreeLoadersThreads = 2; // Broker's constructor automatically scales at 4 and 8 threads for Standard and Premium senders.
+	protected final int brokerNbUnloadersThreads = 4;
+	protected final int brokerNbSendersThreads = 4;
+	protected final int brokerNbGossipThreads = 1; // unused
 	
-	// MeteoStation URI
-	protected final static String MS_URI = "MeteoStation-URI";
+	protected final int clientNbThreads = 4;
+	protected final int clientNbSchedulableThreads = 1;
+	
+	// MeteoStation
 	protected final String MSReceivingInboundPortURI = "inbound-port-client-MS";
-	protected final String MSRegistrationOutboundPortURI = "registration-outbound-port-MS";
-	protected final String MSPublishingOutboundPortURI = "publishing-outbound-port-MS";
-	protected final String MSPrivilegedOutboundPortURI = "privileged-outbound-port-MS";
-	
-	protected static final int stationNbThreads = 4; // useless, meteo stations does not receive
-	protected static final PositionData stationPosition = new PositionData(1, 2);
+	protected final PositionData stationPosition = new PositionData(1, 2);
 	
 	// WindTurbine
-	protected final static String WT_URI = "WindTurbine-URI";
 	protected final String WindTurbineReceivingInboundPortURI = "inbound-port-client-WindTurbine";
-	protected final String WindTurbineRegistrationOutboundPortURI = "registration-outbound-port-WindTurbine";
-	protected final String WindTurbinePublishingOutboundPortURI = "publishing-outbound-port-WindTurbine";
+	protected final PositionData windTurbinePosition = new PositionData(2, 0);
 	
-	protected static final int windTurbineNbThreads = 4;
-	protected static final PositionData windTurbinePosition = new PositionData(2, 0);
-	
-    protected static final TimeFilterI timeFilter = new JokerTimeFilter();
-    protected static final MessageFilterI windTurbineWindFilter = new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], timeFilter);
-    protected static final MessageFilterI windTurbineAlertFilter = new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], timeFilter);
+    protected final TimeFilterI timeFilter = new JokerTimeFilter();
+    protected final MessageFilterI windTurbineWindFilter = new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], timeFilter);
+    protected final MessageFilterI windTurbineAlertFilter = new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], timeFilter);
+    
+	// Broker parameters
+	protected final int nbDefaultChannels = 2;
+	protected final int nbMaxChannelsStd = 2;
+	protected final int nbMaxChannelsPrem = 4;
+    
+	// Component URIs for tests (without the Broker)
+	protected static String MS_URI = "MeteoStation-URI";
+	protected static String WT_URI = "WindTurbine-URI";
 	
 	// -------------------------------------------------------------------------
 	// Test scenario steps
@@ -162,7 +166,7 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 					owner -> {
 						try {
 							System.out.println("STEP 0/"+(NBSTEPS-1)+" ("+STEPS[0]+"s) : WindTurbine waits a message from 'channel0'");
-							owner.runTask(c -> ((WindTurbineTest)owner).waitMessage("channel0"));
+							owner.runTask(c -> ((WindTurbine)owner).waitMessage("channel0"));
 						} catch (Exception e) {
 							System.err.println("WindTurbine, step 0 message waiting with exception " + e);
 						}
@@ -173,7 +177,7 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 						owner -> {
 							try {
 								System.out.println("STEP 1/"+(NBSTEPS-1)+" ("+STEPS[1]+"s) : MeteoStation publishes a message on 'channel0'");
-								((MeteoStationTest)owner).publishWindData(2, 2, "channel0", false);
+								((MeteoStation)owner).publishWindData(2, 2, "channel0", false);
 							} catch (Exception e) {
 								System.err.println("MeteoStation, step 1 wind data publication failed with exception " + e);
 							}
@@ -187,7 +191,7 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 								Duration d = Duration.ofSeconds((long)(tmp+tmp/2));
 								System.out.println("STEP 2/"+(NBSTEPS-1)+" ("+STEPS[2]+"s) : WindTurbine waits a message from 'channel0',"
 										+ "\nwith a timeout of "+(d.getSeconds()*ACCELERATION_FACTOR)+" seconds, ending after the next message reception");
-								owner.runTask(c -> ((WindTurbineTest)owner).waitMessageTimeout("channel0",d));
+								owner.runTask(c -> ((WindTurbine)owner).waitMessageTimeout("channel0",d));
 							} catch (Exception e) {
 								System.err.println("WindTurbine, step 2 message waiting (timeout) with exception " + e);
 							}
@@ -198,7 +202,7 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 						owner -> {
 							try {
 								System.out.println("STEP 3/"+(NBSTEPS-1)+" ("+STEPS[3]+"s) : MeteoStation publishes a message on 'channel0'");
-								((MeteoStationTest)owner).publishWindData(2, 2, "channel0", false);
+								((MeteoStation)owner).publishWindData(2, 2, "channel0", false);
 							} catch (Exception e) {
 								System.err.println("MeteoStation, step 3 wind data publication failed with exception " + e);
 							}
@@ -212,7 +216,7 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 								Duration d = Duration.ofSeconds((long)(tmp-tmp/2));
 								System.out.println("STEP 4/"+(NBSTEPS-1)+" ("+STEPS[4]+"s) : WindTurbine waits a message from 'channel0',"
 										+ "\nwith a timeout of "+(d.getSeconds()*ACCELERATION_FACTOR)+" seconds, ending without a message reception");
-								owner.runTask(c -> ((WindTurbineTest)owner).waitMessageTimeout("channel0",d));
+								owner.runTask(c -> ((WindTurbine)owner).waitMessageTimeout("channel0",d));
 							} catch (Exception e) {
 								System.err.println("WindTurbine, step 4 message waiting (timeout) with exception " + e);
 							}
@@ -226,7 +230,7 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 								Duration d = Duration.ofSeconds((long)(tmp/2));
 								System.out.println("STEP 5/"+(NBSTEPS-1)+" ("+STEPS[5]+"s) : WindTurbine gets a message future for 'channel0',"
 										+ "\nsleeps for "+(d.getSeconds()*ACCELERATION_FACTOR)+" seconds and gets the result (blocking) before the next reception");
-								owner.runTask(c -> ((WindTurbineTest)owner).waitMessageFuture("channel0",d));
+								owner.runTask(c -> ((WindTurbine)owner).waitMessageFuture("channel0",d));
 							} catch (Exception e) {
 								System.err.println("WindTurbine, step 5 message waiting (future) with exception " + e);
 							}
@@ -237,7 +241,7 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 						owner -> {
 							try {
 								System.out.println("STEP 6/"+(NBSTEPS-1)+" ("+STEPS[6]+"s) : MeteoStation publishes a message on 'channel0'");
-								((MeteoStationTest)owner).publishWindData(2, 2, "channel0", false);
+								((MeteoStation)owner).publishWindData(2, 2, "channel0", false);
 							} catch (Exception e) {
 								System.err.println("MeteoStation, step 6 wind data publication failed with exception " + e);
 							}
@@ -251,7 +255,7 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 								Duration d = Duration.ofSeconds((long)(tmp+tmp/2));
 								System.out.println("STEP 7/"+(NBSTEPS-1)+" ("+STEPS[7]+"s) : WindTurbine gets a message future for 'channel0',"
 										+ "\nsleeps for "+(d.getSeconds()*ACCELERATION_FACTOR)+" seconds and gets the result after the next reception");
-								owner.runTask(c -> ((WindTurbineTest)owner).waitMessageFuture("channel0",d));
+								owner.runTask(c -> ((WindTurbine)owner).waitMessageFuture("channel0",d));
 							} catch (Exception e) {
 								System.err.println("WindTurbine, step 7 message waiting (future) with exception " + e);
 							}
@@ -262,7 +266,7 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 						owner -> {
 							try {
 								System.out.println("STEP 8/"+(NBSTEPS-1)+" ("+STEPS[8]+"s) : MeteoStation publishes a message on 'channel0'");
-								((MeteoStationTest)owner).publishWindData(2, 2, "channel0", false);
+								((MeteoStation)owner).publishWindData(2, 2, "channel0", false);
 							} catch (Exception e) {
 								System.err.println("MeteoStation, step 8 wind data publication failed with exception " + e);
 							}
@@ -273,7 +277,7 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 						owner -> {
 							try {
 								System.out.println("STEP 9/"+(NBSTEPS-1)+" ("+STEPS[9]+"s) : WindTurbine waits a message from 'channel0'");
-								owner.runTask(c -> ((WindTurbineTest)owner).waitMessage("channel0"));
+								owner.runTask(c -> ((WindTurbine)owner).waitMessage("channel0"));
 							} catch (Exception e) {
 								System.err.println("WindTurbine, step 9 message waiting with exception " + e);
 							}
@@ -286,7 +290,7 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 								Duration d = Duration.ofSeconds(0);
 								System.out.println("STEP 10/"+(NBSTEPS-1)+" ("+STEPS[10]+"s) : WindTurbine gets a message future for 'channel0',"
 										+ "\nsleeps for "+(d.getSeconds()*ACCELERATION_FACTOR)+" seconds and blocks on getting the result");
-								owner.runTask(c -> ((WindTurbineTest)owner).waitMessageFuture("channel0",d));
+								owner.runTask(c -> ((WindTurbine)owner).waitMessageFuture("channel0",d));
 							} catch (Exception e) {
 								System.err.println("WindTurbine, step 10 message waiting (future) with exception " + e);
 							}
@@ -296,10 +300,11 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 						CLOCK_URI, MS_URI, step_Instants[11],
 						owner -> {
 							try {
-								System.out.println("STEP 11/"+(NBSTEPS-1)+" ("+STEPS[11]+"s) : MeteoStation publishes 3 messages on 'channel0', each got by each possible reception method");
-								((MeteoStationTest)owner).publishWindData(2, 2, "channel0", false);
-								((MeteoStationTest)owner).publishWindData(2, 2, "channel0", false);
-								((MeteoStationTest)owner).publishWindData(2, 2, "channel0", false);
+								System.out.println("STEP 11/"+(NBSTEPS-1)+" ("+STEPS[11]+"s) : MeteoStation publishes 3 messages on 'channel0', each got by each possible reception method\n"
+										+ "(normal reception appears in the log window)");
+								((MeteoStation)owner).publishWindData(2, 2, "channel0", false);
+								((MeteoStation)owner).publishWindData(2, 2, "channel0", false);
+								((MeteoStation)owner).publishWindData(2, 2, "channel0", false);
 							} catch (Exception e) {
 								System.err.println("MeteoStation, step 11 wind datas publication failed with exception " + e);
 							}
@@ -326,29 +331,28 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 		// ---------------------------------------------------------------------
 		
 		// Broker creation
-		int nbMaxChannelsSTD = 2;
-		int nbMaxChannelsPREM = 4;
 		String broker_URI = AbstractComponent.createComponent(
 				Broker.class.getCanonicalName(),
-				new Object[] {2, nbMaxChannelsSTD, nbMaxChannelsPREM, brokerNbThreads, 0, 
-						brokerNbFreeLoadersThreads, brokerNbUnloadersThreads, brokerNbSendersThreads});
+				new Object[] {1, new PositionData(0, 4), nbDefaultChannels, nbMaxChannelsStd, nbMaxChannelsPrem, brokerNbThreads, 
+						brokerNbSchedulableThreads, brokerNbFreeLoadersThreads, brokerNbUnloadersThreads, brokerNbSendersThreads, 
+						brokerNbGossipThreads, "BrokerGossipInboundPortURI", new ArrayList<>(), new ArrayList<>()}); // Gossip protocol unused here
 		assert this.isDeployedComponent(broker_URI);
 		this.toggleTracing(broker_URI);
 		
 		// Creation of 1 MeteoStation
-		String meteoStation_URI_verif = AbstractComponent.createComponent(
-				MeteoStationTest.class.getCanonicalName(),
-				new Object[] { MSReceivingInboundPortURI, MSRegistrationOutboundPortURI, MSPublishingOutboundPortURI, MSPrivilegedOutboundPortURI,
-						RegistrationClass.STANDARD, stationNbThreads, 1, stationPosition, MS_URI, testScenario, 1});
-		assert (MS_URI).equals(meteoStation_URI_verif);
+		MS_URI = AbstractComponent.createComponent(
+				MeteoStation.class.getCanonicalName(),
+				new Object[] {1, MS_URI, MSReceivingInboundPortURI, RegistrationClass.STANDARD, clientNbThreads, clientNbSchedulableThreads, 
+						stationPosition, testScenario});
 		assert this.isDeployedComponent(MS_URI);
 		this.toggleTracing(MS_URI);
 		
 		// Creation of 1 WindTurbine
-		String tmp_windTurbine_URI = AbstractComponent.createComponent(WindTurbineTest.class.getCanonicalName(),
-				new Object[] { WindTurbineReceivingInboundPortURI, WindTurbineRegistrationOutboundPortURI, WindTurbinePublishingOutboundPortURI,
-						RegistrationClass.STANDARD, windTurbineNbThreads, 1, windTurbinePosition, MeteoAlertI.Level.ORANGE, WT_URI, testScenario, 1, windTurbineWindFilter, windTurbineAlertFilter});
-		this.toggleTracing(tmp_windTurbine_URI);
+		WT_URI = AbstractComponent.createComponent(WindTurbine.class.getCanonicalName(),
+				new Object[] {1, WT_URI, WindTurbineReceivingInboundPortURI, RegistrationClass.STANDARD, clientNbThreads, clientNbSchedulableThreads, 
+						windTurbinePosition, MeteoAlertI.Level.ORANGE, true, windTurbineWindFilter, windTurbineAlertFilter, testScenario});
+		assert this.isDeployedComponent(WT_URI);
+		this.toggleTracing(WT_URI);
 		
 		// Clock server creation
 		String serv = AbstractComponent.createComponent(

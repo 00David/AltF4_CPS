@@ -11,6 +11,11 @@ import fr.sorbonne_u.exceptions.PreconditionException;
 /**
  * Created by a {@link UnloaderTask}, handles messages sending to a specific targeted client.
  * 
+ * <p>
+ * An {@link Exception} can be thrown while sending messages, 
+ * in that case an error log appears both in the Broker log window and on the console.
+ * </p>
+ * 
  * <p><strong>Invariants</strong></p>
  * <pre>
  * invariant	{@code broker != null}
@@ -61,11 +66,16 @@ public class SenderTask extends AbstractTask {
 	public SenderTask(Broker broker, Map<String, ClientBrokerInfos> clientsInfos, 
 			String channel, String targetPortURI, MessageI[] messagesToSend) {
 		// Precondition checks
-		assert(broker != null) : new PreconditionException("broker cannot be null");
-		assert(clientsInfos != null) : new PreconditionException("clientsInfos cannot be null");
-		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
-		assert(targetPortURI != null && !targetPortURI.isEmpty()) : new PreconditionException("targetPortURI cannot be null or empty");
-		assert(messagesToSend != null) : new PreconditionException("messagesToSend cannot be null");
+		assert(broker != null) : 
+			new PreconditionException("broker cannot be null");
+		assert(clientsInfos != null) : 
+			new PreconditionException("clientsInfos cannot be null");
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
+		assert(targetPortURI != null && !targetPortURI.isEmpty()) : 
+			new PreconditionException("targetPortURI cannot be null or empty");
+		assert(messagesToSend != null) : 
+			new PreconditionException("messagesToSend cannot be null");
 		
 		this.broker = broker;
 		this.clientsInfos = clientsInfos;
@@ -80,15 +90,17 @@ public class SenderTask extends AbstractTask {
 			//broker.logMessage("SENDER "+Thread.currentThread().getId()+" starts sending from'"+channel+"' to '"+targetPortURI+"'") ;
 			
 			ClientBrokerInfos client = clientsInfos.get(targetPortURI);
-			// Checks that the targeted client is still registered right now. If it is okay, sends messages.
-			if (broker.registeredService(targetPortURI)) {
+			// Checks that the targeted client is still registered right now, and is in the same JVM (outbound port != null).
+			// If it is okay, sends messages.
+			if (broker.registeredService(targetPortURI) && client.getOutboundPort() != null) {
 				broker.logMessage("Thread "+Thread.currentThread().getId()+": Broker sending "+messagesToSend.length+" message(s) to '" + targetPortURI + "'") ;
 				client.getOutboundPort().receive(channel, messagesToSend);
 			}
 
 			//broker.logMessage("SENDER "+Thread.currentThread().getId()+" ended task") ;
 		} catch (Exception e) {
-			System.err.println("Thread "+Thread.currentThread().getId()+": Sender Exception : "+e.getMessage());
+			System.err.println("Broker"+broker.id+", Thread "+Thread.currentThread().getId()+": Sender Exception : "+e.getMessage());
+			broker.logMessage("[ERROR] Thread "+Thread.currentThread().getId()+": Sender Exception : "+e.getMessage());
 		}
 	}
 }

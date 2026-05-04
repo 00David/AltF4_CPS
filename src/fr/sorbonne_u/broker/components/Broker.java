@@ -12,8 +12,9 @@ import fr.sorbonne_u.broker.components.infos.ClientBrokerInfos;
 import fr.sorbonne_u.broker.components.tasks.LoaderTask;
 import fr.sorbonne_u.broker.components.tasks.SenderTask;
 import fr.sorbonne_u.broker.components.tasks.UnloaderTask;
-import fr.sorbonne_u.broker.connectors.BrokerReceivingServiceConnector;
-import fr.sorbonne_u.broker.ports.BrokerReceivingOutboundPort;
+import fr.sorbonne_u.broker.connectors.ReceivingServiceConnector;
+import fr.sorbonne_u.broker.plugin.BrokerGossipPlugin;
+import fr.sorbonne_u.broker.ports.ReceivingOutboundPort;
 import fr.sorbonne_u.broker.ports.BrokerPrivilegedInboundPort;
 import fr.sorbonne_u.broker.ports.BrokerPublishingInboundPort;
 import fr.sorbonne_u.broker.ports.BrokerRegistrationInboundPort;
@@ -24,6 +25,9 @@ import fr.sorbonne_u.components.exceptions.ComponentShutdownException;
 import fr.sorbonne_u.components.exceptions.ComponentStartException;
 import fr.sorbonne_u.components.tasks_management.connection.AbnormalTerminationNotificationOutboundPort;
 import fr.sorbonne_u.components.tasks_management.interfaces.AbnormalTerminationNotificationCI;
+import fr.sorbonne_u.cps.gossip.interfaces.GossipMessageI;
+import fr.sorbonne_u.cps.gossip.interfaces.GossipReceiverCI;
+import fr.sorbonne_u.cps.gossip.interfaces.GossipSenderCI;
 import fr.sorbonne_u.cps.pubsub.exceptions.AlreadyExistingChannelException;
 import fr.sorbonne_u.cps.pubsub.exceptions.AlreadyRegisteredException;
 import fr.sorbonne_u.cps.pubsub.exceptions.ChannelQuotaExceededException;
@@ -41,18 +45,22 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.exceptions.InvariantException;
 import fr.sorbonne_u.exceptions.PostconditionException;
 import fr.sorbonne_u.exceptions.PreconditionException;
+import fr.sorbonne_u.messages.gossip.GossipMessage;
+import fr.sorbonne_u.messages.gossip.GossipMessageFactory;
+import fr.sorbonne_u.meteo.data.PositionData;
 
 /**
- * Component implementing the publish/subscribe system.
+ * Component implementing the publish/subscribe system.<br>
+ * Only 1 Broker per JVM is permitted, to ensure a coherent use of static constants and methods, identifying a Broker and its ports.
  * 
  * <p>About the publication service : </p>
  * <ul>
- *   <li>It is firstly handled by a thread from the classic thread pool, mostly verifying service preconditions.</li>
- *   <li>Then it is handled by a thread from one of loading thread pools, loading messages into a channel. 
+ *   <li>It is firstly handled by a thread from the classic thread pool : it mostly verifies service preconditions.</li>
+ *   <li>Secondly it is handled by a thread from one of the loading thread pools : it loads messages into a channel. 
  *   		Corresponding task : {@link LoaderTask}</li>
- *   <li>Then it is handled by a thread from the unloading thread pool, unloading messages from a channel.
+ *   <li>Thirdly it is handled by a thread from the unloading thread pool : is unloads messages from a channel. 
  *    		Corresponding task : {@link UnloaderTask}</li>
- *   <li>Finally, it is handled by a thread from the sending thread pool, sending messages previously unloaded.
+ *   <li>Finally, it is handled by a thread from the sending thread pool : it sends messages previously unloaded. 
  *   		Corresponding task : {@link SenderTask}</li>
  * </ul>
  * 
@@ -62,29 +70,36 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  *   <li>Manages transmission channels between these registered client components.</li>
  *   <li>Handles message transmissions by applying filters provided by components subscribed to the relevant channel.</li>
  *   <li>Handles privileges for non-FREE clients, with better performances on publication and advanced channel management.
- *   <p> More precisely about performances, there are differences on 2 layers :
+ *   <p> More precisely about performances, there are differences on 2 layers : 
  *   	<ul>
- *			<li>Depending on the registration class of the publishing client, a different loading thread pool is used.
+ *			<li>Depending on the registration class of the PUBLISHING CLIENT, a different loading thread pool is used. 
  *				Higher-privileged registration classes have larger loading thread pools (scaled on the size of the FREE loading pool).</li>
- *			<li>Depending on the registration class of the creator of a channel, messages sent from it can be grouped.
+ *			<li>Depending on the registration class of the CREATOR OF A CHANNEL, messages sent from it can be grouped. 
  *				Higher-privileged channel creator registration classes allows biggest groups of messages sent together 
- *				(for a FREE channel creator (or Broker, or unregistered creator), it is only 1 message per sending).</li>
+ *				(if the creator is the Broker, or he is not registered anymore, it is only 1 message per sending).</li>
  *   	</ul>
+ *   </li>
+ *   <li>In a distributed deployment configuration, some services use the Gossip protocol. 
+ *   	Their last argument is a boolean flag indicating whether the service call originates from the same JVM.<br>
+ *   	If so, once the call is completed, it is propagated to other broker neighbors through the {@link BrokerGossipPlugin}.
  *   </li>
  * </ul>
  * 
  * <p>
- * Each provided service is multi-thread safe : it either explicitly takes the required client / channel locks, introducing critical sections,
- * or when a single operation needs to be performed on an internal map (clientsInfos or channelsInfos), it can do the operation
- * without taking explicitly the lock by directly doing the operation on the map, implemented by a {@link ConcurrentHashMap}
+ * Each provided service is multi-thread safe : it either explicitly takes the required client / channel locks, introducing critical sections, 
+ * or when a single operation needs to be performed on an internal map (clientsInfos or channelsInfos), it can do the operation 
+ * without taking explicitly the lock by directly doing the operation on the map, implemented by a {@link ConcurrentHashMap} 
  * so multi-thread safe for read/write operations on it.<br>
- * For each critical section taken for a client / channel, it does a double check : it checks that the concerned data still exists
- * in the system before taking the lock, and it does the same once it has taken the lock, in case of having another thread removing the data
+ * For each critical section taken for a client / channel, it does a double check : it checks that the concerned data still exists 
+ * in the system before taking the lock, and it does the same once it has taken the lock, in case of having another thread removing the data 
  * from the system while our thread waited the lock access.
  * </p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
+ * invariant	{@code gossipPlugin != null}
+ * invariant	{@code GOSSIP_POOL_URI != null && !GOSSIP_POOL_URI.isEmpty() && nbGossipThreads > 0}
+ * 
  * invariant	{@code notificationPort != null}
  * invariant	{@code registrationPortURI != null && !registrationPortURI.isEmpty()}
  * invariant	{@code registrationPort != null}
@@ -110,9 +125,23 @@ import fr.sorbonne_u.exceptions.PreconditionException;
 @RequiredInterfaces(required = {ReceivingCI.class, AbnormalTerminationNotificationCI.class})
 public class Broker extends AbstractComponent{
 	
+	/** Broker id given in the constructor, for debugging purpose in a distributed environment. */
+	public final int id;
+	
 	//--------------------------------------------------------------------------
 	// Internal datas
 	//--------------------------------------------------------------------------
+	
+	// GOSSIP PROTOCOL
+	
+	/** Broker's gossip protocol plugin, every Broker has it initialized in its constructor. */
+	private final BrokerGossipPlugin gossipPlugin;
+	
+	/** URI of the pool of threads used for the gossip protocol. */
+	public static final String	GOSSIP_POOL_URI = "gossip-pool" ;
+	
+	/** Number of threads in the {@code GOSSIP_POOL_URI} pool. */
+	public final int nbGossipThreads;
 	
 	// NOTIFICATION
 	
@@ -122,7 +151,7 @@ public class Broker extends AbstractComponent{
 	// REGISTRATION
 	
 	/** Broker's inbound registration port, got by static method 'registrationPortURI' */
-	private static final String registrationPortURI = "registration-inbound--port-broker";
+	private static String registrationPortURI;
 	
 	/** Broker's inbound port, implementing {@link RegistrationCI} */
 	private final BrokerRegistrationInboundPort registrationPort;
@@ -136,7 +165,7 @@ public class Broker extends AbstractComponent{
 	// PUBLICATION
 	
 	/** Broker's inbound publication port, got by registering an inbound client port */
-	private static final String publishingPortURI = "publishing-inbound-port-broker";
+	private String publishingPortURI;
 	
 	/** Broker's inbound port, implementing {@link PublishingCI} */
 	private final BrokerPublishingInboundPort publishingPort;
@@ -144,7 +173,7 @@ public class Broker extends AbstractComponent{
 	// PRIVILEGED MANAGEMENT
 	
 	/** Broker's inbound privileged port, got by registering an inbound privileged client port */
-	private static final String privilegedPortURI = "privileged-inbound-port-broker";
+	private String privilegedPortURI;
 	
 	/** Broker's inbound port, implementing {@link PrivilegedClientCI} */
 	private final BrokerPrivilegedInboundPort privilegedPort;
@@ -165,7 +194,7 @@ public class Broker extends AbstractComponent{
 	
 	// CONCURRENT PUBLISHING PERFORMANCES
 	
-	// For loading messages into channels, once received on the Broker + creating unloaders. 
+	// For loading messages into channels + creating unloaders. 
 	// A different pool according to the registration class of the publisher.
 	
 	/** URI of the pool of threads used to load messages into a channel, coming from a FREE client. */
@@ -215,30 +244,55 @@ public class Broker extends AbstractComponent{
 	 * pre	{@code nbThreads > 0}
 	 * pre	{@code nbSchedulableThreads >= 0}
 	 * pre	{@code nbFreeLoadersThreads > 0 && nbUnloadersThreads > 0 && nbSendersThreads > 0}
+	 * pre	{@code nbGossipThreads > 0}
 	 * post class invariants satisfied
 	 * post outbound ports configured and initialized
 	 * post {@code ClientBrokerInfos.nbMaxChannelsStd >= 0 && ClientBrokerInfos.nbMaxChannelsPrem >= 0}
 	 * </pre>
 	 * 
-	 * @param N						The number of default channels in the Broker (from 'channel0' to 'channel[N-1]').
-	 * @param nbMaxChannelsStd		The maximum number of channels that can be managed by a standard privileged client.
-	 * @param nbMaxChannelsPrem		The maximum number of channels that can be managed by a premium privileged client.
-	 * @param nbThreads				Number of threads to be created in the component pool.
-	 * @param nbSchedulableThreads	Number of threads to be created in the component schedulable pool.
-	 * @param nbFreeLoadersThreads	Number of threads to be created in the free loaders pool. It is x2 for standard clients, and x4 for premium clients.
-	 * @param nbUnloadersThreads	Number of threads to be created in the unloaders pool.
-	 * @param nbSendersThreads		Number of threads to be created in the senders pool.
-	 * @throws Exception			If there is a problem while publishing a port.
+	 * @param id						Broker id. Supposed to be unique, even in a multi-JVM run situation.
+	 * @param windowPosition			Broker's log window position. A PositionData is used for it.
+	 * @param N							The number of default channels in the Broker (from 'channel0' to 'channel[N-1]').
+	 * @param nbMaxChannelsStd			The maximum number of channels that can be managed by a standard privileged client.
+	 * @param nbMaxChannelsPrem			The maximum number of channels that can be managed by a premium privileged client.
+	 * @param nbThreads					Number of threads to be created in the component pool.
+	 * @param nbSchedulableThreads		Number of threads to be created in the component schedulable pool.
+	 * @param nbFreeLoadersThreads		Number of threads to be created in the free loaders pool. It is x2 for standard clients, and x4 for premium clients.
+	 * @param nbUnloadersThreads		Number of threads to be created in the unloaders pool.
+	 * @param nbSendersThreads			Number of threads to be created in the senders pool.
+	 * @param nbGossipThreads			Number of threads to be created in the gossip protocol pool.
+	 * @param gossipInboundPortURI		The {@link Broker} inbound port URI offering {@link GossipReceiverCI} interface.
+	 * @param gossipOutboundPortURIs	{@link Broker} outbound port URIs requiring {@link GossipSenderCI} interface.
+	 * @param otherBrokersToConnectURIs	Other {@link Broker}s gossip inbound port URIs, a URI at an index i in {@code gossipOutboundPortURIs} 
+	 * 									connects to the port URI with the same index in {@code portsToConnect}.
+	 * @throws Exception				If there is a problem while publishing a port.
 	 */
-	protected Broker(int N, int nbMaxChannelsStd, int nbMaxChannelsPrem, int nbThreads, int nbSchedulableThreads,
-			int nbFreeLoadersThreads, int nbUnloadersThreads, int nbSendersThreads) throws Exception {
+	protected Broker(int id, PositionData windowPosition, int N, int nbMaxChannelsStd, int nbMaxChannelsPrem, int nbThreads, int nbSchedulableThreads,
+			int nbFreeLoadersThreads, int nbUnloadersThreads, int nbSendersThreads, int nbGossipThreads,
+			String gossipInboundPortURI, List<String> gossipOutboundPortURIs, List<String> otherBrokersToConnectURIs) throws Exception {
 		super(nbThreads, nbSchedulableThreads);
 		// Precondition checks
-		assert(N>=2) : new PreconditionException("Broker's number of default channels must be at least 2 ('channel0' for wind datas, 'channel1' for meteo alerts)");
-		assert(nbThreads > 0) : new PreconditionException("must have at leat 1 normal thread");
-		assert(nbSchedulableThreads >= 0) : new PreconditionException("cannot have a negative number of schedulable threads");
-		assert(nbFreeLoadersThreads > 0 && nbUnloadersThreads > 0 && nbSendersThreads > 0) : new PreconditionException("must have at least 1 thread for each publication step");
+		assert(windowPosition != null) : 
+			new PreconditionException("windowPosition cannot be null");
+		assert(N>=2) : 
+			new PreconditionException("Broker's number of default channels must be at least 2 ('channel0' for wind datas, 'channel1' for meteo alerts)");
+		assert(nbThreads > 0) : 
+			new PreconditionException("must have at leat 1 normal thread");
+		assert(nbSchedulableThreads >= 0) : 
+			new PreconditionException("cannot have a negative number of schedulable threads");
+		assert(nbFreeLoadersThreads > 0 && nbUnloadersThreads > 0 && nbSendersThreads > 0) : 
+			new PreconditionException("must have at least 1 thread for each publication step");
+		assert(nbGossipThreads > 0) : 
+			new PreconditionException("must have at leat 1 gossip thread");
 		
+		this.id = id;
+		
+		// Port URIs
+		registrationPortURI = "registration-inbound-port-broker"+id;
+		publishingPortURI = "publishing-inbound-port-broker"+id;
+		privilegedPortURI = "privileged-inbound-port-broker"+id;
+		
+		// Internal static data initializations
 		ClientBrokerInfos.nbMaxChannelsStd = nbMaxChannelsStd;
 		ClientBrokerInfos.nbMaxChannelsPrem = nbMaxChannelsPrem;
 		
@@ -246,16 +300,18 @@ public class Broker extends AbstractComponent{
 		// The channel0 is for wind datas, and the channel1 for meteo alerts
 		for (int i = 0; i < N; i++) {
 			String chan = "channel"+i;		
-			channelsInfos.put(chan, new ChannelBrokerInfos(chan, ".*", null, false));
+			channelsInfos.put(chan, new ChannelBrokerInfos(chan, ".*", null));
 		}
 		
 		// Creation of thread pools
+		this.nbGossipThreads = nbGossipThreads;
 		this.nbFreeLoadersThreads = nbFreeLoadersThreads;
 		this.nbStdLoadersThreads = 2*nbFreeLoadersThreads;
 		this.nbPremLoadersThreads = 4*nbFreeLoadersThreads;
 		this.nbUnloadersThreads = nbUnloadersThreads;
 		this.nbSendersThreads = nbSendersThreads;
 		
+		this.createNewExecutorService(GOSSIP_POOL_URI, this.nbGossipThreads, false);
 		this.createNewExecutorService(FREE_LOADERS_POOL_URI, this.nbFreeLoadersThreads, false);
 		this.createNewExecutorService(STD_LOADERS_POOL_URI, this.nbStdLoadersThreads, false);
 		this.createNewExecutorService(PREM_LOADERS_POOL_URI, this.nbPremLoadersThreads, false);
@@ -275,7 +331,18 @@ public class Broker extends AbstractComponent{
 		this.privilegedPort = new BrokerPrivilegedInboundPort(privilegedPortURI, this, this.notificationPort);
 		this.privilegedPort.publishPort();
 		
-		// Invariant checks
+		// Install the gossip plug-in.
+		this.gossipPlugin = new BrokerGossipPlugin(gossipInboundPortURI, gossipOutboundPortURIs, otherBrokersToConnectURIs);
+		this.gossipPlugin.setPluginURI("gossip");
+		this.installPlugin(this.gossipPlugin);
+		
+		// Postcondition checks
+		assert	this.isRequiredInterface(GossipSenderCI.class) :
+			new InvariantException("The Broker component should require the interface GossipSenderCI!");
+		assert	this.isOfferedInterface(GossipReceiverCI.class) :
+			new InvariantException("The Broker component should offer the interface GossipReceiverCI!");
+		assert	this.isRequiredInterface(AbnormalTerminationNotificationCI.class) :
+			new InvariantException("The Broker component should require the interface AbnormalTerminationNotificationCI!");
 		assert	this.isOfferedInterface(RegistrationCI.class) :
 			new InvariantException("The Broker component should offer the interface RegistrationCI!");
 		assert	this.isOfferedInterface(PublishingCI.class) :
@@ -284,13 +351,24 @@ public class Broker extends AbstractComponent{
 			new InvariantException("The Broker component should offer the interface PrivilegedClientCI!");
 		assert	this.isRequiredInterface(ReceivingCI.class) :
 			new InvariantException("The Broker component should require the interface ReceivingCI!");
-		assert	this.isRequiredInterface(AbnormalTerminationNotificationCI.class) :
-			new InvariantException("The Broker component should require the interface AbnormalTerminationNotificationCI!");
 		
-		AbstractComponent.checkImplementationInvariant(this);
-		AbstractComponent.checkInvariant(this);
+		assert gossipPlugin.isInitialised() : 
+			new PostconditionException("Gossip plugin must be initialized");
+		assert	this.isPortExisting(gossipInboundPortURI) : 
+			new PostconditionException("The component must have a port with URI " + gossipInboundPortURI);
+		assert	this.findPortFromURI(gossipInboundPortURI).getImplementedInterface().equals(GossipReceiverCI.class) : 
+			new PostconditionException("The component must have a port with implemented interface GossipReceiverCI");
+		assert	this.findPortFromURI(gossipInboundPortURI).isPublished() :
+			new PostconditionException("The component must have a port published with URI " + gossipInboundPortURI);
+		for (String gossipOutboundPortURI : gossipOutboundPortURIs) {
+			assert	this.isPortExisting(gossipOutboundPortURI) : 
+				new PostconditionException("The component must have a port with URI " + gossipOutboundPortURI);
+			assert	this.findPortFromURI(gossipOutboundPortURI).getImplementedInterface().equals(GossipSenderCI.class) : 
+				new PostconditionException("The component must have a port with implemented interface GossipSenderCI");
+			assert	this.findPortFromURI(gossipOutboundPortURI).isPublished() :
+				new PostconditionException("The component must have a port published with URI " + gossipOutboundPortURI);
+		}
 		
-		// Postcondition checks
 		String[] notificationURIs = this.findOutboundPortURIsFromInterface(AbnormalTerminationNotificationCI.class);
 		assert  notificationURIs.length == 1 : 
 			new PostconditionException("The Broker must have a port with implemented interface AbnormalTerminationNotificationCI");;
@@ -318,13 +396,14 @@ public class Broker extends AbstractComponent{
 		assert	this.findPortFromURI(privilegedPortURI).isPublished() : 
 			new PostconditionException("The component must have a port published with URI " + privilegedPortURI);
 		
+		
 		assert ClientBrokerInfos.nbMaxChannelsStd >= 0 : 
 			new PostconditionException("The max number of channels for standard clients must be properly initialized");
 		assert ClientBrokerInfos.nbMaxChannelsPrem >= 0 : 
 			new PostconditionException("The max number of channels for premium clients must be properly initialized");
 		
-		this.getTracer().setTitle("Broker");
-		this.getTracer().setRelativePosition(0, 4);
+		this.getTracer().setTitle("Broker"+id);
+		this.getTracer().setRelativePosition((int)windowPosition.getPosX(), (int)windowPosition.getPosY());
 	}
 	
 	//--------------------------------------------------------------------------
@@ -333,8 +412,13 @@ public class Broker extends AbstractComponent{
 
 	@Override
 	public synchronized void start() throws ComponentStartException {
-		this.logMessage("starting Broker component.");
 		super.start();
+		try {
+			this.gossipPlugin.connectPorts(); // Connect gossip outbound ports
+		} catch (Exception e) {
+			throw new ComponentStartException(e) ;
+		}
+		this.logMessage("starting Broker component.");
 	}
 
 	@Override
@@ -343,8 +427,10 @@ public class Broker extends AbstractComponent{
 		
 		// Disconnect all outbound ports linked to registered clients
 		for (Map.Entry<String, ClientBrokerInfos> entry : clientsInfos.entrySet()) {
-			BrokerReceivingOutboundPort outboundPort = entry.getValue().getOutboundPort();
-			this.doPortDisconnection(outboundPort.getPortURI());
+			ReceivingOutboundPort outboundPort = entry.getValue().getOutboundPort();
+			if (outboundPort != null) {
+				this.doPortDisconnection(outboundPort.getPortURI());
+			}
 		}
 		
 		super.finalise();
@@ -356,8 +442,10 @@ public class Broker extends AbstractComponent{
 		try {
 			// Unpublish all outbound ports linked to registered clients
 			for (Map.Entry<String, ClientBrokerInfos> entry : clientsInfos.entrySet()) {
-				BrokerReceivingOutboundPort outboundPort = entry.getValue().getOutboundPort();
-				outboundPort.unpublishPort();
+				ReceivingOutboundPort outboundPort = entry.getValue().getOutboundPort();
+				if (outboundPort != null) {
+					outboundPort.unpublishPort();
+				}
 			}
 		
 			// Unpublish Broker notification outbound port + all inbound ports
@@ -392,7 +480,8 @@ public class Broker extends AbstractComponent{
 	 */
 	public boolean registeredService(String receptionPortURI){
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : 
+			new PreconditionException("receptionPortURI cannot be null or empty");
 		
 		return clientsInfos.containsKey(receptionPortURI);
 	}
@@ -415,8 +504,10 @@ public class Broker extends AbstractComponent{
 	public boolean registeredService(String receptionPortURI, RegistrationClass rc) 
 			throws UnknownClientException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
-		assert(rc != null) : new PreconditionException("registration class cannot be null");
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : 
+			new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(rc != null) : 
+			new PreconditionException("registration class cannot be null");
 		
 		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		
@@ -435,31 +526,37 @@ public class Broker extends AbstractComponent{
 	 * post	{@code registeredService(receptionPortURI, rc)}
 	 * </pre>
 	 *
-	 * @param receptionPortURI	          URI of the inbound port offering the component interface {@code ReceivingCI}.
-	 * @param rc				          the required registration class.
-	 * @return					          an URI of an inbound port offering the component interface {@code PublishingCI}.
-	 * @throws AlreadyRegisteredException If the client has already been registered.
-	 * @throws UnknownClientException      If the {@code receptionPortURI} is not registered.
+	 * @param receptionPortURI	          	URI of the inbound port offering the component interface {@code ReceivingCI}.
+	 * @param rc				          	the required registration class.
+	 * @param fromLocalJVM					True if the call comes from a client in the same Broker JVM, and thus need to be propagated with the gossip protocol.
+	 * @return					          	an URI of an inbound port offering the component interface {@code PublishingCI}.
+	 * @throws AlreadyRegisteredException 	If the client has already been registered.
+	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 */
-	public String registerService(String receptionPortURI, RegistrationClass rc) 
+	public String registerService(String receptionPortURI, RegistrationClass rc, boolean fromLocalJVM) 
 			throws AlreadyRegisteredException, UnknownClientException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
-		assert(rc != null) : new PreconditionException("registration class cannot be null");
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : 
+			new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(rc != null) : 
+			new PreconditionException("registration class cannot be null");
 		
 		if (registeredService(receptionPortURI)) throw new AlreadyRegisteredException("Client "+receptionPortURI+" already registered.");
 		
 		this.logMessage("Thread "+Thread.currentThread().getId()+": Broker registering '" + receptionPortURI + "'") ;
 		
-		BrokerReceivingOutboundPort outboundPort = null;
+		ReceivingOutboundPort outboundPort = null;
 		// Create the Broker outbound port for sending messages to the receptionPortURI
 		// New outbound port published + connected to the client receptionPortURI
-		try {
-			outboundPort = new BrokerReceivingOutboundPort("BrokerOutboundPort-"+receptionPortURI, this);
-			outboundPort.localPublishPort() ;
-			this.doPortConnection(outboundPort.getPortURI(), receptionPortURI, BrokerReceivingServiceConnector.class.getCanonicalName());
-		} catch(Exception e) {
-			e.printStackTrace();
+		// If the call does not come from the same JVM, but via the gossip protocol, then there is no outboundPort associated to the client.
+		if (fromLocalJVM) {
+			try {
+				outboundPort = new ReceivingOutboundPort("BrokerOutboundPort-"+receptionPortURI, this);
+				outboundPort.localPublishPort() ;
+				this.doPortConnection(outboundPort.getPortURI(), receptionPortURI, ReceivingServiceConnector.class.getCanonicalName());
+			} catch(Exception e) {
+				e.printStackTrace();
+			}
 		}
 		
 		
@@ -472,10 +569,18 @@ public class Broker extends AbstractComponent{
 			// Postcondition checks
 			assert(registeredService(receptionPortURI));
 			assert(registeredService(receptionPortURI, rc));
-
-			if (rc == RegistrationClass.FREE) return publishingPortURI;
-			else return privilegedPortURI;
 		}
+		
+		// Gossip sending
+		if (fromLocalJVM) {
+			GossipMessage message = GossipMessageFactory.createRegisterMessage(getReflectionInboundPortURI(), receptionPortURI, rc);
+			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
+				gossipPlugin.send(new GossipMessageI[] {message});
+			});
+		}
+		
+		if (rc == RegistrationClass.FREE) return publishingPortURI;
+		else return privilegedPortURI;
 	}
 
 	/**
@@ -491,57 +596,51 @@ public class Broker extends AbstractComponent{
 	 *
 	 * @param receptionPortURI	            URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param rc				            the required registration class.
+	 * @param fromLocalJVM					True if the call comes from a client in the same Broker JVM, and thus need to be propagated with the gossip protocol.
 	 * @return					            an URI of an inbound port offering the component interface {@code PublishingCI}.
 	 * @throws UnknownClientException       If the {@code receptionPortURI} is not registered at all.
 	 * @throws AlreadyRegisteredException   If the client has already been registered with the exact same {@code rc}.
 	 */
-	public String modifyServiceClassService(String receptionPortURI, RegistrationClass rc) 
+	public String modifyServiceClassService(String receptionPortURI, RegistrationClass rc, boolean fromLocalJVM) 
 			throws UnknownClientException, AlreadyRegisteredException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty()): new PreconditionException("receptionPortURI cannot be null or empty");
-		assert(rc != null) : new PreconditionException("registration class cannot be null");
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()): 
+			new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(rc != null) : 
+			new PreconditionException("registration class cannot be null");
 		
-		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered at all.");
+		if (!registeredService(receptionPortURI)) 
+			throw new UnknownClientException("Client "+receptionPortURI+" not registered at all.");
+		
 		// Takes the client lock
 		ClientBrokerInfos client = clientsInfos.get(receptionPortURI);
 		synchronized(client){
-			if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered at all."); // if the client has been unregistered while waiting for the lock
-			if (registeredService(receptionPortURI, rc)) throw new AlreadyRegisteredException("Client "+receptionPortURI+" already registered with the same registration class.");
+			if (!registeredService(receptionPortURI)) // if the client has been unregistered while waiting for the lock
+				throw new UnknownClientException("Client "+receptionPortURI+" not registered at all.");
+			
+			if (registeredService(receptionPortURI, rc)) // if the client is ALREADY registered with the SAME registration class
+				throw new AlreadyRegisteredException("Client "+receptionPortURI+" already registered with the same registration class.");
 		
-			this.logMessage("Thread "+Thread.currentThread().getId()+": Broker modifying service class for client : '"+receptionPortURI+"', now : "+rc);
+			String gossipLog = !fromLocalJVM ? "[GOSSIP] " : "";
+			this.logMessage(gossipLog+"Thread "+Thread.currentThread().getId()+": Broker modifying service class for client : '"+receptionPortURI+"', now : "+rc);
 		
 			// Modify the client registration class
 			client.setRegistrationClass(rc);
-		
-			// Gestion when a client modifies its registration class while he is already subscribed to channels
-			// We iterate over all pairs : channel name -> its infos
-			for (Map.Entry<String, ChannelBrokerInfos> entry : channelsInfos.entrySet()) {
-				String channel = entry.getKey();
-				// Takes the channel lock
-				ChannelBrokerInfos chanInfos = entry.getValue();
-				synchronized (chanInfos) {
-					
-					// If our client is subscribed, we look if the channel accepts him with its new registration class
-					if (chanInfos.isSubscribed(receptionPortURI)) {
-						try {
-							// If it is not the case, we remove him as a subscriber of the channel
-							if (!channelAuthorisedService(receptionPortURI, channel)) {
-								chanInfos.removeSubscriber(receptionPortURI);
-								this.logMessage("Thread "+Thread.currentThread().getId()+": client '"+receptionPortURI+"' unsubscribed from '"+chanInfos+"' because of new service class");
-							}
-						} catch (UnknownChannelException e) {
-							// If the channel has been removed from the Broker in parallel by another thread, we don't change anything
-						}
-					}
-				}
-			}
 	
 			// Postcondition check
 			assert(registeredService(receptionPortURI, rc));
-			
-			if (rc == RegistrationClass.FREE) return publishingPortURI;
-			else return privilegedPortURI;
 		}
+		
+		// Gossip sending
+		if (fromLocalJVM) {
+			GossipMessage message = GossipMessageFactory.createUpdateClientClassMessage(getReflectionInboundPortURI(), receptionPortURI, rc);
+			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
+				gossipPlugin.send(new GossipMessageI[] {message});
+			});
+		}
+		
+		if (rc == RegistrationClass.FREE) return publishingPortURI;
+		else return privilegedPortURI;
 	}
 
 	/**
@@ -554,34 +653,42 @@ public class Broker extends AbstractComponent{
 	 * </pre>
 	 *
 	 * @param receptionPortURI	               	URI of the inbound port offering the component interface {@code ReceivingCI}.
+	 * @param fromLocalJVM						True if the call comes from a client in the same Broker JVM, and thus need to be propagated with the gossip protocol.
 	 * @throws UnknownClientException          	If the {@code receptionPortURI} is not registered.
 	 * @throws Exception                       	If there is a problem while unpublishing the component's outbound port associated to the {@code receptionPortURI}.
 	 * @throws Exception                       	If there is a problem while disconnecting outbound port and {@code receptionPortURI}.
-	 * @return 									Void
 	 */
-	public Void unregisterService(String receptionPortURI) 
+	public void unregisterService(String receptionPortURI, boolean fromLocalJVM) 
 			throws UnknownClientException, Exception {
-		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
+		// Precondition check
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : 
+			new PreconditionException("receptionPortURI cannot be null or empty");
 		
-		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		if (!registeredService(receptionPortURI)) 
+			throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		
 		// Takes the client lock
 		ClientBrokerInfos client = clientsInfos.get(receptionPortURI);
 		synchronized(client) {
-			if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered."); // if the client has been unregistered while waiting for the lock
+			if (!registeredService(receptionPortURI)) // if the client has been unregistered while waiting for the lock
+				throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		
-			this.logMessage("Thread "+Thread.currentThread().getId()+": Broker unregistering '" + receptionPortURI +"'") ;
+			String gossipLog = !fromLocalJVM ? "[GOSSIP] " : "";
+			this.logMessage(gossipLog+"Thread "+Thread.currentThread().getId()+": Broker unregistering '" + receptionPortURI +"'") ;
 
-			BrokerReceivingOutboundPort outboundPort = client.getOutboundPort();
+			ReceivingOutboundPort outboundPort = client.getOutboundPort();
 			
 			// Remove client infos
 			clientsInfos.remove(receptionPortURI);
 
-			// Disconnect the outbound port from the given inbound port (receptionPortURI)
-			this.doPortDisconnection(outboundPort.getPortURI());
-			
-			// Unpublish the outbound port
-			outboundPort.unpublishPort();
+			// If the unregistered client is in the same JVM (outboundPort != null)
+			if (outboundPort != null) {
+				// Disconnect the outbound port from the given inbound port (receptionPortURI)
+				this.doPortDisconnection(outboundPort.getPortURI());
+				
+				// Unpublish the outbound port
+				outboundPort.unpublishPort();
+			}
 			
 			// Remove from subscribed channels the port previously registered
 			for (Map.Entry<String, ChannelBrokerInfos> entry : channelsInfos.entrySet()) {
@@ -592,7 +699,13 @@ public class Broker extends AbstractComponent{
 			assert(!registeredService(receptionPortURI));
 		}
 		
-		return null;
+		// Gossip sending
+		if (fromLocalJVM) {
+			GossipMessage message = GossipMessageFactory.createUnregisterMessage(getReflectionInboundPortURI(), receptionPortURI);
+			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
+				gossipPlugin.send(new GossipMessageI[] {message});
+			});
+		}
 	}
 
 	/**
@@ -609,18 +722,18 @@ public class Broker extends AbstractComponent{
 	 */
 	public boolean channelExistService(String channel) {
 		// Precondition checks
-		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
 		
 		return channelsInfos.containsKey(channel);
 	}
 	
 	/**
 	 * Return true if the use of {@code channel} is authorized for {@code receptionPortURI}, otherwise false.<br>
-	 * The channel creator is automatically authorized.
 	 * 
 	 * <p>
-	 * The method firstly verifies the compatibility between the {@code receptionPortURI}'s {@link RegistrationClass}
-	 * and the {@code channel}'s requirement to be accessed (or not) by only privileged clients.<br>
+	 * The method firstly verifies if {@code receptionPortURI} is the channel creator. 
+	 * If it is the case, then he is automatically authorized.<br>
 	 * Secondly, it does a regex verification between {@code channel}'s authorized users and {@code receptionPortURI} string.
 	 * </p>
 	 * 
@@ -640,33 +753,34 @@ public class Broker extends AbstractComponent{
 	public boolean channelAuthorisedService(String receptionPortURI, String channel) 
 			throws UnknownClientException, UnknownChannelException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
-		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : 
+			new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
 		
-		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
-		// Takes the client lock + the channel lock
+		if (!registeredService(receptionPortURI)) 
+			throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		
+		// Takes the client lock
 		ClientBrokerInfos client = clientsInfos.get(receptionPortURI);
 		synchronized(client) {
-			if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered."); // if the client has been unregistered while waiting for the lock
-			if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+			if (!registeredService(receptionPortURI)) // if the client has been unregistered while waiting for the lock
+				throw new UnknownClientException("Client "+receptionPortURI+" not registered."); 
+			
+			if (!channelExistService(channel)) 
+				throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+			
+			// Takes the channel lock
 			ChannelBrokerInfos chan = channelsInfos.get(channel);
 			synchronized(chan) {
-				if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist."); // if the channel has been destroyed while waiting for the lock
+				if (!channelExistService(channel))  // if the channel has been destroyed while waiting for the lock
+					throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 				
 				// If the client is the creator of the channel, he is automatically authorized
-				String creator = chan.getCreator();
-				if (creator != null && creator.equals(receptionPortURI)) return true;
+				if (chan.isCreator(receptionPortURI)) return true;
 				
-				// If the client registration class is FREE, and the channel requires privileged clients -> not authorized
-				if (client.getRegistrationClass() == RegistrationClass.FREE && chan.onlyPrivileged()){
-					return false;
-				} else {
-					
-					// Gets the regex accepting clients URIs, checks if the client matches it
-					String authorised = chan.getAuthorizedUsers();	
-					return receptionPortURI.matches(authorised);
-				}
-				
+				// Checks if the client matches the channel authorized users regex
+				return chan.isAuthorized(receptionPortURI);
 			}
 		}
 	}
@@ -690,18 +804,28 @@ public class Broker extends AbstractComponent{
 	public boolean subscribedService(String receptionPortURI, String channel) 
 			throws UnknownClientException, UnknownChannelException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
-		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : 
+			new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
 		
-		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
-		// Takes the client lock + the channel lock
+		if (!registeredService(receptionPortURI)) 
+			throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		
+		// Takes the client lock
 		ClientBrokerInfos client = clientsInfos.get(receptionPortURI);
 		synchronized(client) {
-			if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered."); // if the client has been unregistered while waiting for the lock
-			if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+			if (!registeredService(receptionPortURI)) // if the client has been unregistered while waiting for the lock
+				throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+			
+			if (!channelExistService(channel)) 
+				throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+			
+			// Takes the channel lock
 			ChannelBrokerInfos chan = channelsInfos.get(channel);
 			synchronized(chan) {
-				if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist."); // if the channel has been destroyed while waiting for the lock
+				if (!channelExistService(channel)) // if the channel has been destroyed while waiting for the lock
+					throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 				
 				return chan.isSubscribed(receptionPortURI);
 				
@@ -723,42 +847,61 @@ public class Broker extends AbstractComponent{
 	 * @param receptionPortURI       		URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel			      		name of an existing channel.
 	 * @param filter			           	filter that accepts the message the component wants to receive.
-	 * @return 									Void
+	 * @param fromLocalJVM					True if the call comes from a client in the same Broker JVM, and thus need to be propagated with the gossip protocol.
 	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
 	 * @throws UnauthorisedClientException 	If {@code receptionPortURI} is not authorized to interact with the {@code channel}.
 	 */
-	public Void subscribeService(String receptionPortURI, String channel, MessageFilterI filter) 
+	public void subscribeService(String receptionPortURI, String channel, MessageFilterI filter, boolean fromLocalJVM) 
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
-		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
-		assert(filter != null) : new PreconditionException("filter cannot be null");
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : 
+			new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
+		assert(filter != null) : 
+			new PreconditionException("filter cannot be null");
 
-		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
-		// Takes the client lock + the channel lock
+		if (!registeredService(receptionPortURI)) 
+			throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		
+		// Takes the client lock
 		ClientBrokerInfos client = clientsInfos.get(receptionPortURI);
 		synchronized(client) {
-			if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered."); // if the client has been unregistered while waiting for the lock
-			if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+			if (!registeredService(receptionPortURI)) // if the client has been unregistered while waiting for the lock
+				throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+			
+			if (!channelExistService(channel)) 
+				throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+			
+			// Takes the channel lock
 			ChannelBrokerInfos chan = channelsInfos.get(channel);
 			synchronized(chan) {
-				if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist."); // if the channel has been destroyed while waiting for the lock
+				if (!channelExistService(channel)) // if the channel has been destroyed while waiting for the lock
+					throw new UnknownChannelException("Channel "+channel+" doesn't exist."); 
 				
-				if (!channelAuthorisedService(receptionPortURI, channel)) throw new UnauthorisedClientException("Client "+receptionPortURI+" is not authorized.");
+				if (!channelAuthorisedService(receptionPortURI, channel)) 
+					throw new UnauthorisedClientException("Client "+receptionPortURI+" is not authorized.");
 				
-				this.logMessage("Thread "+Thread.currentThread().getId()+": Broker subscribing '" + receptionPortURI + "' to '"+ channel + "'") ;
+				String gossipLog = !fromLocalJVM ? "[GOSSIP] " : "";
+				this.logMessage(gossipLog+"Thread "+Thread.currentThread().getId()+": Broker subscribing '" + receptionPortURI + "' to '"+ channel + "'") ;
 			
-				// Subscibe the client to the channel, with the associated filter
+				// Subscribe the client to the channel, with the associated filter
 				chan.addOrReplaceSubscriber(receptionPortURI, filter);
 				
 				// Postcondition check
 				assert(subscribedService(receptionPortURI, channel));
-				
 			}
 		}
 		
-		return null;
+		// Gossip sending
+		if (fromLocalJVM) {
+			GossipMessage message = GossipMessageFactory.createSubscribeClientMessage(getReflectionInboundPortURI(), 
+					receptionPortURI, channel, filter);
+			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
+				gossipPlugin.send(new GossipMessageI[] {message});
+			});
+		}
 	}
 
 	/**
@@ -773,41 +916,59 @@ public class Broker extends AbstractComponent{
 	 *
 	 * @param receptionPortURI	              	URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel			            	name of an existing channel.
-	 * @return 									Void
+	 * @param fromLocalJVM						True if the call comes from a client in the same Broker JVM, and thus need to be propagated with the gossip protocol.
 	 * @throws UnknownClientException			If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException      	If the {@code channel} doesn't exist.
 	 * @throws NotSubscribedChannelException 	If {@code receptionPortURI} is not subscribed to the {@code channel}.
 	 */
-	public Void unsubscribeService(String receptionPortURI, String channel) 
+	public void unsubscribeService(String receptionPortURI, String channel, boolean fromLocalJVM) 
 			throws UnknownClientException, UnknownChannelException, NotSubscribedChannelException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
-		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : 
+			new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
 		
-		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
-		// Takes the client lock + the channel lock
+		if (!registeredService(receptionPortURI)) 
+			throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		
+		// Takes the client lock
 		ClientBrokerInfos client = clientsInfos.get(receptionPortURI);
 		synchronized(client) {
-			if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered."); // if the client has been unregistered while waiting for the lock
-			if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+			if (!registeredService(receptionPortURI)) // if the client has been unregistered while waiting for the lock
+				throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+			
+			if (!channelExistService(channel)) 
+				throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+			
+			// Takes the channel lock
 			ChannelBrokerInfos chan = channelsInfos.get(channel);
 			synchronized(chan) {
-				if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist."); // if the channel has been destroyed while waiting for the lock
+				if (!channelExistService(channel)) // if the channel has been destroyed while waiting for the lock
+					throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 				
-				if (!subscribedService(receptionPortURI, channel)) throw new NotSubscribedChannelException("Not subscribed to '"+channel+"' channel.");
+				if (!subscribedService(receptionPortURI, channel)) 
+					throw new NotSubscribedChannelException("Not subscribed to '"+channel+"' channel.");
 				
-				this.logMessage("Thread "+Thread.currentThread().getId()+": Broker unsubscribing '" + receptionPortURI + "' from '"+ channel + "'") ;
+				String gossipLog = !fromLocalJVM ? "[GOSSIP] " : "";
+				this.logMessage(gossipLog+"Thread "+Thread.currentThread().getId()+": Broker unsubscribing '" + receptionPortURI + "' from '"+ channel + "'") ;
 				
 				// Unsubscribe the client of the channel
 				chan.removeSubscriber(receptionPortURI);
 				
 				// Postcondition check
 				assert(!subscribedService(receptionPortURI, channel));
-				
 			}
 		}
 		
-		return null;
+		// Gossip sending
+		if (fromLocalJVM) {
+			GossipMessage message = GossipMessageFactory.createUnsubscribeClientMessage(getReflectionInboundPortURI(), 
+					receptionPortURI, channel);
+			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
+				gossipPlugin.send(new GossipMessageI[] {message});
+			});
+		}
 	}
 
 	/**
@@ -825,39 +986,46 @@ public class Broker extends AbstractComponent{
 	 * @param receptionPortURI	                 URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel		                 	 name of an existing channel.
 	 * @param filter			                 filter that accepts the message the component wants to receive.
-	 * @return					                 Void
 	 * @throws UnknownClientException	     	 If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException           If the {@code channel} doesn't exist.
 	 * @throws NotSubscribedChannelException     If {@code receptionPortURI} is not subscribed to the {@code channel}.
 	 */
-	public Void modifyFilterService(String receptionPortURI, String channel, MessageFilterI filter) 
+	public void modifyFilterService(String receptionPortURI, String channel, MessageFilterI filter) 
 			throws UnknownClientException, UnknownChannelException, NotSubscribedChannelException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
-		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
-		assert(filter != null) : new PreconditionException("filter cannot be null");
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : 
+			new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
+		assert(filter != null) : 
+			new PreconditionException("filter cannot be null");
 		
-		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		if (!registeredService(receptionPortURI)) 
+			throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		
 		// Takes the client lock
 		ClientBrokerInfos client = clientsInfos.get(receptionPortURI);
 		synchronized(client) {
-			if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered."); // if the client has been unregistered while waiting for the lock
-			if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+			if (!registeredService(receptionPortURI)) // if the client has been unregistered while waiting for the lock
+				throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+			
+			if (!channelExistService(channel)) 
+				throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+			
 			ChannelBrokerInfos chan = channelsInfos.get(channel);
 			synchronized(chan) {
-				if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist."); // if the channel has been destroyed while waiting for the lock
+				if (!channelExistService(channel)) // if the channel has been destroyed while waiting for the lock
+					throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 				
-				if (!subscribedService(receptionPortURI, channel)) throw new NotSubscribedChannelException("Not subscribed to '"+channel+"' channel.");
+				if (!subscribedService(receptionPortURI, channel)) 
+					throw new NotSubscribedChannelException("Not subscribed to '"+channel+"' channel.");
 				
 				this.logMessage("Thread "+Thread.currentThread().getId()+": '"+receptionPortURI+"' modifies its filter on channel '"+channel+"'");
 				
 				// Overrides the existing filter with a new one
 				chan.addOrReplaceSubscriber(receptionPortURI, filter);
-				
 			}
 		}
-		
-		return null;
 	}
 	
 	// PUBLICATIONS
@@ -877,32 +1045,46 @@ public class Broker extends AbstractComponent{
 	 * @param receptionPortURI	           	URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel			           	name of the channel on which {@code message} must be published.
 	 * @param messages			           	list of messages to be published on {@code channel}. It can contain an only message.
-	 * @return 								Void
+	 * @param fromLocalJVM					True if the call comes from a client in the same Broker JVM, and thus need to be propagated with the gossip protocol.
 	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
 	 * @throws UnauthorisedClientException 	If {@code receptionPortURI} is not authorized to interact with the {@code channel}.
 	 */
-	public Void publishService(String receptionPortURI, String channel, ArrayList<MessageI> messages) 
+	public void publishService(String receptionPortURI, String channel, ArrayList<MessageI> messages, boolean fromLocalJVM) 
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
-		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
-		assert(messages != null && messages.size() > 0) : new PreconditionException("messages must at least contain 1 message");
-		assert(Stream.of(messages).allMatch(m -> m != null)) : new PreconditionException("a message cannot be null");
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : 
+			new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
+		assert(messages != null && messages.size() > 0) : 
+			new PreconditionException("messages must at least contain 1 message");
+		assert(Stream.of(messages).allMatch(m -> m != null)) : 
+			new PreconditionException("a message cannot be null");
 		
-		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
-		// Takes the client lock + the channel lock
+		if (!registeredService(receptionPortURI)) 
+			throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		
+		// Takes the client lock
 		ClientBrokerInfos client = clientsInfos.get(receptionPortURI);
 		synchronized(client) {
-			if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered."); // if the client has been unregistered while waiting for the lock
-			if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+			if (!registeredService(receptionPortURI)) // if the client has been unregistered while waiting for the lock
+				throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+			
+			if (!channelExistService(channel)) 
+				throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+			
+			// Takes the channel lock
 			ChannelBrokerInfos chan = channelsInfos.get(channel);
 			synchronized(chan) {
-				if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist."); // if the channel has been destroyed while waiting for the lock
+				if (!channelExistService(channel)) // if the channel has been destroyed while waiting for the lock
+					throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 				
-				if (!channelAuthorisedService(receptionPortURI, channel)) throw new UnauthorisedClientException("Client "+receptionPortURI+" is not authorized.");
+				if (!channelAuthorisedService(receptionPortURI, channel)) 
+					throw new UnauthorisedClientException("Client "+receptionPortURI+" is not authorized.");
 				
-				this.logMessage("Thread "+Thread.currentThread().getId()+": Broker received message(s) from '" + receptionPortURI + "' on '" + channel + "'") ;
+				String gossipLog = !fromLocalJVM ? "[GOSSIP] " : "";
+				this.logMessage(gossipLog+"Thread "+Thread.currentThread().getId()+": Broker received message(s) from '" + receptionPortURI + "' on '" + channel + "'") ;
 				
 				// Delegates loading messages to a loaders thread pool, chosen depending on the registration class of the publisher
 				RegistrationClass rc = client.getRegistrationClass();
@@ -916,7 +1098,15 @@ public class Broker extends AbstractComponent{
 				
 			}
 		}
-		return null;
+		
+		// Gossip sending
+		if (fromLocalJVM) {
+			GossipMessage message = GossipMessageFactory.createPublishMessages(getReflectionInboundPortURI(), 
+					receptionPortURI, channel, messages);
+			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
+				gossipPlugin.send(new GossipMessageI[] {message});
+			});
+		}
 	}
 	
 	// PRIVILEGED SERVICES
@@ -940,16 +1130,15 @@ public class Broker extends AbstractComponent{
 	public boolean hasCreatedChannelService(String receptionPortURI, String channel) 
 			throws UnknownChannelException{
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
-		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : 
+			new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
 		
-		if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
-		String creator = channelsInfos.get(channel).getCreator();
-		if (creator == null) { // If the broker is the channel creator
-			return false;
-		} else {
-			return creator.equals(receptionPortURI);
-		}
+		if (!channelExistService(channel)) 
+			throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+		
+		return channelsInfos.get(channel).isCreator(receptionPortURI);
 	}
 
 	/**
@@ -967,10 +1156,12 @@ public class Broker extends AbstractComponent{
 	 */
 	public boolean channelQuotaReachedService(String receptionPortURI) 
 			throws UnknownClientException {
-		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
+		// Precondition check
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : 
+			new PreconditionException("receptionPortURI cannot be null or empty");
 		
-		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		if (!registeredService(receptionPortURI)) 
+			throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 		
 		return clientsInfos.get(receptionPortURI).canCreateChannel();
 	}
@@ -994,33 +1185,49 @@ public class Broker extends AbstractComponent{
 	 * @param receptionPortURI						identifier of the requesting component <i>i.e.</i>, URI of its inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel								name of the channel to be created.
 	 * @param autorizedUsers						regular expression that matches the URIs of components that must be authorized to use the new channel.
-	 * @return 										Void
+	 * @param fromLocalJVM							True if the call comes from a client in the same Broker JVM, and thus need to be propagated with the gossip protocol.
 	 * @throws UnknownClientException   			If the {@code receptionPortURI} is not registered.
 	 * @throws AlreadyExistingChannelException   	If the {@code channel} already exists.
 	 * @throws ChannelQuotaExceededException   		If the {@code receptionPortURI} cannot currently manage more channels.
 	 */
-	public Void createChannelService(String receptionPortURI, String channel, String autorizedUsers) 
+	public void createChannelService(String receptionPortURI, String channel, String autorizedUsers, boolean fromLocalJVM) 
 			throws UnknownClientException,  AlreadyExistingChannelException, ChannelQuotaExceededException{
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
-		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
-		assert(autorizedUsers != null && !autorizedUsers.isEmpty()) : new PreconditionException("autorizedUsers cannot be null or empty");
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : 
+			new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
+		assert(autorizedUsers != null && !autorizedUsers.isEmpty()) : 
+			new PreconditionException("autorizedUsers cannot be null or empty");
 		
-		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		if (!registeredService(receptionPortURI)) 
+			throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		
 		// Takes the client lock
 		ClientBrokerInfos client = clientsInfos.get(receptionPortURI);
 		synchronized(client) {
-			if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered."); // if the client has been unregistered while waiting for the lock
+			if (!registeredService(receptionPortURI)) // if the client has been unregistered while waiting for the lock
+				throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
 			
-			if (channelsInfos.containsKey(channel)) throw new AlreadyExistingChannelException("Channel " + channel + " already exists.");
-			if (!channelQuotaReachedService(receptionPortURI)) throw new ChannelQuotaExceededException("No remaining channels to manage for "+receptionPortURI);
+			if (channelsInfos.containsKey(channel)) 
+				throw new AlreadyExistingChannelException("Channel " + channel + " already exists.");
+			if (!channelQuotaReachedService(receptionPortURI)) 
+				throw new ChannelQuotaExceededException("No remaining channels to manage for "+receptionPortURI);
 			
-			this.logMessage("Thread "+Thread.currentThread().getId()+": Broker creating new channel '" + channel + "', owned by '" + receptionPortURI + "'") ;
+			String gossipLog = !fromLocalJVM ? "[GOSSIP] " : "";
+			this.logMessage(gossipLog+"Thread "+Thread.currentThread().getId()+": Broker creating new channel '" + channel + "', owned by '" + receptionPortURI + "'") ;
 			
-			channelsInfos.put(channel, new ChannelBrokerInfos(channel, autorizedUsers, receptionPortURI, true));
+			channelsInfos.put(channel, new ChannelBrokerInfos(channel, autorizedUsers, receptionPortURI));
 			client.decreaseRemainingChannels();
-			return null;
-			
+		}
+		
+		// Gossip sending
+		if (fromLocalJVM) {
+			GossipMessage message = GossipMessageFactory.createCreateChannelMessage(getReflectionInboundPortURI(), 
+					receptionPortURI, channel, autorizedUsers);
+			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
+				gossipPlugin.send(new GossipMessageI[] {message});
+			});
 		}
 	}
 
@@ -1043,40 +1250,60 @@ public class Broker extends AbstractComponent{
 	 * @param receptionPortURI				identifier of the requesting component <i>i.e.</i>, URI of its inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel						name of the channel.
 	 * @param autorizedUsers				regular expression that matches the URIs of components that must be authorized to use the new channel.
-	 * @return 								Void
+	 * @param fromLocalJVM					True if the call comes from a client in the same Broker JVM, and thus need to be propagated with the gossip protocol.
 	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
 	 * @throws UnauthorisedClientException  If the {@code receptionPortURI} is not the creator of the {@code channel}.
 	 */
-	public Void modifyAuthorisedUsersService(String receptionPortURI, String channel, String autorizedUsers)
+	public void modifyAuthorisedUsersService(String receptionPortURI, String channel, String autorizedUsers, boolean fromLocalJVM)
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
-		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
-		assert(autorizedUsers != null && !autorizedUsers.isEmpty()) : new PreconditionException("autorizedUsers cannot be null or empty");
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : 
+			new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
+		assert(autorizedUsers != null && !autorizedUsers.isEmpty()) : 
+			new PreconditionException("autorizedUsers cannot be null or empty");
 		
-		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
-		// Takes the client lock + the channel lock
+		if (!registeredService(receptionPortURI)) 
+			throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		
+		// Takes the client lock
 		ClientBrokerInfos client = clientsInfos.get(receptionPortURI);
 		synchronized(client) {
-			if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered."); // if the client has been unregistered while waiting for the lock
-			if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+			if (!registeredService(receptionPortURI)) // if the client has been unregistered while waiting for the lock
+				throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+			
+			if (!channelExistService(channel)) 
+				throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+			
+			// Takes the channel lock
 			ChannelBrokerInfos chan = channelsInfos.get(channel);
 			synchronized(chan) {
-				if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist."); // if the channel has been destroyed while waiting for the lock
+				if (!channelExistService(channel)) // if the channel has been destroyed while waiting for the lock
+					throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 				
 				// If the client is not the creator of the channel, then he cannot modify authorized users.
-				String creator = chan.getCreator();
-				if (creator == null || !creator.equals(receptionPortURI)) throw new UnauthorisedClientException("Client "+receptionPortURI+" is not the creator of the channel : '"+channel+"'");
+				if (!chan.isCreator(receptionPortURI))
+					throw new UnauthorisedClientException("Client "+receptionPortURI+" is not the creator of the channel : '"+channel+"'");
 				
-				this.logMessage("Thread "+Thread.currentThread().getId()+": Broker modifying authorized users for channel '" + channel + "', now authorized : '" + autorizedUsers + "'") ;
+				String gossipLog = !fromLocalJVM ? "[GOSSIP] " : "";
+				this.logMessage(gossipLog+"Thread "+Thread.currentThread().getId()+": Broker modifying authorized users for channel '" + channel + "', now authorized : '" + autorizedUsers + "'") ;
 				
 				// Updates the accepted regex and delegates potential unregistrations to the method
 				chan.modifyAuthorizedUsers(autorizedUsers);
 				
 			}
 		}
-		return null;
+		
+		// Gossip sending
+		if (fromLocalJVM) {
+			GossipMessage message = GossipMessageFactory.createUpdateChannelAuthURIsMessage(getReflectionInboundPortURI(), 
+					receptionPortURI, channel, autorizedUsers);
+			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
+				gossipPlugin.send(new GossipMessageI[] {message});
+			});
+		}
 	}
 
 	/**
@@ -1098,30 +1325,43 @@ public class Broker extends AbstractComponent{
 	 *
 	 * @param receptionPortURI				URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel						name of the channel to be destroyed.
-	 * @return 								Void
+	 * @param fromLocalJVM					True if the call comes from a client in the same Broker JVM, and thus need to be propagated with the gossip protocol.
 	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
 	 * @throws UnauthorisedClientException  If the {@code receptionPortURI} is not allowed to interact with the {@code channel}.
 	 */
-	public Void destroyChannelService(String receptionPortURI, String channel) 
+	public void destroyChannelService(String receptionPortURI, String channel, boolean fromLocalJVM) 
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException{
 		// Precondition checks
-		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
-		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
+		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : 
+			new PreconditionException("receptionPortURI cannot be null or empty");
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
 		
-		if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
-		// Takes the client lock + the channel lock
+		if (!registeredService(receptionPortURI)) 
+			throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+		
+		// Takes the client lock
 		ClientBrokerInfos client = clientsInfos.get(receptionPortURI);
 		ChannelBrokerInfos chanInfos = null;
 		synchronized(client) {
-			if (!registeredService(receptionPortURI)) throw new UnknownClientException("Client "+receptionPortURI+" not registered."); // if the client has been unregistered while waiting for the lock
-			if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+			if (!registeredService(receptionPortURI)) // if the client has been unregistered while waiting for the lock
+				throw new UnknownClientException("Client "+receptionPortURI+" not registered.");
+			
+			if (!channelExistService(channel)) 
+				throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
+			
+			// Takes the channel lock
 			chanInfos = channelsInfos.get(channel);
 			synchronized(chanInfos) {
-				if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist."); // if the channel has been destroyed while waiting for the lock
-				if (!channelAuthorisedService(receptionPortURI, channel)) throw new UnauthorisedClientException("Client "+receptionPortURI+" not authorized");
+				if (!channelExistService(channel)) // if the channel has been destroyed while waiting for the lock
+					throw new UnknownChannelException("Channel "+channel+" doesn't exist.");
 				
-				this.logMessage("Thread "+Thread.currentThread().getId()+": Broker destroying channel '" + channel + "'") ;
+				if (!channelAuthorisedService(receptionPortURI, channel)) 
+					throw new UnauthorisedClientException("Client "+receptionPortURI+" not authorized");
+				
+				String gossipLog = !fromLocalJVM ? "[GOSSIP] " : "";
+				this.logMessage(gossipLog+"Thread "+Thread.currentThread().getId()+"(destroyChannel): Broker destroying channel '" + channel + "'") ;
 				
 				// Removal of the channel mapping
 				channelsInfos.remove(channel);
@@ -1149,7 +1389,7 @@ public class Broker extends AbstractComponent{
 		// Mapping : client target port URI -> messages to send to this target
 		Map<String, List<MessageI>> targetsMessages = new HashMap<>();
 				
-		// Equivalent of the unloading task
+		// Equivalent of the unloading task, done by the current thread
 		MessageI msg = chanInfos.unloadMessage();
 		while (msg != null) {
 					
@@ -1163,7 +1403,7 @@ public class Broker extends AbstractComponent{
 			msg = chanInfos.unloadMessage();
 		}
 				
-		// Equivalent of the sending task, for each targeted client
+		// Equivalent of the sending task, for each targeted client, done by the current thread
 		for(Map.Entry<String, List<MessageI>> entry : targetsMessages.entrySet()) {
 			String targetPortURI = entry.getKey();
 			List<MessageI> listMessagesToSend = entry.getValue();
@@ -1177,7 +1417,7 @@ public class Broker extends AbstractComponent{
 			synchronized(targetClient) {
 				// Checks that the targeted client is still registered. If it is okay, sends messages.
 				if (registeredService(targetPortURI)) {
-					logMessage("Thread "+Thread.currentThread().getId()+": Broker sending "+messagesToSend.length+" message(s) to '" + targetPortURI + "'") ;
+					logMessage("Thread "+Thread.currentThread().getId()+" (destroyChannel): Broker sending "+messagesToSend.length+" message(s) to '" + targetPortURI + "'") ;
 					try {
 						targetClient.getOutboundPort().receive(channel, messagesToSend);
 					} catch (Exception e) {
@@ -1186,13 +1426,15 @@ public class Broker extends AbstractComponent{
 				}
 			}
 		}
-
-		// Dans le cahier des charges il est mentionné que les ports entrants offrant ReceivingCI doivent être déconnectés après 
-		// destruction d'un channel, mais cela semble être trop pénalisant/pas naturel pour un tel système, du coup on fait le choix
-		// de garder les ports connectés, mais via la destruction du mapping du channel d'implicitement unsubscribe les clients du channel, 
-		// sans donc complètement tous les déconnecter du système
 		
-		return null;
+		// Gossip sending
+		if (fromLocalJVM) {
+			GossipMessage message = GossipMessageFactory.createDestroyChannelMessage(getReflectionInboundPortURI(), 
+					receptionPortURI, channel, false);
+			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
+				gossipPlugin.send(new GossipMessageI[] {message});
+			});
+		}
 	}
 
 	/**
@@ -1212,12 +1454,12 @@ public class Broker extends AbstractComponent{
 	 *
 	 * @param receptionPortURI				URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel						name of the channel to be destroyed.
-	 * @return 								Void
+	 * @param fromLocalJVM					True if the call comes from a client in the same Broker JVM, and thus need to be propagated with the gossip protocol.
 	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
 	 * @throws UnauthorisedClientException  If the {@code receptionPortURI} is not allowed to interact with the {@code channel}.
 	 */
-	public Void destroyChannelNowService(String receptionPortURI, String channel) 
+	public void destroyChannelNowService(String receptionPortURI, String channel, boolean fromLocalJVM) 
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException{
 		// Precondition checks
 		assert(receptionPortURI != null && !receptionPortURI.isEmpty()) : new PreconditionException("receptionPortURI cannot be null or empty");
@@ -1235,7 +1477,8 @@ public class Broker extends AbstractComponent{
 				if (!channelExistService(channel)) throw new UnknownChannelException("Channel "+channel+" doesn't exist."); // if the channel has been destroyed while waiting for the lock
 				if (!channelAuthorisedService(receptionPortURI, channel)) throw new UnauthorisedClientException("Client "+receptionPortURI+" not authorized");
 				
-				this.logMessage("Thread "+Thread.currentThread().getId()+": Broker destroying NOW channel '" + channel + "'") ;
+				String gossipLog = !fromLocalJVM ? "[GOSSIP] " : "";
+				this.logMessage(gossipLog+"Thread "+Thread.currentThread().getId()+"(destroyChannelNOW): Broker destroying channel '" + channel + "'") ;
 				
 				// Removal of the channel mapping
 				channelsInfos.remove(channel);
@@ -1260,12 +1503,14 @@ public class Broker extends AbstractComponent{
 			}
 		}
 		
-		// Dans le cahier des charges il est mentionné que les ports entrants offrant ReceivingCI doivent être déconnectés après 
-		// destruction d'un channel, mais cela semble être trop pénalisant/pas naturel pour un tel système, du coup on fait le choix
-		// de garder les ports connectés, mais via la destruction du mapping du channel d'implicitement unsubscribe les clients du channel, 
-		// sans donc complètement tous les déconnecter du système
-		
-		return null;
+		// Gossip sending
+		if (fromLocalJVM) {
+			GossipMessage message = GossipMessageFactory.createDestroyChannelMessage(getReflectionInboundPortURI(), 
+					receptionPortURI, channel, true);
+			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
+				gossipPlugin.send(new GossipMessageI[] {message});
+			});
+		}
 	}
 	
 }

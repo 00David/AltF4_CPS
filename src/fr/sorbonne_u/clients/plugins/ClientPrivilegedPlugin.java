@@ -2,8 +2,8 @@ package fr.sorbonne_u.clients.plugins;
 
 import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.clients.components.Client;
-import fr.sorbonne_u.clients.connectors.ClientPrivilegedServiceConnector;
-import fr.sorbonne_u.clients.ports.ClientPrivilegedOutboundPort;
+import fr.sorbonne_u.clients.connectors.PrivilegedServiceConnector;
+import fr.sorbonne_u.clients.ports.PrivilegedOutboundPort;
 import fr.sorbonne_u.components.AbstractPlugin;
 import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.cps.pubsub.exceptions.AlreadyExistingChannelException;
@@ -13,21 +13,19 @@ import fr.sorbonne_u.cps.pubsub.exceptions.UnknownChannelException;
 import fr.sorbonne_u.cps.pubsub.exceptions.UnknownClientException;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientI;
-import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
- * The {@link Client} plugin having a {@link ClientPrivilegedOutboundPort}.
+ * The {@link Client} plug-in having a {@link PrivilegedOutboundPort}.
  * 
  * <p>
- * This plugin needs to be created after registering on the {@link Broker}, in order to pass 
- * a valid {@code brokerPublishingPortURI} argument to the constructor.
+ * This plug-in needs to be created after registering on the {@link Broker}, in order to achieve 
+ * a valid connection to an inbound {@link Broker} privileged port.
  * </p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
- * invariant	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
- * invariant	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
+ * invariant	{@code brokerPublishingPortURI != null && !brokerPublishingPortURI.isEmpty()}
  * </pre>
  * 
  * @author Kevin TANG
@@ -37,47 +35,30 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 
 	private static final long serialVersionUID = -1472841763925529259L;
 	
-	// RECEPTION
-	
-	/** {@link Client} reception inbound port URI */
-	protected final String receivingInboundPortURI;
-	
-	// PRIVILEGED MANAGEMENT
-	
-	/** {@link Client} privileged outbound port URI */
-	protected final String privilegedOutboundPortURI;
-
-	/** Privileged outbound port, set up after plugin installation + initialization */
-	protected ClientPrivilegedOutboundPort privilegedOutboundPort;
-	
-	// PUBLICATION
-	
-	/** {@link Broker} publication inbound port URI, got via {@link ClientRegistrationPlugin} after registration */
+	/** The {@link Broker} inbound port URI offering {@link PrivilegedClientCI} interface. */
 	protected final String brokerPublishingPortURI;
 	
+	// PRIVILEGED MANAGEMENT
+
+	/** Privileged outbound port, set up after plugin installation + initialization */
+	protected PrivilegedOutboundPort privilegedOutboundPort;
+	
 	/**
-	 * Creates a privileged {@link Client} plugin.
+	 * Creates a privileged {@link Client} plug-in.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
-	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
-	 * pre	{@code privilegedOutboundPortURI != null && !privilegedOutboundPortURI.isEmpty()}
 	 * pre  {@code brokerPublishingPortURI != null && !brokerPublishingPortURI.isEmpty()}
-	 * post	class invariants satisfied
+	 * post	{@code true} // no postcondition
 	 * </pre>
 	 * 
-	 * @param receivingInboundPortURI		the client inbound port URI offering {@link ReceivingCI} interface.
-	 * @param privilegedOutboundPortURI		the client outbound port URI requiring {@link PrivilegedClientCI} interface, used for creating the {@link ClientPrivilegedOutboundPort}.
-	 * @param brokerPublishingPortURI		the {@link Broker} inbound port URI offering {@link PrivilegedClientCI} interface.
+	 * @param brokerPublishingPortURI		The {@link Broker} inbound port URI offering {@link PrivilegedClientCI} interface.
 	 */
-	public ClientPrivilegedPlugin(String receivingInboundPortURI, String privilegedOutboundPortURI, String brokerPublishingPortURI){
-		// Precondition checks
-		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : new PreconditionException("receivingInboundPortURI cannot be null or empty");
-		assert(privilegedOutboundPortURI != null && !privilegedOutboundPortURI.isEmpty()) : new PreconditionException("privilegedOutboundPortURI cannot be null or empty");
-		assert(brokerPublishingPortURI != null && !brokerPublishingPortURI.isEmpty()) : new PreconditionException("brokerPublishingPortURI cannot be null or empty");
+	public ClientPrivilegedPlugin(String brokerPublishingPortURI){
+		// Precondition check
+		assert(brokerPublishingPortURI != null && !brokerPublishingPortURI.isEmpty()) : 
+			new PreconditionException("brokerPublishingPortURI cannot be null or empty");
 		
-		this.receivingInboundPortURI = receivingInboundPortURI;
-		this.privilegedOutboundPortURI = privilegedOutboundPortURI;
 		this.brokerPublishingPortURI = brokerPublishingPortURI;
 	}
 	
@@ -93,24 +74,26 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 	
 	@Override
 	public void	initialise() throws Exception {
-		this.privilegedOutboundPort = new ClientPrivilegedOutboundPort(privilegedOutboundPortURI, this.getOwner());
+		super.initialise();
+		this.privilegedOutboundPort = new PrivilegedOutboundPort(this.getOwner());
 		this.privilegedOutboundPort.publishPort();
 		
 		this.getOwner().doPortConnection(this.privilegedOutboundPort.getPortURI(),
 				brokerPublishingPortURI,
-				ClientPrivilegedServiceConnector.class.getCanonicalName());
-		super.initialise();
+				PrivilegedServiceConnector.class.getCanonicalName());
 	}
 	
 	@Override
 	public void	finalise() throws Exception {
 		this.getOwner().doPortDisconnection(this.privilegedOutboundPort.getPortURI());
+		super.finalise();
 	}
 	
 	@Override
 	public void uninstall() throws Exception {
 		this.privilegedOutboundPort.unpublishPort();
 		this.removeRequiredInterface(PrivilegedClientCI.class);
+		super.uninstall();
 	}
 	
 	// -------------------------------------------------------------------------
@@ -121,8 +104,9 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 
 	@Override
 	public boolean hasCreatedChannel(String channel) throws UnknownClientException, UnknownChannelException {
+		Client owner = (Client)this.getOwner();
 		try {
-			return privilegedOutboundPort.hasCreatedChannel(receivingInboundPortURI, channel);
+			return privilegedOutboundPort.hasCreatedChannel(owner.receivingInboundPortURI, channel);
 		} catch (UnknownClientException | UnknownChannelException e) {
 			throw e;
 		} catch (Exception e) {
@@ -133,8 +117,9 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 
 	@Override
 	public boolean channelQuotaReached() throws UnknownClientException {
+		Client owner = (Client)this.getOwner();
 		try {
-			return privilegedOutboundPort.channelQuotaReached(receivingInboundPortURI);
+			return privilegedOutboundPort.channelQuotaReached(owner.receivingInboundPortURI);
 		} catch (UnknownClientException  e) {
 			throw e;
 		} catch (Exception e) {
@@ -146,8 +131,9 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 	@Override
 	public void createChannel(String channel, String autorisedUsers)
 			throws UnknownClientException, AlreadyExistingChannelException, ChannelQuotaExceededException {
+		Client owner = (Client)this.getOwner();
 		try {
-			privilegedOutboundPort.createChannel(receivingInboundPortURI, channel, autorisedUsers);
+			privilegedOutboundPort.createChannel(owner.receivingInboundPortURI, channel, autorisedUsers);
 		} catch (UnknownClientException | AlreadyExistingChannelException | ChannelQuotaExceededException e) {
 			throw e;
 		} catch (Exception e) {
@@ -155,8 +141,7 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 		}
 	}
 
-	// tmp, will be deleted
-	@Override
+	@Override // deleted from other interfaces, so unused
 	public boolean isAuthorisedUser(String channel, String uri) throws UnknownClientException, UnknownChannelException {
 		return true;
 	}
@@ -164,8 +149,9 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 	@Override
 	public void modifyAuthorisedUsers(String channel, String autorisedUsers)
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
+		Client owner = (Client)this.getOwner();
 		try {
-			privilegedOutboundPort.modifyAuthorisedUsers(receivingInboundPortURI, channel, autorisedUsers);
+			privilegedOutboundPort.modifyAuthorisedUsers(owner.receivingInboundPortURI, channel, autorisedUsers);
 		} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException e) {
 			throw e;
 		} catch (Exception e) {
@@ -176,8 +162,9 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 	@Override
 	public void destroyChannel(String channel)
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
+		Client owner = (Client)this.getOwner();
 		try {
-			privilegedOutboundPort.destroyChannel(receivingInboundPortURI, channel);
+			privilegedOutboundPort.destroyChannel(owner.receivingInboundPortURI, channel);
 		} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException e) {
 			throw e;
 		} catch (Exception e) {
@@ -188,8 +175,9 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 	@Override
 	public void destroyChannelNow(String channel)
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
+		Client owner = (Client)this.getOwner();
 		try {
-			privilegedOutboundPort.destroyChannelNow(receivingInboundPortURI, channel);
+			privilegedOutboundPort.destroyChannelNow(owner.receivingInboundPortURI, channel);
 		} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException e) {
 			throw e;
 		} catch (Exception e) {

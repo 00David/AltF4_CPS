@@ -1,15 +1,15 @@
 package fr.sorbonne_u.broker.ports;
 
 import fr.sorbonne_u.broker.components.Broker;
-import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.components.ports.AbstractInboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
- * Inbound port of a {@link Broker}, allowing the handling of client registration.<br>
- * Delegates the management to its owner component, a {@link Broker}.
+ * Inbound port of a {@link Broker}, allowing the handling of client registration.
+ * 
+ * <p>Delegates the management to its owner component, a {@link Broker}.</p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -19,9 +19,7 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * @author Kevin Tang
  * @author David Vadimon
  */
-public class BrokerRegistrationInboundPort
-extends		AbstractInboundPort
-implements	RegistrationCI {
+public class BrokerRegistrationInboundPort extends AbstractInboundPort implements RegistrationCI {
 
 	private static final long serialVersionUID = 763740080899636307L;
 
@@ -32,7 +30,6 @@ implements	RegistrationCI {
 	 * <pre>
 	 * pre {@code uri != null && !uri.isEmpty()}
 	 * pre {@code owner != null}
-	 * pre {@code owner instanceof Broker}
 	 * post {@code  true}	// no postcondition.
 	 * </pre>
 	 * 
@@ -40,12 +37,11 @@ implements	RegistrationCI {
 	 * @param owner  		the component owning this port.
 	 * @throws Exception 	if an error occurs while creating the port
 	 */
-	public BrokerRegistrationInboundPort(String uri, ComponentI owner) throws Exception {
+	public BrokerRegistrationInboundPort(String uri, Broker owner) throws Exception {
 		super(uri, RegistrationCI.class, owner) ;
 		// Precondition checks
 		assert(uri != null && !uri.isEmpty()) : new PreconditionException("port uri cannot be null or empty");
 		assert(owner != null) : new PreconditionException("owner cannot be null");
-		assert(owner instanceof Broker) : new PreconditionException("owner must be a Broker");
 	}
 	
 	// Precondition and postcondition verifications are delegated to the Broker
@@ -65,19 +61,22 @@ implements	RegistrationCI {
 	@Override
 	public String register(String receptionPortURI, RegistrationClass rc) throws Exception {
 		return this.getOwner().handleRequest(
-				owner -> ((Broker)owner).registerService(receptionPortURI, rc));
+				owner -> ((Broker)owner).registerService(receptionPortURI, rc, true));
 	}
 
 	@Override
 	public String modifyServiceClass(String receptionPortURI, RegistrationClass rc) throws Exception {
 		return this.getOwner().handleRequest(
-				owner -> ((Broker)owner).modifyServiceClassService(receptionPortURI, rc));
+				owner -> ((Broker)owner).modifyServiceClassService(receptionPortURI, rc, true));
 	}
 
 	@Override
 	public void unregister(String receptionPortURI) throws Exception {
 		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).unregisterService(receptionPortURI));
+				owner -> {
+					((Broker)owner).unregisterService(receptionPortURI, true);
+					return null;
+				});
 	}
 
 	@Override
@@ -89,7 +88,10 @@ implements	RegistrationCI {
 	@Override
 	public boolean channelAuthorised(String receptionPortURI, String channel) throws Exception {
 		return this.getOwner().handleRequest(
-				owner -> ((Broker)owner).channelAuthorisedService(receptionPortURI, channel));
+				owner -> {
+					((Broker)owner).channelAuthorisedService(receptionPortURI, channel);
+					return null;
+				});
 	}
 
 	@Override
@@ -101,19 +103,28 @@ implements	RegistrationCI {
 	@Override
 	public void subscribe(String receptionPortURI, String channel, MessageFilterI filter) throws Exception {
 		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).subscribeService(receptionPortURI, channel, filter));
+				owner -> {
+					((Broker)owner).subscribeService(receptionPortURI, channel, filter, true);
+					return null;
+				});
 	}
 
 	@Override
 	public void unsubscribe(String receptionPortURI, String channel) throws Exception {
 		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).unsubscribeService(receptionPortURI, channel));
+				owner -> {
+					((Broker)owner).unsubscribeService(receptionPortURI, channel, true);
+					return null;
+				});
 	}
 
 	@Override
 	public void modifyFilter(String receptionPortURI, String channel, MessageFilterI filter) throws Exception {
 		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).modifyFilterService(receptionPortURI, channel, filter));
+				owner -> {
+					((Broker)owner).modifyFilterService(receptionPortURI, channel, filter);
+					return null;
+				});
 	}
 
 	

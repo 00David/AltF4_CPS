@@ -36,7 +36,9 @@ public class GreaterOrEqualTimeFilter implements TimeFilterI{
 	 */
 	public GreaterOrEqualTimeFilter(Instant timestampFilter) {
 		// Precondition check
-        if (timestampFilter == null) throw new IllegalArgumentException("Timestamp cannot be null");
+        if (timestampFilter == null) 
+        	throw new IllegalArgumentException("Timestamp cannot be null");
+        
 		this.timestampFilter = timestampFilter;
 	}
 	

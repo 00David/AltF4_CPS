@@ -47,16 +47,25 @@ public class PositionInRegionsValueFilter implements ValueFilterI {
 	}
 	
 	@Override
-	public boolean match(Serializable value) {
+	public boolean match(Serializable value) throws ClassCastException {
 		if (value == null) return false;
 		
 		if(value instanceof List<?>) { // Java does not authorize "value instanceof List<RegionI>"
 			List<RegionI> regions = (List<RegionI>)value; // Not the cleanest thing, cannot do differently
-			for (RegionI region : regions) {
-				if (region.in(position)) return true; // Checks if the position is in at least one given region
+			
+			// Checks if the position is in at least one given region
+			boolean posInOneRegion = false; 
+			for (int i = 0; !posInOneRegion && i < regions.size(); i++) {
+				RegionI region = regions.get(i);
+				if (region.in(position)) {
+					posInOneRegion = true;
+				}
 			}
+			return posInOneRegion;
+					
+		} else {
+			return false;
 		}
-		return false;
 	}
 
 }

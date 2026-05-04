@@ -1,0 +1,31 @@
+<deployment>
+   <hosts>
+    <host name="localhost"
+          dir="/Users/jmalenfant/principal/Tests/DDeployment_CS/"/>
+  </hosts>
+  <cyclicBarrier   hostname="localhost" port="55253"/>
+  <globalRegistry  hostname="localhost" port="55252"/>
+  <rmiRegistryPort no="55999"/>
+  <jvms2hostnames>
+  	<jvm2hostname jvmuri="broker1"
+  	    rmiRegistryCreator="true"
+        hostname="localhost"
+        mainclass="fr.sorbonne_u.meteo.tests.end_semester.complete_distributed.DCVMCompleteTest"/>
+  	<jvm2hostname jvmuri="broker2"
+  	    rmiRegistryCreator="false"
+        hostname="localhost"
+        mainclass="fr.sorbonne_u.meteo.tests.end_semester.complete_distributed.DCVMCompleteTest"/>
+  	<jvm2hostname jvmuri="broker3"
+  	    rmiRegistryCreator="false"
+        hostname="localhost"
+        mainclass="fr.sorbonne_u.meteo.tests.end_semester.complete_distributed.DCVMCompleteTest"/>
+  	<jvm2hostname jvmuri="broker4"
+  	    rmiRegistryCreator="false"
+        hostname="localhost"
+        mainclass="fr.sorbonne_u.meteo.tests.end_semester.complete_distributed.DCVMCompleteTest"/>
+  	<jvm2hostname jvmuri="broker5"
+  	    rmiRegistryCreator="false"
+        hostname="localhost"
+        mainclass="fr.sorbonne_u.meteo.tests.end_semester.complete_distributed.DCVMCompleteTest"/>
+  </jvms2hostnames>
+</deployment>

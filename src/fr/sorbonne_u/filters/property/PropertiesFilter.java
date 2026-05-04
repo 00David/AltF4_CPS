@@ -44,7 +44,9 @@ public class PropertiesFilter implements PropertiesFilterI {
      */
     public PropertiesFilter(MultiValuesFilterI multiValuesFilter) {
     	// Precondition check
-        if (multiValuesFilter == null) throw new IllegalArgumentException("A multi-values filter cannot be null");
+        if (multiValuesFilter == null) 
+        	throw new IllegalArgumentException("A multi-values filter cannot be null");
+        
         this.multiValuesFilter = multiValuesFilter;
     }
 
@@ -59,7 +61,7 @@ public class PropertiesFilter implements PropertiesFilterI {
      */
     @Override
     public boolean match(PropertyI... properties) {
-        // Preconditions check
+        // Precondition checks
         if (properties == null) 
             throw new IllegalArgumentException("Properties cannot be null");
         if (properties.length < 2) 
@@ -70,21 +72,21 @@ public class PropertiesFilter implements PropertiesFilterI {
         
         // For each property name required by the MultiValuesFilterI
         for (int i = 0; i < propertyNames.length; i++) {
-            boolean found = false;
 
             // Search for the corresponding property among the arguments
-            for (PropertyI p : properties) {
-                if (p.getName().equals(propertyNames[i])) {
+            boolean found = false;
+            for (int j = 0; !found && j < properties.length; j++) {
+            	PropertyI p = properties[j];
+            	
+            	if (p.getName().equals(propertyNames[i])) {
                     values[i] = p.getValue();
                     found = true;
-                    break;
                 }
             }
 
-            if (!found) 
-                throw new IllegalArgumentException(
-                    "Required property for the filter not found : " + propertyNames[i]
-                ); // required property missing
+            if (!found) { // required property missing
+            	throw new IllegalArgumentException("Required property for the filter not found : " + propertyNames[i]); 
+            }
         }
 
         return multiValuesFilter.match(values);

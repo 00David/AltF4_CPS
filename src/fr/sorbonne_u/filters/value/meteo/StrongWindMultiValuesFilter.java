@@ -3,6 +3,7 @@ package fr.sorbonne_u.filters.value.meteo;
 import java.io.Serializable;
 
 import fr.sorbonne_u.filters.value.AbstractMultiValuesFilter;
+import fr.sorbonne_u.messages.meteo.WindMessage;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.WindData;
 
@@ -58,7 +59,7 @@ public class StrongWindMultiValuesFilter extends AbstractMultiValuesFilter{
 	 * @param forceThreshold 		The maximum accepted wind's force.
 	 */
 	public StrongWindMultiValuesFilter(PositionData position, double distanceThreshold, double forceThreshold) {
-		super(new String[] {"position", "xWind", "yWind"});
+		super(new String[] {WindMessage.WIND_POSITION_PROPERTY, WindMessage.WIND_X_PROPERTY, WindMessage.WIND_Y_PROPERTY});
 		// Precondition checks
 		if (position == null) throw new IllegalArgumentException("A position cannot be null");
 		if (distanceThreshold < 0) throw new IllegalArgumentException("distanceThreshold cannot be negative");

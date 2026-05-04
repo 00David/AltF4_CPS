@@ -1,34 +1,28 @@
 package fr.sorbonne_u.meteo.components;
 
-import java.time.Instant;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.concurrent.Future;
 
-import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.clients.components.Client;
-import fr.sorbonne_u.components.AbstractComponent;
+import fr.sorbonne_u.components.utils.tests.TestScenario;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.LevelI;
-import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.PropertyFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.exceptions.PreconditionException;
-import fr.sorbonne_u.filters.MessageFilter;
-import fr.sorbonne_u.filters.property.PropertiesFilter;
-import fr.sorbonne_u.filters.property.PropertyFilter;
-import fr.sorbonne_u.filters.time.GreaterOrEqualTimeFilter;
-import fr.sorbonne_u.filters.value.meteo.PositionInRegionsValueFilter;
 import fr.sorbonne_u.meteo.data.MeteoAlert;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.WindData;
 import fr.sorbonne_u.meteo.plugins.WindTurbineReceptionPlugin;
-import fr.sorbonne_u.meteo.tests.WindTurbineTest;
-import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
+import fr.sorbonne_u.utils.aclocks.ClocksServer;
+import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
+import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
-import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
-import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.TimeFilterI;
+import fr.sorbonne_u.exceptions.InvariantException;
 import fr.sorbonne_u.exceptions.PostconditionException;
 
 /**
- * The WindTurbine component is a {@link Client} of the system.
+ * The WindTurbine component, {@link Client} of the system. Can participate in a given test scenario with the correct constructor.
  * 
  * <p>
  * It receives messages sent by meteorological stations/offices and takes
@@ -43,20 +37,17 @@ import fr.sorbonne_u.exceptions.PostconditionException;
  * 	</ul>
  * </p>
  * 
- * <p>
- * A Wind Turbine can have a privileged registration class, allowing it to interact with privileged channels on the {@link Broker},
- * however instead of {@link MeteoBureau} and {@link MeteoStation} components, it does not automatically creates the
- * privileged plugin on creation.
- * </p>
- * 
  * <p><strong>Invariants</strong></p>
  * <pre>
- * invariant	{@code datas != null}
- * invariant	{@code pos != null}
+ * invariant	{@code windTurbinePos != null}
+ * invariant	{@code filterChannel0 != null}
+ * invariant	{@code filterChannel1 != null}
  * invariant	{@code orientation != null}
  * invariant	{@code maxWorkingLevel != null}
+ * invariant	{@code datas != null}
  * invariant	{@code safeModeLock != null}
- * invariant	{@code subscriptionPlugin != null && subscriptionPlugin.isInitialised()}
+ * invariant	{@code this.subscriptionPlugin != null && this.subscriptionPlugin.isInitialised()}
+ * invariant	the WindTurbine has exactly 1 published inbound port implementing ReceivingCI. // informal
  * </pre>
  * 
  * @author Kevin TANG
@@ -64,13 +55,37 @@ import fr.sorbonne_u.exceptions.PostconditionException;
  */
 public class WindTurbine extends Client {
 
-	/** The component position */
+	/** The component position. */
 	protected final PositionData windTurbinePos;
 	
-	/** Stores wind data received from messages */
-	protected final ArrayList<WindData> datas = new ArrayList<WindData>();
-
-	/** The orientation of the wind turbine. PositionData is used here as a vector, for the WindTurbine orientation */
+	/** The test scenario followed by the component, if there is one. */
+	protected final TestScenario testScenario;
+	
+	/** 
+	 * Indicates if the wind turbine must subscribe to default channels 'channel0' and 'channel1' on execute().<br>
+	 * True for non-distributed test scenarios, false for distributed scenarios because otherwise we could have
+	 * subscription gossip messages propagating faster than registration gossip messages during setup, leading to errors.
+	 */
+	protected boolean subscriptionOnSetup;
+	
+	/** 
+	 * The component registers itself on the "channel0" during execute() with this filter, if {@code subscriptionOnSetup == true}. 
+	 * Otherwise stays null.
+	 */
+	protected MessageFilterI filterChannel0;
+	
+	/** 
+	 * The component registers itself on the "channel1" during execute() with this filter, if {@code subscriptionOnSetup == true}. 
+	 * Otherwise stays null.
+	 */
+	protected MessageFilterI filterChannel1;
+	
+	// Internal datas
+	
+	/** 
+	 * The orientation of the wind turbine. 
+	 * PositionData is used here as a vector, for the WindTurbine orientation. 
+	 */
 	protected PositionData orientation = new PositionData(0, 0);
 	
 	/** 
@@ -78,147 +93,170 @@ public class WindTurbine extends Client {
 	 * If a higher level is received, the turbine enters safety mode.
 	 */
 	protected final LevelI maxWorkingLevel;
-
-	/** Indicates whether the turbine is in safety mode or not (false by default) */
+	
+	/** Indicates whether the turbine is in safety mode or not (false by default). */
 	protected boolean safeMode = false;
 	
-	/** {@code safeMode} lock, used when the safemode is accessed for reading/writing */
+	/** Stores wind data received from messages. */
+	protected final ArrayList<WindData> datas = new ArrayList<WindData>();
+	
+	/** {@code safeMode} lock, used when the safemode is accessed for reading/writing. */
 	protected final Object safeModeLock = new Object();
 	
-	// SUBSCRIPTION + RECEPTION
+	// -------------------------------------------------------------------------
+	// WindTurbine reception plug-in setup method
+	// -------------------------------------------------------------------------
 	
-	/** Subscription + reception plugin */
-	protected final WindTurbineReceptionPlugin subscriptionPlugin;
-	
-	
-	/** 
-	 * Indicates if the wind turbine must register itself with default filters on channels "channel0" and "channel1".<br>
-	 * Test sub-classes can set this boolean at false in their constructor, otherwise it is set à true by default.
+	/**
+	 * Setup the {@code subscriptionPlugin} plug-in with the wind turbine version ({@link WindTurbineReceptionPlugin}).
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code this.registrationPlugin.isInitialised()}
+	 * post	{@code this.subscriptionPlugin != null && this.subscriptionPlugin.isInitialised()}
+	 * post	the WindTurbine has exactly 1 published inbound port implementing ReceivingCI. // informal
+	 * </pre>
+	 * 
+	 * @throws Exception 	If an error occurs while setuping the plug-in.
 	 */
-	protected boolean defaultReceptionOnExec = true;
+	protected void setupWindTurbineSubscriptionPlugin() throws Exception {
+		// Precondition check
+		assert registrationPlugin.isInitialised() : // if initialized, registrationPlugin.getRegistrationOutboundPort() != null
+			new PreconditionException("Registration plugin must be initialized.");
+		
+		// Install the subscription + reception plug-in
+		this.subscriptionPlugin = new WindTurbineReceptionPlugin(registrationPlugin);
+		this.subscriptionPlugin.setPluginURI("subscription");
+		this.installPlugin(this.subscriptionPlugin);
+		
+		// Postcondition checks
+		assert this.subscriptionPlugin.isInitialised() : 
+			new PostconditionException("Subscription (+reception) plugin must be initialized");
+		String[] subscriptionURIs = this.findInboundPortURIsFromInterface(ReceivingCI.class);
+		assert  subscriptionURIs.length == 1 : 
+			new InvariantException("The component must have an inbound port with ReceivingCI implemented interface");
+		assert	this.findPortFromURI(subscriptionURIs[0]).isPublished() :
+			new InvariantException("The component must have a ReceivingCI inbound port published");
+	}
 
 	//--------------------------------------------------------------------------
 	// Constructors
 	//--------------------------------------------------------------------------
 	
 	/**
-     * Creates a wind turbine component for the publish/subscribe system, extending a {@link Client}.
+     * Creates an active test wind turbine component for the publish/subscribe system.
      * 
      * <p><strong>Contract</strong></p>
      * <pre>
+	 * pre	{@code reflectionInboundPortURI != null && !reflectionInboundPortURI.isEmpty()}
      * pre  {@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
-     * pre  {@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
-     * pre  {@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
      * pre	{@code rc != null}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
-     * pre  {@code pos != null}
+     * pre  {@code windTurbinePos != null}
      * pre  {@code maxWorkingLevel != null}
-     * post class invariants satisfied
+	 * pre  {@code filterChannel0 != null && filterChannel01!= null}
+	 * pre  {@code testScenario != null}
+     * post {@code true} // no postcondition.
      * </pre>
      * 
-     * @param receivingInboundPortURI     URI of the inbound port providing {@link ReceivingCI}.
-     * @param registrationOutboundPortURI URI of the outbound port requesting {@link RegistrationCI}.
-     * @param publishingOutboundPortURI   URI of the outbound port requesting {@link PublishingCI}.
-	 * @param rc			  		 	  The registration class of the component.
-	 * @param nbThreads					  Number of threads to be created in the component pool.
-	 * @param nbSchedulableThreads		  Number of threads to be created in the component schedulable pool.
-     * @param windTurbinePos              The position of the wind turbine.
-     * @param maxWorkingLevel             Maximum alert level (inclusive) at which the turbine operates.
-     * @throws Exception                  If a problem occurs during initialization or port publication.
+	 * @param id						  	A number identifying the component, just for tracer window.
+	 * @param reflectionInboundPortURI	  	URI of the reflection inbound port to be created in this component.
+     * @param receivingInboundPortURI     	URI of the inbound port providing {@link ReceivingCI}.
+	 * @param rc			  		 	  	The registration class of the component.
+	 * @param nbThreads					  	Number of threads to be created in the component pool.
+	 * @param nbSchedulableThreads		  	Number of threads to be created in the component schedulable pool.
+     * @param windTurbinePos				The position of the wind turbine.
+     * @param maxWorkingLevel             	Maximum alert level (inclusive) at which the turbine operates.
+	 * @param subscriptionOnSetup			Indicates if the wind turbine must subscribe to default channels 'channel0' and 'channel1' on execute.
+	 * @param filterChannel0			  	Filter used to register during {@code execute} method on the "channel0".
+	 * @param filterChannel1			  	Filter used to register during {@code execute} method on the "channel1".
+	 * @param testScenario				  	Test scenario in which this component participate.
+     * @throws Exception                  	If a problem occurs during initialization or port publication.
      */
-	protected WindTurbine(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, 
-			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData windTurbinePos,LevelI maxWorkingLevel) throws Exception {
-		super(receivingInboundPortURI, registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads);
+	protected WindTurbine(int id, String reflectionInboundPortURI, String receivingInboundPortURI, RegistrationClass rc, 
+			int nbThreads, int nbSchedulableThreads, PositionData windTurbinePos, LevelI maxWorkingLevel, 
+			boolean subscriptionOnSetup, MessageFilterI filterChannel0, MessageFilterI filterChannel1, TestScenario testScenario) 
+					throws Exception {
+		super(reflectionInboundPortURI, receivingInboundPortURI, rc, nbThreads, nbSchedulableThreads);
 		
-		// Some preconditions are checked inside the superconstructor while others are checked here
-		assert (windTurbinePos != null) : new PreconditionException("WindTurbine position cannot be null");	
-		assert (maxWorkingLevel != null) : new PreconditionException("max working level cannot be null");	
-
+		// Some preconditions are checked inside the super-constructor while others are checked here
+		assert (windTurbinePos != null) : 
+			new PreconditionException("WindTurbine position cannot be null");	
+		assert (maxWorkingLevel != null) : 
+			new PreconditionException("max working level cannot be null");	
+		assert (filterChannel0 != null) : 
+			new PreconditionException("filterChannel0 cannot be null");	
+		assert (filterChannel1 != null) : 
+			new PreconditionException("filterChannel1 cannot be null");	
+		assert (testScenario != null) : 
+			new PreconditionException("testScenario cannot be null");	
+		
 		this.windTurbinePos = windTurbinePos;
 		this.maxWorkingLevel = maxWorkingLevel;
+		this.testScenario = testScenario;
+		this.subscriptionOnSetup = subscriptionOnSetup;
+		this.filterChannel0 = filterChannel0;
+		this.filterChannel1 = filterChannel1;
 		
 		// Install the subscription + reception plugin (Wind turbine version)
-		this.subscriptionPlugin = new WindTurbineReceptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
-		this.subscriptionPlugin.setPluginURI("subscription");
-		this.installPlugin(this.subscriptionPlugin);
+		setupWindTurbineSubscriptionPlugin();
 		
-		// Invariant checks
-		AbstractComponent.checkImplementationInvariant(this);
-		AbstractComponent.checkInvariant(this);
-		
-		// Postcondition checks
-		assert subscriptionPlugin.isInitialised() : 
-			new PostconditionException("Subscription (+reception) plugin must be initialized");
-		assert	this.isPortExisting(receivingInboundPortURI) : 
-			new PostconditionException("The component must have a port with URI " + receivingInboundPortURI);
-		assert	this.findPortFromURI(receivingInboundPortURI).getImplementedInterface().equals(ReceivingCI.class) : 
-			new PostconditionException("The component must have a port with implemented interface ReceivingCI");
-		assert	this.findPortFromURI(receivingInboundPortURI).isPublished() :
-			new PostconditionException("The component must have a port published with URI " + receivingInboundPortURI);
-		
-		this.getTracer().setTitle("WindTurbine");
+		this.getTracer().setTitle("WindTurbine "+id);
 		this.getTracer().setRelativePosition((int)windTurbinePos.getPosX(), (int)windTurbinePos.getPosY());
 	}
 	
 	/**
-     * Creates a wind turbine component for the publish/subscribe system, extending a {@link Client}, by providing 
-	 * the {@code reflectionInboundPortURI} of the component.
-     * 
-     * <p>Constructor used by test sub-class {@link WindTurbineTest}.</p>
+     * Creates a passive wind turbine component for the publish/subscribe system.
      * 
      * <p><strong>Contract</strong></p>
      * <pre>
+	 * pre	{@code reflectionInboundPortURI != null && !reflectionInboundPortURI.isEmpty()}
      * pre  {@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
-     * pre  {@code registrationOutboundPortURI != null && !registrationOutboundPortURI.isEmpty()}
-     * pre  {@code publishingOutboundPortURI != null && !publishingOutboundPortURI.isEmpty()}
      * pre	{@code rc != null}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
-     * pre  {@code pos != null}
+     * pre  {@code windTurbinePos != null}
      * pre  {@code maxWorkingLevel != null}
-	 * pre	{@code reflectionInboundPortURI != null && !reflectionInboundPortURI.isEmpty()}
-     * post class invariants satisfied
+	 * pre  {@code filterChannel0 != null && filterChannel01!= null}
+     * post {@code true} // no postcondition.
      * </pre>
      * 
-     * @param receivingInboundPortURI     URI of the inbound port providing {@link ReceivingCI}.
-     * @param registrationOutboundPortURI URI of the outbound port requesting {@link RegistrationCI}.
-     * @param publishingOutboundPortURI   URI of the outbound port requesting {@link PublishingCI}.
+	 * @param id						  	A number identifying the component, just for tracer window.
+	 * @param reflectionInboundPortURI	  	URI of the reflection inbound port to be created in this component.
+     * @param receivingInboundPortURI     	URI of the inbound port providing {@link ReceivingCI}.
 	 * @param rc			  		 	  	The registration class of the component.
-	 * @param nbThreads					  Number of threads to be created in the component pool.
-	 * @param nbSchedulableThreads		  Number of threads to be created in the component schedulable pool.
-     * @param windTurbinePos              The position of the wind turbine.
-     * @param maxWorkingLevel             Maximum alert level (inclusive) at which the turbine operates.
-	 * @param reflectionInboundPortURI	  URI of the reflection inbound port to be created in this component.
-     * @throws Exception                  If a problem occurs during initialization or port publication.
+	 * @param nbThreads					  	Number of threads to be created in the component pool.
+	 * @param nbSchedulableThreads		  	Number of threads to be created in the component schedulable pool.
+     * @param windTurbinePos 				The position of the wind turbine.
+     * @param maxWorkingLevel             	Maximum alert level (inclusive) at which the turbine operates.
+	 * @param subscriptionOnSetup			Indicates if the wind turbine must subscribe to default channels 'channel0' and 'channel1' on execute.
+	 * @param filterChannel0			  	Filter used to register during {@code execute} method on the "channel0".
+	 * @param filterChannel1			  	Filter used to register during {@code execute} method on the "channel1".
+     * @throws Exception                  	If a problem occurs during initialization or port publication.
      */
-	protected WindTurbine(String receivingInboundPortURI, String registrationOutboundPortURI, String publishingOutboundPortURI, 
-			RegistrationClass rc, int nbThreads, int nbSchedulableThreads, PositionData windTurbinePos, LevelI maxWorkingLevel, String reflectionInboundPortURI) throws Exception {
-		super(receivingInboundPortURI, registrationOutboundPortURI, rc, nbThreads, nbSchedulableThreads, reflectionInboundPortURI);
+	protected WindTurbine(int id, String reflectionInboundPortURI, String receivingInboundPortURI, RegistrationClass rc, 
+			int nbThreads, int nbSchedulableThreads, PositionData windTurbinePos, LevelI maxWorkingLevel, 
+			boolean subscriptionOnSetup, MessageFilterI filterChannel0, MessageFilterI filterChannel1) throws Exception {
+		super(reflectionInboundPortURI, receivingInboundPortURI, rc, nbThreads, nbSchedulableThreads);
 		
-		// Some preconditions are checked inside the superconstructor while others are checked here
-		assert (windTurbinePos != null) : new PreconditionException("WindTurbine position cannot be null");	
-		assert (maxWorkingLevel != null) : new PreconditionException("max working level cannot be null");	
-
+		// Some preconditions are checked inside the super-constructor while others are checked here
+		assert (windTurbinePos != null) : 
+			new PreconditionException("WindTurbine position cannot be null");	
+		assert (maxWorkingLevel != null) : 
+			new PreconditionException("max working level cannot be null");	
+		assert (filterChannel0 != null) : 
+			new PreconditionException("filterChannel0 cannot be null");	
+		assert (filterChannel1 != null) : 
+			new PreconditionException("filterChannel1 cannot be null");	
+		
 		this.windTurbinePos = windTurbinePos;
 		this.maxWorkingLevel = maxWorkingLevel;
+		this.testScenario = null;
+		this.subscriptionOnSetup = subscriptionOnSetup;
+		this.filterChannel0 = filterChannel0;
+		this.filterChannel1 = filterChannel1;
 		
 		// Install the subscription + reception plugin (Wind turbine version)
-		this.subscriptionPlugin = new WindTurbineReceptionPlugin(receivingInboundPortURI, registrationPlugin.getRegistrationOutboundPort());
-		this.subscriptionPlugin.setPluginURI("subscription");
-		this.installPlugin(this.subscriptionPlugin);
-		
-		// Invariant checks
-		AbstractComponent.checkImplementationInvariant(this);
-		AbstractComponent.checkInvariant(this);
-		
-		// Postcondition checks
-		assert subscriptionPlugin.isInitialised() : 
-			new PostconditionException("Subscription (+reception) plugin must be initialized");
-		assert	this.isPortExisting(receivingInboundPortURI) : 
-			new PostconditionException("The component must have a port with URI " + receivingInboundPortURI);
-		assert	this.findPortFromURI(receivingInboundPortURI).getImplementedInterface().equals(ReceivingCI.class) : 
-			new PostconditionException("The component must have a port with implemented interface ReceivingCI");
-		assert	this.findPortFromURI(receivingInboundPortURI).isPublished() :
-			new PostconditionException("The component must have a port published with URI " + receivingInboundPortURI);
+		setupWindTurbineSubscriptionPlugin();
 		
 		this.getTracer().setTitle("WindTurbine");
 		this.getTracer().setRelativePosition((int)windTurbinePos.getPosX(), (int)windTurbinePos.getPosY());
@@ -237,48 +275,31 @@ public class WindTurbine extends Client {
 		registrationPlugin.register(registrationClass);
 		assert (registrationPlugin.getBrokerPublishingPortURI() != null);
 		this.logMessage("WindTurbine registered");
+		
+		if (subscriptionOnSetup) {
+	        // Wind data subscription
+	        subscriptionPlugin.subscribe("channel0", filterChannel0);
+	        this.logMessage("Thread "+Thread.currentThread().getId()+": WindTurbine subscribed to channel0");
 
-		if (defaultReceptionOnExec) startWindTurbine();
+	        // Alert data subscription
+	        subscriptionPlugin.subscribe("channel1", filterChannel1);
+	        this.logMessage("Thread "+Thread.currentThread().getId()+": WindTurbine subscribed to channel1");
+		}
+        
+		// Install the privileged plug-in if it is allowed.
+		if (this.registrationClass == RegistrationClass.STANDARD || this.registrationClass == RegistrationClass.PREMIUM) {
+			setupPrivilegedPlugin();
+		}
+
+		if (testScenario != null) {
+			// Initialization of the clock
+			this.initialiseClock(
+					ClocksServer.STANDARD_INBOUNDPORT_URI,
+					this.testScenario.getClockURI());
+			// Component ready for executing the scenario
+			this.executeTestScenario(this.testScenario);
+		}
 	}
-
-    /**
-     * Registers the wind turbine to channels for receiving wind data and alerts.
-     * 
-     * <ul>
-     * 	<li>Only considers messages created after the turbine registration.</li>
-     * 	<li>For alerts, only considers alerts where one of the affected regions contains the turbine's position.</li>
-     * </ul>
-     * 
-     * <ul>
-     * 	<li>Wind datas are received from "channel0".</li>
-     * 	<li>Meteorological alerts are received from "channel1".</li>
-     * </ul>
-     * 
-	 * <p><strong>Contract</strong></p>
-	 * <pre>
-	 * pre	{@code true}	// no precondition.
-	 * post	{@code true}	// no postcondition.
-	 * </pre>
-     * 
-     * @throws Exception If a problem occurs while connecting ports.
-     */
-	protected void startWindTurbine() throws Exception {
-
-        // Create a filter only accepting messages after the turbine subscription
-        TimeFilterI timeFilter = new GreaterOrEqualTimeFilter(Instant.now());
-
-        // Wind data subscription
-        subscriptionPlugin.subscribe("channel0", new MessageFilter(new PropertyFilter[0], new PropertiesFilter[0], timeFilter));
-        this.logMessage("WindTurbine subscribed to channel0");
-
-        // Alert data subscription
-        PropertyFilterI[] propFiltersAlert = new PropertyFilterI[1];
-        // Create a filter accepting regions containing the wind turbine position
-        propFiltersAlert[0] = new PropertyFilter("regions", new PositionInRegionsValueFilter(this.windTurbinePos));
-
-        subscriptionPlugin.subscribe("channel1", new MessageFilter(propFiltersAlert, new PropertiesFilter[0], timeFilter));
-        this.logMessage("WindTurbine subscribed to channel1");
-    }
 	
 	// --------------------------------------------------------------------------
 	// Component public methods
@@ -382,7 +403,6 @@ public class WindTurbine extends Client {
 				}
 			} else if (alertLevel.ordinal() <= maxLevel.ordinal() && safeMode) {
 				goBacktoNormalMode();
-			
 			} else {
 				// Don't change anything, if we have :
 				// - received an alert above the maximum operating level while already in safe mode
@@ -453,6 +473,180 @@ public class WindTurbine extends Client {
 			}
 			// Postcondition check
 			assert(!safeMode) : new PostconditionException("Safe mode must be turned off");
+		}
+	}
+	
+	// --------------------------------------------------------------------------
+	// Test actions
+	// --------------------------------------------------------------------------
+
+	/**
+	 * Unregisters the Wind Turbine from the system.
+	 * 
+	 * <p><strong>Contract</strong></p>
+     * <pre>
+     * pre  {@code true} // no precondition.
+     * post {@code !registrationPlugin.registered()}
+     * </pre>
+     * 
+     * @throws Exception If an error occurs while unregistering.
+	 */
+	public void unregisterFromSystem()  throws Exception  {
+		registrationPlugin.unregister();
+		this.logMessage("WindTurbine unregistered from system");
+		
+		// Postcondition check
+		assert(!registrationPlugin.registered()) : new PostconditionException("should be unregistered from system");
+	}
+	
+	/**
+	 * Unsubscribes from the {@code channel}.
+	 * 
+	 * <p><strong>Contract</strong></p>
+     * <pre>
+	 * pre	{@code channel != null && !channel.isEmpty()}
+     * post {@code !subscriptionPlugin.subscribed(channel)}
+     * </pre>
+	 * 
+	 * @param channel		The channel from which the turbine must unsubscribe.
+	 * @throws Exception	If an error occurs while unsubscribing.
+	 */
+	public void unsubscribeFromChannel(String channel)  throws Exception  {
+		// Precondition check
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
+		
+		subscriptionPlugin.unsubscribe(channel);
+		this.logMessage("WindTurbine unsubscribed from channel : "+channel);
+		
+		// Postcondition check
+		assert(!subscriptionPlugin.subscribed(channel)) : new PostconditionException("should be unsubscribed from channel : "+channel);
+	}
+	
+	/**
+	 * Subscribes to the {@code channel} with the given {@code filter}.
+	 * 
+	 * <p><strong>Contract</strong></p>
+     * <pre>
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * pre	{@code filter != null}
+     * post {@code subscriptionPlugin.subscribed(channel)}
+     * </pre>
+	 * 
+	 * @param channel		The channel to subscribe to.
+	 * @param filter		The filter to apply on the {@code channel}
+	 * @throws Exception	If an error occurs while subscribing.
+	 */
+	public void subscribeToChannel(String channel, MessageFilterI filter)  throws Exception  {
+		// Precondition check
+		assert(channel != null && !channel.isEmpty()) : new PreconditionException("channel cannot be null or empty");
+		assert(filter != null) : new PreconditionException("filter cannot be null");
+		
+		subscriptionPlugin.subscribe(channel, filter);
+		this.logMessage("WindTurbine subscribed to channel : "+channel);
+		
+		// Postcondition check
+		assert(subscriptionPlugin.subscribed(channel)) : new PostconditionException("should be subscribed to channel : "+channel);
+	}
+	
+	/**
+	 * Verifies that the wind turbine has received {@code expectedNb} wind datas since its start.
+	 * 
+	 * <p><strong>Contract</strong></p>
+     * <pre>
+	 * pre	{@code true} // no precondition
+     * post {@code true} // no postcondition
+     * </pre>
+	 * 
+	 * @param expectedNb	The expected number of wind datas received on the wind turbine.
+	 */
+	public void verifyNbWindDatasReceived(int expectedNb) {
+		int nbReceived;
+		synchronized (this.datas) {
+			nbReceived = this.datas.size();
+		}
+		assert(nbReceived == expectedNb);
+		this.logMessage("WindTurbine expected "+expectedNb+" wind datas and got them : correct");
+	}
+	
+	/**
+	 * Gets the number of wind datas the wind turbine has received since its start.
+	 * 
+	 * <p><strong>Contract</strong></p>
+     * <pre>
+	 * pre	{@code true} // no precondition
+     * post {@code true} // no postcondition
+     * </pre>
+     * 
+	 * @return		The number of wind datas the wind turbine has received since its start.
+	 */
+	public int getNbWindDatasReceived() {
+		synchronized (this.datas) {
+			return this.datas.size();
+		}
+	}
+	
+	/**
+	 * Waits a message from {@code channel}.
+	 * 
+	 * <p><strong>Contract</strong></p>
+     * <pre>
+	 * pre	{@code true} // no precondition
+     * post {@code true} // no postcondition
+     * </pre>
+     * 
+	 * @param channel		The channel on which the wait is done.
+	 */
+	public void waitMessage(String channel) {
+		try {
+			MessageI mes = subscriptionPlugin.waitForNextMessage(channel);
+			System.out.println("waitForNextMessage ended, got message ? :"+(mes != null));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Waits a message from {@code channel}, for a given timeout of duration {@code d}.
+	 * 
+	 * <p><strong>Contract</strong></p>
+     * <pre>
+	 * pre	{@code true} // no precondition
+     * post {@code true} // no postcondition
+     * </pre>
+     * 
+	 * @param channel		The channel on which the wait is done.
+	 * @param d				The timeout for the wait.
+	 */
+	public void waitMessageTimeout(String channel, Duration d) {
+		try {
+			MessageI mes = subscriptionPlugin.waitForNextMessage(channel, d);
+			System.out.println("waitForNextMessage (timeout) ended, got message ? :"+(mes != null));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Gets the future for getting a message from {@code channel}, 
+	 * sleeps during a {@code d} duration before getting the future content.
+	 * 
+	 * <p><strong>Contract</strong></p>
+     * <pre>
+	 * pre	{@code true} // no precondition
+     * post {@code true} // no postcondition
+     * </pre>
+     * 
+	 * @param channel					The channel for which the future is got.
+	 * @param d							The thread sleep time, between the future getting and the {@code get} on the future.
+	 */
+	public void waitMessageFuture(String channel, Duration d) {
+		try {
+			Future<MessageI> future = subscriptionPlugin.getNextMessage(channel);
+			Thread.sleep(d.toMillis());
+			MessageI mes = future.get();
+			System.out.println("getNextMessage (future) ended, got message ? :"+(mes != null));
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 	}
 }

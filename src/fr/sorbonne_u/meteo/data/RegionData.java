@@ -45,8 +45,10 @@ public class RegionData implements RegionI {
 	 */
 	public RegionData(double xMin, double xMax, double yMin, double yMax) {
 		// Precondition checks
-		if (xMin > xMax) throw new IllegalArgumentException("X min cannot be greater than X max");
-		if (yMin > yMax) throw new IllegalArgumentException("Y min cannot be greater than Y max");
+		if (xMin > xMax) 
+			throw new IllegalArgumentException("X min cannot be greater than X max");
+		if (yMin > yMax) 
+			throw new IllegalArgumentException("Y min cannot be greater than Y max");
 		
 		this.xMin = xMin;
 		this.xMax = xMax;

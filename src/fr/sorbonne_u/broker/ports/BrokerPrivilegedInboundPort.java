@@ -1,14 +1,14 @@
 package fr.sorbonne_u.broker.ports;
 
 import fr.sorbonne_u.broker.components.Broker;
-import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.components.tasks_management.connection.AbnormalTerminationNotificationOutboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 
 /**
  * Inbound port of a {@link Broker}, allowing the handling of message publications from a privileged client, 
- * as well as advanced channel management operations.<br>
- * Delegates the processing to its owner component, a {@link Broker}.
+ * as well as advanced channel management operations.
+ * 
+ * <p>Delegates the processing to its owner component, a {@link Broker}.</p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -18,9 +18,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
  * @author Kevin Tang
  * @author David Vadimon
  */
-public class BrokerPrivilegedInboundPort
-extends		BrokerPublishingInboundPort
-implements	PrivilegedClientCI {
+public class BrokerPrivilegedInboundPort extends BrokerPublishingInboundPort implements	PrivilegedClientCI {
 
 	private static final long serialVersionUID = 1878031196993861332L;
 
@@ -32,7 +30,6 @@ implements	PrivilegedClientCI {
 	 * <pre>
 	 * pre  {@code uri != null && !uri.isEmpty()}
 	 * pre  {@code owner != null}
-	 * pre  {@code owner instanceof Broker}
 	 * pre  {@code notificationPort != null}
 	 * post class invariant satisfied (for the parent class)
 	 * </pre>
@@ -42,7 +39,7 @@ implements	PrivilegedClientCI {
 	 * @param notificationPort  		outport port requiring the component interface {@code AbnormalTerminationNotificationCI}.
 	 * @throws Exception 				if an error occurs while creating the port
 	 */
-	public BrokerPrivilegedInboundPort(String uri, ComponentI owner, 
+	public BrokerPrivilegedInboundPort(String uri, Broker owner, 
 			AbnormalTerminationNotificationOutboundPort notificationPort) throws Exception {
 		super(uri, PrivilegedClientCI.class, owner, notificationPort) ;
 		// Preconditions checked in the parent constructor
@@ -65,25 +62,37 @@ implements	PrivilegedClientCI {
 	@Override
 	public void createChannel(String receptionPortURI, String channel, String autorisedUsers) throws Exception {
 		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).createChannelService(receptionPortURI, channel, autorisedUsers));
+				owner -> {
+					((Broker)owner).createChannelService(receptionPortURI, channel, autorisedUsers, true);
+					return null;
+				});
 	}
 
 	@Override
 	public void modifyAuthorisedUsers(String receptionPortURI, String channel, String autorisedUsers) throws Exception {
 		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).modifyAuthorisedUsersService(receptionPortURI, channel, autorisedUsers));
+				owner -> {
+					((Broker)owner).modifyAuthorisedUsersService(receptionPortURI, channel, autorisedUsers, true);
+					return null;
+				});
 	}
 
 	@Override
 	public void destroyChannel(String receptionPortURI, String channel) throws Exception {
 		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).destroyChannelService(receptionPortURI, channel));
+				owner -> {
+					((Broker)owner).destroyChannelService(receptionPortURI, channel, true);
+					return null;
+				});
 	}
 
 	@Override
 	public void destroyChannelNow(String receptionPortURI, String channel) throws Exception {
 		this.getOwner().handleRequest(
-				owner -> ((Broker)owner).destroyChannelNowService(receptionPortURI, channel));
+				owner -> {
+					((Broker)owner).destroyChannelNowService(receptionPortURI, channel, true);
+					return null;
+				});
 	}
 	
 }

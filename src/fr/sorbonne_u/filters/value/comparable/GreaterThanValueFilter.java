@@ -48,7 +48,7 @@ public class GreaterThanValueFilter<T extends Comparable<T>> implements ValueFil
 	}
 	
 	@Override
-	public boolean match(Serializable value) {
+	public boolean match(Serializable value) throws ClassCastException {
 		if (value == null) return false;
 		T v = (T)value; // ClassCastException possible here, same type as filterValue's type needed
 		return v.compareTo(filterValue) > 0;

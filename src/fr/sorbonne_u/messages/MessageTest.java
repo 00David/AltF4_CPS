@@ -1,8 +1,7 @@
-package fr.sorbonne_u.messages.tests;
+package fr.sorbonne_u.messages;
 
 import fr.sorbonne_u.cps.pubsub.exceptions.UnknownPropertyException;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI.PropertyI;
-import fr.sorbonne_u.messages.Message;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.WindData;
 
@@ -84,14 +83,11 @@ public class MessageTest{
 		Message message = new Message();
 		LocationData data = new LocationData("10248773", "6437392729");
 		message.putProperty("location", data);
-		PropertyI value = null;
 		try {
-			value = (PropertyI) message.getPropertyValue("location");
+			assertEquals(data, message.getPropertyValue("location"));
 		} catch (UnknownPropertyException e) {
 			e.printStackTrace();
 		}
-		
-		assertTrue(value instanceof PropertyI);
 	}
 	
 	@Test

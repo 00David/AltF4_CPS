@@ -46,10 +46,12 @@ public class PropertyFilter implements PropertyFilterI {
      * @throws IllegalArgumentException		if a precondition is not satisfied
      */
     public PropertyFilter(String propertyName, ValueFilterI valueFilter) {
-        if (propertyName == null || propertyName.isEmpty()) 
+    	// Precondition checks
+    	if (propertyName == null || propertyName.isEmpty()) 
             throw new IllegalArgumentException("A property name cannot be null or empty");
         if (valueFilter == null) 
             throw new IllegalArgumentException("A value filter cannot be null");
+        
         this.propertyName = propertyName;
         this.valueFilter = valueFilter;
     }

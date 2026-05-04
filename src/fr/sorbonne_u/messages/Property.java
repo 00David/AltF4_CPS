@@ -39,7 +39,8 @@ public class Property implements PropertyI{
 	 */
 	public Property(String name, Serializable value) {
 		// Precondition checks
-		if (name == null || name.isEmpty()) throw new IllegalArgumentException("A property name cannot be null or empty");
+		if (name == null || name.isEmpty()) 
+			throw new IllegalArgumentException("A property name cannot be null or empty");
 		
 		this.name = name;
 		this.value = value;
