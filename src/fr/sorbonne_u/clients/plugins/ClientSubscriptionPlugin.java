@@ -10,8 +10,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
-import fr.sorbonne_u.broker.components.Broker;
-import fr.sorbonne_u.clients.components.Client;
+import fr.sorbonne_u.broker.component.Broker;
+import fr.sorbonne_u.clients.component.Client;
 import fr.sorbonne_u.clients.ports.ClientReceivingInboundPort;
 import fr.sorbonne_u.components.AbstractPlugin;
 import fr.sorbonne_u.components.ComponentI;

@@ -8,7 +8,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.PropertyFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.filters.MessageFilter;
 import fr.sorbonne_u.filters.time.JokerTimeFilter;
-import fr.sorbonne_u.messages.Message;
+import fr.sorbonne_u.messages.MessageTest;
 import fr.sorbonne_u.messages.gossip.GossipMessage.Action;
 
 import org.junit.jupiter.api.Test;
@@ -121,7 +121,7 @@ public class GossipMessagesTest {
     @Test
     public void testCreatePublishMessages() throws Exception {
         ArrayList<MessageI> messages = new ArrayList<>();
-        messages.add(new Message());
+		messages.add(new MessageTest.DummyMessage());
 
         GossipMessage msg = GossipMessageFactory.createPublishMessages(
             "broker-1", "port", "channel", messages);

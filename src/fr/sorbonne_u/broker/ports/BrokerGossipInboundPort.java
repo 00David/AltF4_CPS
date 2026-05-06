@@ -1,6 +1,6 @@
 package fr.sorbonne_u.broker.ports;
 
-import fr.sorbonne_u.broker.components.Broker;
+import fr.sorbonne_u.broker.component.Broker;
 import fr.sorbonne_u.broker.plugin.BrokerGossipPlugin;
 import fr.sorbonne_u.components.ports.AbstractInboundPort;
 import fr.sorbonne_u.cps.gossip.interfaces.GossipMessageI;
@@ -10,7 +10,10 @@ import fr.sorbonne_u.exceptions.PreconditionException;
 /**
  * Inbound port of a {@link Broker}, allowing the handling of gossip messages reception.
  *
- *<p>Redirects incoming gossip messages to its {@link BrokerGossipPlugin}.</p>
+ *<p>
+ *	Redirects incoming gossip messages to its {@link BrokerGossipPlugin}, 
+ *	being handled by threads from {@link Broker}'s GOSSIP_RECEIVING_POOL_URI pool.
+ *</p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -54,9 +57,12 @@ public class BrokerGossipInboundPort extends AbstractInboundPort implements Goss
 	@Override
 	public void receive(GossipMessageI[] gossipMessages) throws Exception {
 		BrokerGossipPlugin bgp = (BrokerGossipPlugin) this.getOwnerPlugin(this.pluginURI);
-		this.getOwner().handleRequest(broker -> {
-			bgp.receive(gossipMessages);
-			return null;
+		this.getOwner().runTask(Broker.GOSSIP_RECEIVING_POOL_URI, broker -> {
+			try {
+				bgp.receive(gossipMessages);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 		}); 
 	}
 }

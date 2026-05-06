@@ -1,4 +1,4 @@
-package fr.sorbonne_u.broker.components.infos.tests;
+package fr.sorbonne_u.broker.component.tests;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -9,7 +9,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import fr.sorbonne_u.broker.components.infos.ChannelBrokerInfos;
+import fr.sorbonne_u.broker.component.ChannelBrokerInfos;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.PropertiesFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI.PropertyFilterI;
@@ -19,7 +19,7 @@ import fr.sorbonne_u.filters.property.PropertyFilter;
 import fr.sorbonne_u.filters.time.GreaterOrEqualTimeFilter;
 import fr.sorbonne_u.filters.time.JokerTimeFilter;
 import fr.sorbonne_u.filters.value.JokerValueFilter;
-import fr.sorbonne_u.messages.Message;
+import fr.sorbonne_u.messages.MessageTest;
 
 /**
  * Unit tests for {@link ChannelBrokerInfos}.
@@ -219,8 +219,8 @@ public class ChannelBrokerInfosTest {
 
     @Test
     void testLoadMessageAndUnload() {
-        MessageI msg1 = new Message();
-        MessageI msg2 = new Message();
+        MessageI msg1 = new MessageTest.DummyMessage();
+        MessageI msg2 = new MessageTest.DummyMessage();
 
         channel.loadMessage(msg1);
         channel.loadMessage(msg2);
@@ -248,7 +248,7 @@ public class ChannelBrokerInfosTest {
         channel.addOrReplaceSubscriber("client2", filterAcceptingAllWeight);
 
         // Message with "height" property
-        MessageI msg = new Message();
+        MessageI msg = new MessageTest.DummyMessage();
         msg.putProperty("height", 1.75);
 
         List<String> targets = channel.targetSubscribers(msg);

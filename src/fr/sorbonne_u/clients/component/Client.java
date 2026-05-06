@@ -1,4 +1,4 @@
-package fr.sorbonne_u.clients.components;
+package fr.sorbonne_u.clients.component;
 
 import java.io.Serializable;
 

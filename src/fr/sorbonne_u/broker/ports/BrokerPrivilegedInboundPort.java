@@ -1,6 +1,6 @@
 package fr.sorbonne_u.broker.ports;
 
-import fr.sorbonne_u.broker.components.Broker;
+import fr.sorbonne_u.broker.component.Broker;
 import fr.sorbonne_u.components.tasks_management.connection.AbnormalTerminationNotificationOutboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 

@@ -1,15 +1,20 @@
-package fr.sorbonne_u.broker.components.tasks;
+package fr.sorbonne_u.broker.component.tasks;
 
 import java.util.Map;
 
-import fr.sorbonne_u.broker.components.Broker;
-import fr.sorbonne_u.broker.components.infos.ClientBrokerInfos;
-import fr.sorbonne_u.components.AbstractComponent.AbstractTask;
+import fr.sorbonne_u.broker.component.Broker;
+import fr.sorbonne_u.broker.component.ClientBrokerInfos;
+import fr.sorbonne_u.broker.component.VisibilitySenderTask;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
  * Created by a {@link UnloaderTask}, handles messages sending to a specific targeted client.
+ * 
+ * <p>
+ * This class derives from {@link VisibilitySenderTask} in order to have an access to the client sending method,
+ * not visible from outside {@link Broker}'s package. 
+ * </p>
  * 
  * <p>
  * An {@link Exception} can be thrown while sending messages, 
@@ -28,7 +33,7 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * @author Kevin Tang
  * @author David Vadimon
  */
-public class SenderTask extends AbstractTask {
+public class SenderTask extends VisibilitySenderTask {
 	
 	/** The broker component having the task. */
 	private Broker broker;
@@ -90,11 +95,13 @@ public class SenderTask extends AbstractTask {
 			//broker.logMessage("SENDER "+Thread.currentThread().getId()+" starts sending from'"+channel+"' to '"+targetPortURI+"'") ;
 			
 			ClientBrokerInfos client = clientsInfos.get(targetPortURI);
-			// Checks that the targeted client is still registered right now, and is in the same JVM (outbound port != null).
-			// If it is okay, sends messages.
-			if (broker.registeredService(targetPortURI) && client.getOutboundPort() != null) {
-				broker.logMessage("Thread "+Thread.currentThread().getId()+": Broker sending "+messagesToSend.length+" message(s) to '" + targetPortURI + "'") ;
-				client.getOutboundPort().receive(channel, messagesToSend);
+			// Checks that the targeted client is still registered right now
+			// If it is okay, send messages if the client is on the same JVM.
+			if (broker.registeredService(targetPortURI)) {
+				boolean haveBeenSent = sendMessages(client, channel, messagesToSend);
+				if (haveBeenSent) {
+					broker.logMessage("Thread "+Thread.currentThread().getId()+": Broker sending "+messagesToSend.length+" message(s) to '" + targetPortURI + "'") ;
+				}
 			}
 
 			//broker.logMessage("SENDER "+Thread.currentThread().getId()+" ended task") ;

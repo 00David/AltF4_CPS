@@ -1,4 +1,4 @@
-package fr.sorbonne_u.broker.components.infos;
+package fr.sorbonne_u.broker.component;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
-import fr.sorbonne_u.broker.components.Broker;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 

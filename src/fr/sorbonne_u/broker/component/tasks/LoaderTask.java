@@ -1,11 +1,11 @@
-package fr.sorbonne_u.broker.components.tasks;
+package fr.sorbonne_u.broker.component.tasks;
 
 import java.util.ArrayList;
 import java.util.Map;
 
-import fr.sorbonne_u.broker.components.Broker;
-import fr.sorbonne_u.broker.components.infos.ChannelBrokerInfos;
-import fr.sorbonne_u.broker.components.infos.ClientBrokerInfos;
+import fr.sorbonne_u.broker.component.Broker;
+import fr.sorbonne_u.broker.component.ChannelBrokerInfos;
+import fr.sorbonne_u.broker.component.ClientBrokerInfos;
 import fr.sorbonne_u.components.AbstractComponent.AbstractTask;
 import fr.sorbonne_u.cps.pubsub.exceptions.UnknownChannelException;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;

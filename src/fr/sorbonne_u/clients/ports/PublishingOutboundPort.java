@@ -2,8 +2,8 @@ package fr.sorbonne_u.clients.ports;
 
 import java.util.ArrayList;
 
-import fr.sorbonne_u.broker.components.Broker;
-import fr.sorbonne_u.clients.components.Client;
+import fr.sorbonne_u.broker.component.Broker;
+import fr.sorbonne_u.clients.component.Client;
 import fr.sorbonne_u.clients.connectors.PublishingServiceConnector;
 import fr.sorbonne_u.components.ComponentI;
 import fr.sorbonne_u.components.interfaces.RequiredCI;

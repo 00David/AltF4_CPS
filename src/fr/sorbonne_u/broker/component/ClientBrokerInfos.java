@@ -1,12 +1,10 @@
-package fr.sorbonne_u.broker.components.infos;
+package fr.sorbonne_u.broker.component;
 
-import fr.sorbonne_u.broker.components.Broker;
-import fr.sorbonne_u.broker.components.infos.exceptions.ChannelNumberNotInitializedException;
-import fr.sorbonne_u.broker.components.infos.tests.ClientBrokerInfosTest;
-import fr.sorbonne_u.broker.components.tasks.SenderTask;
+import fr.sorbonne_u.broker.component.exceptions.ChannelNumberNotInitializedException;
 import fr.sorbonne_u.broker.ports.ReceivingOutboundPort;
-import fr.sorbonne_u.clients.components.Client;
+import fr.sorbonne_u.clients.component.Client;
 import fr.sorbonne_u.cps.pubsub.exceptions.ChannelQuotaExceededException;
+import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 
 /**
@@ -159,30 +157,83 @@ public class ClientBrokerInfos {
 	}
 	
 	// -------------------------------------------------------------------------
-	// OUTBOUND PORT MANAGEMENT
+	// OUTBOUND PORT MANAGEMENT (PACKAGE VISIBILITY FOR SAFETY)
 	// -------------------------------------------------------------------------
 	
 	/**
-	 * Returns the unique {@link ReceivingOutboundPort} associated with the client. 
-	 * {@code null} if the client is not in the same JVM as the Broker.
+	 * Send {@code messages} from {@code channel}, by delegating to the corresponding client
+	 * {@link ReceivingOutboundPort} IF the client is on the same JVM (this.clientOutboundPort != null).
 	 * 
-	 * <p>
-	 * This method being used by the {@link Broker}, {@link ClientBrokerInfosTest}, and {@link SenderTask}, each in different packages, 
-	 * having a package visibility for this method would imply to have a package with at least the Broker, this client information class, 
-	 * the client information test class, and the sender task class.<br>
-	 * It would be too incoherent to have such a package mixing Broker logic, test logic and task logic.
-	 * <p>
+	 * <p><strong>Contract</strong></p>
 	 * 
-     * <p><strong>Contract</strong></p>
-     * <pre>
-     * pre  {@code true} // no precondition
-     * post {@code != null}
-     * </pre>
-	 * 
-	 * @return the client's {@link ReceivingOutboundPort}. {@code null} if the client is not in the same JVM as the Broker.
+	 * <pre>
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * pre	{@code messages != null && messages.size() > 0}
+	 * pre	{@code Stream.of(messages).allMatch(m -> m != null)}
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 *
+	 * @param channel		name of the channel from which {@code messsages} are received.
+	 * @param messages		array of messages received by the target client component.
+	 * @return				true if {@code messages} have been sent, otherwise false.
+	 * @throws Exception	if an error occurs while sending messages.
 	 */
-	public ReceivingOutboundPort getOutboundPort() {
-		return clientOutboundPort; // clientOutboundPort cannot not be modified, so no need to protect it from a data race
+	boolean sendMessages(String channel, MessageI[] messages) throws Exception {
+		// Preconditions are delegated to the ReceivingOutboundPort receive method
+		
+		if (clientOutboundPort != null) {
+			clientOutboundPort.receive(channel, messages);
+			return true;
+		}
+		return false;
+	}
+	
+	/**
+	 * Disconnect the associated client {@link ReceivingOutboundPort} 
+	 * IF the client is on the same JVM (this.clientOutboundPort != null).
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * 
+	 * <pre>
+	 * pre	{@code owner != null}
+	 * post	clientOutboundPort not connected // informal
+	 * </pre>
+	 *
+	 * @param owner			the {@link Broker} handling the client, and thus owning its port.
+	 * @return				true if the port has been disconnected, otherwise false.
+	 * @throws Exception	if an error occurs while disconnecting the port.
+	 */
+	boolean disconnectClientPort(Broker owner) throws Exception {
+		if (owner == null)
+			throw new IllegalArgumentException("Broker owner cannot be null.");
+		
+		if (clientOutboundPort != null) {
+			owner.doPortDisconnection(clientOutboundPort.getPortURI());
+			return true;
+		}
+		return false;
+	}
+	
+	/**
+	 * Unpublish the associated client {@link ReceivingOutboundPort} 
+	 * IF the client is on the same JVM (this.clientOutboundPort != null).
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * 
+	 * <pre>
+	 * pre	{@code true} // no precondition
+	 * post	clientOutboundPort not published // informal
+	 * </pre>
+	 *
+	 * @return				true if the port has been disconnected, otherwise false.
+	 * @throws Exception	if an error occurs while unpublishing the port.
+	 */
+	boolean unpublishClientPort() throws Exception {
+		if (clientOutboundPort != null) {
+			clientOutboundPort.unpublishPort();
+			return true;
+		}
+		return false;
 	}
 	
 	// -------------------------------------------------------------------------

@@ -1,6 +1,7 @@
 package fr.sorbonne_u.messages;
 
 import fr.sorbonne_u.cps.pubsub.exceptions.UnknownPropertyException;
+import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI.PropertyI;
 import fr.sorbonne_u.meteo.data.PositionData;
 import fr.sorbonne_u.meteo.data.WindData;
@@ -22,12 +23,14 @@ public class MessageTest{
 	/**
 	 * Utility class for tests.
 	 * 
-	 * <p>Used by {@link MessageTest} for having a pair of strings : longitude / latitude</p>
+	 * <p>Used by {@link MessageTest} for having a pair of strings : longitude / latitude.</p>
 	 * 
 	 * <p><strong>Invariants</strong></p>
 	 * <pre>
 	 * invariant	{@code true} // no more invariant
 	 * </pre>
+	 * @author Kevin Tang
+	 * @author David Vadimon
 	 */
 	private static class LocationData implements Serializable {
 		private static final long serialVersionUID = 6442774187550548688L;
@@ -46,16 +49,39 @@ public class MessageTest{
 			this.latitude = latitude;
 		}
 	}
+	
+	/**
+	 * Utility class for tests.
+	 * 
+	 * <p>Used by various test classes across the project for having a concrete {@link Message}.</p>
+	 * 
+	 * <p><strong>Invariants</strong></p>
+	 * <pre>
+	 * invariant	{@code true} // no more invariant
+	 * </pre>
+	 * @author Kevin Tang
+	 * @author David Vadimon
+	 */
+	public static class DummyMessage extends Message {
+		private static final long serialVersionUID = -984644676868145164L;
+
+		@Override
+		public MessageI copy() {
+			DummyMessage copy = new DummyMessage();
+			copy.setCopiedContent(this);
+			return copy;
+		}
+	}
 
 	@Test
 	public void testRemoveNotExistingProperty() {
-		Message message = new Message();
+		Message message = new DummyMessage();
 		assertThrows(UnknownPropertyException.class, () -> message.removeProperty("place"));
 	}
 	
 	@Test
 	public void testRemoveProperty() {
-		Message message = new Message();
+		Message message = new DummyMessage();
 		LocationData data = new LocationData("10248773", "6437392729");
 		message.putProperty("location", data);
 		
@@ -72,7 +98,7 @@ public class MessageTest{
 	
 	@Test
 	public void testGetValueNotExistingProperty() {
-		Message message = new Message();
+		Message message = new DummyMessage();
 		assertThrows(UnknownPropertyException.class, ()-> message.getPropertyValue("place"));
 	}
 	
@@ -80,7 +106,7 @@ public class MessageTest{
 	
 	@Test
 	public void testGetPropertyValue() {
-		Message message = new Message();
+		Message message = new DummyMessage();
 		LocationData data = new LocationData("10248773", "6437392729");
 		message.putProperty("location", data);
 		try {
@@ -92,14 +118,14 @@ public class MessageTest{
 	
 	@Test
 	public void testPropertyNotExists() {
-		Message message = new Message();
+		Message message = new DummyMessage();
 		assertFalse(()-> message.propertyExists("place"));
 	}
 	
 	
 	@Test
 	public void testPropertyExists() {
-		Message message = new Message();
+		Message message = new DummyMessage();
 		LocationData data = new LocationData("10248773", "6437392729");
 		message.putProperty("location", data);
 		
@@ -109,7 +135,7 @@ public class MessageTest{
 	
 	@Test
 	public void testPutProperty() {
-		Message message = new Message();
+		Message message = new DummyMessage();
 		LocationData data = new LocationData("10248773", "6437392729");
 		message.putProperty("location", data);
 		
@@ -120,7 +146,7 @@ public class MessageTest{
 	
 	@Test
 	public void testGetProperties() {
-		Message message = new Message();
+		Message message = new DummyMessage();
 		LocationData data = new LocationData("10248773", "6437392729");
 		message.putProperty("location", data);
 		
@@ -133,7 +159,7 @@ public class MessageTest{
 	@Test
 	public void testGetTimeStamp() {
 		Instant before = Instant.now();
-        Message message = new Message();
+        Message message = new DummyMessage();
         Instant after = Instant.now();
         Instant ts = message.getTimeStamp();
 
@@ -145,7 +171,7 @@ public class MessageTest{
 	
 	@Test
 	public void testSetPayload() {
-		Message message = new Message();
+		Message message = new DummyMessage();
 		WindData exemple = new WindData(new PositionData(0, 0), 0, 0);
 		message.setPayload(exemple);
 		
@@ -155,7 +181,7 @@ public class MessageTest{
 	
 	@Test
 	public void testGetPayload() {
-		Message message = new Message();
+		Message message = new DummyMessage();
 		WindData exemple = new WindData(new PositionData(0, 0), 0, 0);
 		message.setPayload(exemple);
 		
@@ -165,7 +191,7 @@ public class MessageTest{
 	
 	@Test
 	public void testCopy() {
-		Message message = new Message();
+		Message message = new DummyMessage();
 		LocationData data = new LocationData("10248773", "6437392729");
 		message.putProperty("location", data);
 		message.setPayload(data);

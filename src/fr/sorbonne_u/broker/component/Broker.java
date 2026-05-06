@@ -1,4 +1,4 @@
-package fr.sorbonne_u.broker.components;
+package fr.sorbonne_u.broker.component;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -7,11 +7,11 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
-import fr.sorbonne_u.broker.components.infos.ChannelBrokerInfos;
-import fr.sorbonne_u.broker.components.infos.ClientBrokerInfos;
-import fr.sorbonne_u.broker.components.tasks.LoaderTask;
-import fr.sorbonne_u.broker.components.tasks.SenderTask;
-import fr.sorbonne_u.broker.components.tasks.UnloaderTask;
+import org.apache.commons.math3.random.RandomDataGenerator;
+
+import fr.sorbonne_u.broker.component.tasks.LoaderTask;
+import fr.sorbonne_u.broker.component.tasks.SenderTask;
+import fr.sorbonne_u.broker.component.tasks.UnloaderTask;
 import fr.sorbonne_u.broker.connectors.ReceivingServiceConnector;
 import fr.sorbonne_u.broker.plugin.BrokerGossipPlugin;
 import fr.sorbonne_u.broker.ports.ReceivingOutboundPort;
@@ -19,13 +19,13 @@ import fr.sorbonne_u.broker.ports.BrokerPrivilegedInboundPort;
 import fr.sorbonne_u.broker.ports.BrokerPublishingInboundPort;
 import fr.sorbonne_u.broker.ports.BrokerRegistrationInboundPort;
 import fr.sorbonne_u.components.AbstractComponent;
+import fr.sorbonne_u.components.AbstractPort;
 import fr.sorbonne_u.components.annotations.OfferedInterfaces;
 import fr.sorbonne_u.components.annotations.RequiredInterfaces;
 import fr.sorbonne_u.components.exceptions.ComponentShutdownException;
 import fr.sorbonne_u.components.exceptions.ComponentStartException;
 import fr.sorbonne_u.components.tasks_management.connection.AbnormalTerminationNotificationOutboundPort;
 import fr.sorbonne_u.components.tasks_management.interfaces.AbnormalTerminationNotificationCI;
-import fr.sorbonne_u.cps.gossip.interfaces.GossipMessageI;
 import fr.sorbonne_u.cps.gossip.interfaces.GossipReceiverCI;
 import fr.sorbonne_u.cps.gossip.interfaces.GossipSenderCI;
 import fr.sorbonne_u.cps.pubsub.exceptions.AlreadyExistingChannelException;
@@ -50,10 +50,9 @@ import fr.sorbonne_u.messages.gossip.GossipMessageFactory;
 import fr.sorbonne_u.meteo.data.PositionData;
 
 /**
- * Component implementing the publish/subscribe system.<br>
- * Only 1 Broker per JVM is permitted, to ensure a coherent use of static constants and methods, identifying a Broker and its ports.
+ * Component implementing the publish/subscribe system.
  * 
- * <p>About the publication service : </p>
+ * <p><strong>About the publication service : </strong></p>
  * <ul>
  *   <li>It is firstly handled by a thread from the classic thread pool : it mostly verifies service preconditions.</li>
  *   <li>Secondly it is handled by a thread from one of the loading thread pools : it loads messages into a channel. 
@@ -85,14 +84,23 @@ import fr.sorbonne_u.meteo.data.PositionData;
  *   </li>
  * </ul>
  * 
+ * <p><strong>About concurrent management : </strong></p>
+ * 
  * <p>
- * Each provided service is multi-thread safe : it either explicitly takes the required client / channel locks, introducing critical sections, 
- * or when a single operation needs to be performed on an internal map (clientsInfos or channelsInfos), it can do the operation 
- * without taking explicitly the lock by directly doing the operation on the map, implemented by a {@link ConcurrentHashMap} 
- * so multi-thread safe for read/write operations on it.<br>
- * For each critical section taken for a client / channel, it does a double check : it checks that the concerned data still exists 
- * in the system before taking the lock, and it does the same once it has taken the lock, in case of having another thread removing the data 
- * from the system while our thread waited the lock access.
+ * <ul>
+ * 	<li>
+ * 		Each provided service is multi-thread safe : it either explicitly takes the required client / channel locks, introducing 
+ * 		critical sections, or when a single operation needs to be performed on an internal map (clientsInfos or channelsInfos), 
+ * 		it can do the operation without taking explicitly the lock by directly doing the operation on the map, implemented by 
+ * 		a {@link ConcurrentHashMap} so multi-thread safe for read/write operations on it.
+ * 	</li>
+ * 	<li>
+ * 		For each critical section taken for a client / channel, it does a <strong>double check</strong> : it checks that the 
+ * 		concerned data still exists in the system <strong>before taking the lock</strong>, and it does the same <strong>once 
+ * 		it has taken the lock</strong>, in case of having another thread removing the data from the system while our thread 
+ * 		waited the lock access.
+ * 	</li>
+ * </ul>
  * </p>
  * 
  * <p><strong>Invariants</strong></p>
@@ -137,10 +145,13 @@ public class Broker extends AbstractComponent{
 	/** Broker's gossip protocol plugin, every Broker has it initialized in its constructor. */
 	private final BrokerGossipPlugin gossipPlugin;
 	
-	/** URI of the pool of threads used for the gossip protocol. */
-	public static final String	GOSSIP_POOL_URI = "gossip-pool" ;
+	/** URI of the pool of schedulable threads used for the gossip protocol message sending. */
+	public static final String	GOSSIP_SENDING_POOL_URI = "gossip-sending-pool" ;
 	
-	/** Number of threads in the {@code GOSSIP_POOL_URI} pool. */
+	/** URI of the pool of threads used for the gossip protocol message reception. */
+	public static final String	GOSSIP_RECEIVING_POOL_URI = "gossip-receiving-pool" ;
+	
+	/** Number of threads in the {@code GOSSIP_SENDING_POOL_URI} and {@code GOSSIP_RECEIVING_POOL_URI} pools. */
 	public final int nbGossipThreads;
 	
 	// NOTIFICATION
@@ -150,17 +161,47 @@ public class Broker extends AbstractComponent{
 	
 	// REGISTRATION
 	
-	/** Broker's inbound registration port, got by static method 'registrationPortURI' */
-	private static String registrationPortURI;
+	/** 
+	 * List of available Broker inbound registration ports. One of it is got by the {@link Broker#registrationPortURI()} method.
+	 * <p>Each URI is for a different Broker, and each access to it must be done by using the list synchronized monitor.<p> 
+	 */
+	private static List<String> registrationPortURIs = new ArrayList<>();
 	
-	/** Broker's inbound port, implementing {@link RegistrationCI} */
-	private final BrokerRegistrationInboundPort registrationPort;
+	/** Random generator, used for choosing a Broker registration URI in {@code registrationPortURIs}. */
+	private static final RandomDataGenerator random = new RandomDataGenerator();
 	
 	/**
 	 * Public getter for allowing clients to register on the broker.
-	 * @return The URI of Broker's {@link BrokerRegistrationInboundPort}.
+	 * 
+	 * <p>Select a random Broker registration port URI if multiples are available<p>
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre  {@code !registrationPortURIs.isEmpty()}
+	 * post class invariants satisfied
+	 * </pre>
+	 * 
+	 * @throws IllegalArgumentException		if a precondition or postcondition is not satisfied.
+	 * @return The URI of the choosen {@link BrokerRegistrationInboundPort}.
 	 */
-	public static String registrationPortURI() { return registrationPortURI;}
+	public static String registrationPortURI() {
+		synchronized(Broker.registrationPortURIs) {
+			// Precondition check
+			if (registrationPortURIs.isEmpty()) {
+		        throw new IllegalArgumentException("No registration ports available");
+		    }
+		    int index = random.nextInt(0, registrationPortURIs.size() - 1);
+		    String registrationPortURI = registrationPortURIs.get(index);
+		    
+		    // Postcondition check
+		    assert (registrationPortURI != null && ! registrationPortURI.isEmpty()):
+		    	new IllegalArgumentException("registrationPortURI cannot be null or empty");
+		    return registrationPortURI;
+		}
+	}
+	
+	/** Broker's inbound port, implementing {@link RegistrationCI} */
+	private final BrokerRegistrationInboundPort registrationPort;
 	
 	// PUBLICATION
 	
@@ -260,7 +301,7 @@ public class Broker extends AbstractComponent{
 	 * @param nbFreeLoadersThreads		Number of threads to be created in the free loaders pool. It is x2 for standard clients, and x4 for premium clients.
 	 * @param nbUnloadersThreads		Number of threads to be created in the unloaders pool.
 	 * @param nbSendersThreads			Number of threads to be created in the senders pool.
-	 * @param nbGossipThreads			Number of threads to be created in the gossip protocol pool.
+	 * @param nbGossipThreads			Number of threads to be created in both sending and receiving gossip protocol pools.
 	 * @param gossipInboundPortURI		The {@link Broker} inbound port URI offering {@link GossipReceiverCI} interface.
 	 * @param gossipOutboundPortURIs	{@link Broker} outbound port URIs requiring {@link GossipSenderCI} interface.
 	 * @param otherBrokersToConnectURIs	Other {@link Broker}s gossip inbound port URIs, a URI at an index i in {@code gossipOutboundPortURIs} 
@@ -288,7 +329,10 @@ public class Broker extends AbstractComponent{
 		this.id = id;
 		
 		// Port URIs
-		registrationPortURI = "registration-inbound-port-broker"+id;
+		String registrationPortURI = "registration-inbound-port-broker"+id;
+		synchronized(Broker.registrationPortURIs) {
+			registrationPortURIs.add(registrationPortURI);
+		}
 		publishingPortURI = "publishing-inbound-port-broker"+id;
 		privilegedPortURI = "privileged-inbound-port-broker"+id;
 		
@@ -311,7 +355,8 @@ public class Broker extends AbstractComponent{
 		this.nbUnloadersThreads = nbUnloadersThreads;
 		this.nbSendersThreads = nbSendersThreads;
 		
-		this.createNewExecutorService(GOSSIP_POOL_URI, this.nbGossipThreads, false);
+		this.createNewExecutorService(GOSSIP_SENDING_POOL_URI, this.nbGossipThreads, true);
+		this.createNewExecutorService(GOSSIP_RECEIVING_POOL_URI, this.nbGossipThreads, false);
 		this.createNewExecutorService(FREE_LOADERS_POOL_URI, this.nbFreeLoadersThreads, false);
 		this.createNewExecutorService(STD_LOADERS_POOL_URI, this.nbStdLoadersThreads, false);
 		this.createNewExecutorService(PREM_LOADERS_POOL_URI, this.nbPremLoadersThreads, false);
@@ -427,10 +472,7 @@ public class Broker extends AbstractComponent{
 		
 		// Disconnect all outbound ports linked to registered clients
 		for (Map.Entry<String, ClientBrokerInfos> entry : clientsInfos.entrySet()) {
-			ReceivingOutboundPort outboundPort = entry.getValue().getOutboundPort();
-			if (outboundPort != null) {
-				this.doPortDisconnection(outboundPort.getPortURI());
-			}
+			entry.getValue().disconnectClientPort(this);
 		}
 		
 		super.finalise();
@@ -442,10 +484,7 @@ public class Broker extends AbstractComponent{
 		try {
 			// Unpublish all outbound ports linked to registered clients
 			for (Map.Entry<String, ClientBrokerInfos> entry : clientsInfos.entrySet()) {
-				ReceivingOutboundPort outboundPort = entry.getValue().getOutboundPort();
-				if (outboundPort != null) {
-					outboundPort.unpublishPort();
-				}
+				entry.getValue().unpublishClientPort();
 			}
 		
 			// Unpublish Broker notification outbound port + all inbound ports
@@ -518,6 +557,13 @@ public class Broker extends AbstractComponent{
 	 * Register on the publication/subscription system passing the URI of the inbound port offering the component interface {@code ReceivingCI}.<br>
 	 * Returns an URI of an inbound port offering the component interface {@code PublishingCI}.
 	 * 
+	 * <p>
+	 * Note that the registration port associated to the newly registered client is published using the
+	 * {@link AbstractPort#localPublishPort()} method : in a distributed configuration, we only want Brokers
+	 * to be able to communicate with their local registered clients, not from other JVMs.<br>
+	 * This ensures that our gossip architecture is correctly done.
+	 * </p>
+	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre	{@code receptionPortURI != null && !receptionPortURI.isEmpty()}
@@ -559,7 +605,6 @@ public class Broker extends AbstractComponent{
 			}
 		}
 		
-		
 		// Add the receptionPortURI client infos to the mapping of the client infos
 		// Takes the client lock
 		ClientBrokerInfos client = new ClientBrokerInfos(receptionPortURI, rc, outboundPort);
@@ -574,8 +619,8 @@ public class Broker extends AbstractComponent{
 		// Gossip sending
 		if (fromLocalJVM) {
 			GossipMessage message = GossipMessageFactory.createRegisterMessage(getReflectionInboundPortURI(), receptionPortURI, rc);
-			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
-				gossipPlugin.send(new GossipMessageI[] {message});
+			this.runTask(Broker.GOSSIP_SENDING_POOL_URI, o -> {
+				gossipPlugin.storeForSending(new GossipMessage[]{message});
 			});
 		}
 		
@@ -634,8 +679,8 @@ public class Broker extends AbstractComponent{
 		// Gossip sending
 		if (fromLocalJVM) {
 			GossipMessage message = GossipMessageFactory.createUpdateClientClassMessage(getReflectionInboundPortURI(), receptionPortURI, rc);
-			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
-				gossipPlugin.send(new GossipMessageI[] {message});
+			this.runTask(Broker.GOSSIP_SENDING_POOL_URI, o -> {
+				gossipPlugin.storeForSending(new GossipMessage[]{message});
 			});
 		}
 		
@@ -675,20 +720,13 @@ public class Broker extends AbstractComponent{
 		
 			String gossipLog = !fromLocalJVM ? "[GOSSIP] " : "";
 			this.logMessage(gossipLog+"Thread "+Thread.currentThread().getId()+": Broker unregistering '" + receptionPortURI +"'") ;
-
-			ReceivingOutboundPort outboundPort = client.getOutboundPort();
 			
 			// Remove client infos
 			clientsInfos.remove(receptionPortURI);
 
-			// If the unregistered client is in the same JVM (outboundPort != null)
-			if (outboundPort != null) {
-				// Disconnect the outbound port from the given inbound port (receptionPortURI)
-				this.doPortDisconnection(outboundPort.getPortURI());
-				
-				// Unpublish the outbound port
-				outboundPort.unpublishPort();
-			}
+			// If the newly unregistered client is in the same JVM, disconnect and unpublish its associated port
+			client.disconnectClientPort(this);
+			client.unpublishClientPort();
 			
 			// Remove from subscribed channels the port previously registered
 			for (Map.Entry<String, ChannelBrokerInfos> entry : channelsInfos.entrySet()) {
@@ -702,8 +740,8 @@ public class Broker extends AbstractComponent{
 		// Gossip sending
 		if (fromLocalJVM) {
 			GossipMessage message = GossipMessageFactory.createUnregisterMessage(getReflectionInboundPortURI(), receptionPortURI);
-			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
-				gossipPlugin.send(new GossipMessageI[] {message});
+			this.runTask(Broker.GOSSIP_SENDING_POOL_URI, o -> {
+				gossipPlugin.storeForSending(new GossipMessage[]{message});
 			});
 		}
 	}
@@ -898,8 +936,8 @@ public class Broker extends AbstractComponent{
 		if (fromLocalJVM) {
 			GossipMessage message = GossipMessageFactory.createSubscribeClientMessage(getReflectionInboundPortURI(), 
 					receptionPortURI, channel, filter);
-			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
-				gossipPlugin.send(new GossipMessageI[] {message});
+			this.runTask(Broker.GOSSIP_SENDING_POOL_URI, o -> {
+				gossipPlugin.storeForSending(new GossipMessage[]{message});
 			});
 		}
 	}
@@ -965,8 +1003,8 @@ public class Broker extends AbstractComponent{
 		if (fromLocalJVM) {
 			GossipMessage message = GossipMessageFactory.createUnsubscribeClientMessage(getReflectionInboundPortURI(), 
 					receptionPortURI, channel);
-			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
-				gossipPlugin.send(new GossipMessageI[] {message});
+			this.runTask(Broker.GOSSIP_SENDING_POOL_URI, o -> {
+				gossipPlugin.storeForSending(new GossipMessage[]{message});
 			});
 		}
 	}
@@ -974,6 +1012,11 @@ public class Broker extends AbstractComponent{
 	/**
 	 * Modify the filter placed on an existing {@code channel} to {@code filter}, 
 	 * for a registered {@code receptionPortURI}, and subscribed to the {@code channel}.
+	 * 
+	 * <p>
+	 * There is no need to handle this with the gossip protocol : messages are only sent to local clients,
+	 * so it is enough to modify the filter only on the local Broker without spreading the info.
+	 * </p>
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
@@ -1084,7 +1127,8 @@ public class Broker extends AbstractComponent{
 					throw new UnauthorisedClientException("Client "+receptionPortURI+" is not authorized.");
 				
 				String gossipLog = !fromLocalJVM ? "[GOSSIP] " : "";
-				this.logMessage(gossipLog+"Thread "+Thread.currentThread().getId()+": Broker received message(s) from '" + receptionPortURI + "' on '" + channel + "'") ;
+				this.logMessage(gossipLog+"Thread "+Thread.currentThread().getId()+": Broker received "+messages.size()+" message(s) from '" + 
+						receptionPortURI + "' on '" + channel + "'") ;
 				
 				// Delegates loading messages to a loaders thread pool, chosen depending on the registration class of the publisher
 				RegistrationClass rc = client.getRegistrationClass();
@@ -1103,8 +1147,8 @@ public class Broker extends AbstractComponent{
 		if (fromLocalJVM) {
 			GossipMessage message = GossipMessageFactory.createPublishMessages(getReflectionInboundPortURI(), 
 					receptionPortURI, channel, messages);
-			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
-				gossipPlugin.send(new GossipMessageI[] {message});
+			this.runTask(Broker.GOSSIP_SENDING_POOL_URI, o -> {
+				gossipPlugin.storeForSending(new GossipMessage[]{message});
 			});
 		}
 	}
@@ -1225,8 +1269,8 @@ public class Broker extends AbstractComponent{
 		if (fromLocalJVM) {
 			GossipMessage message = GossipMessageFactory.createCreateChannelMessage(getReflectionInboundPortURI(), 
 					receptionPortURI, channel, autorizedUsers);
-			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
-				gossipPlugin.send(new GossipMessageI[] {message});
+			this.runTask(Broker.GOSSIP_SENDING_POOL_URI, o -> {
+				gossipPlugin.storeForSending(new GossipMessage[]{message});
 			});
 		}
 	}
@@ -1300,8 +1344,8 @@ public class Broker extends AbstractComponent{
 		if (fromLocalJVM) {
 			GossipMessage message = GossipMessageFactory.createUpdateChannelAuthURIsMessage(getReflectionInboundPortURI(), 
 					receptionPortURI, channel, autorizedUsers);
-			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
-				gossipPlugin.send(new GossipMessageI[] {message});
+			this.runTask(Broker.GOSSIP_SENDING_POOL_URI, o -> {
+				gossipPlugin.storeForSending(new GossipMessage[]{message});
 			});
 		}
 	}
@@ -1419,7 +1463,7 @@ public class Broker extends AbstractComponent{
 				if (registeredService(targetPortURI)) {
 					logMessage("Thread "+Thread.currentThread().getId()+" (destroyChannel): Broker sending "+messagesToSend.length+" message(s) to '" + targetPortURI + "'") ;
 					try {
-						targetClient.getOutboundPort().receive(channel, messagesToSend);
+						targetClient.sendMessages(channel, messagesToSend);
 					} catch (Exception e) {
 						System.err.println("Sending error after destroying channel : "+e.getMessage());
 					}
@@ -1431,8 +1475,8 @@ public class Broker extends AbstractComponent{
 		if (fromLocalJVM) {
 			GossipMessage message = GossipMessageFactory.createDestroyChannelMessage(getReflectionInboundPortURI(), 
 					receptionPortURI, channel, false);
-			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
-				gossipPlugin.send(new GossipMessageI[] {message});
+			this.runTask(Broker.GOSSIP_SENDING_POOL_URI, o -> {
+				gossipPlugin.storeForSending(new GossipMessage[]{message});
 			});
 		}
 	}
@@ -1507,8 +1551,8 @@ public class Broker extends AbstractComponent{
 		if (fromLocalJVM) {
 			GossipMessage message = GossipMessageFactory.createDestroyChannelMessage(getReflectionInboundPortURI(), 
 					receptionPortURI, channel, true);
-			this.runTask(Broker.GOSSIP_POOL_URI, o -> {
-				gossipPlugin.send(new GossipMessageI[] {message});
+			this.runTask(Broker.GOSSIP_SENDING_POOL_URI, o -> {
+				gossipPlugin.storeForSending(new GossipMessage[]{message});
 			});
 		}
 	}

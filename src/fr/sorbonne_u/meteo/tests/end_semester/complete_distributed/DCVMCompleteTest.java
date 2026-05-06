@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import fr.sorbonne_u.broker.components.Broker;
+import fr.sorbonne_u.broker.component.Broker;
 import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.cvm.AbstractDistributedCVM;
 import fr.sorbonne_u.components.utils.tests.TestScenario;
@@ -104,7 +104,7 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * </p>
  * <ul>
  *     	<li>After 260 seconds, <strong>MeteoStation n°1</strong> and <strong>MeteoStation n°2</strong> 
- *     		each send 1000 wind datas on "channel0".</li>
+ *     		each send 1000 wind datas on "channel0" (100 by 100, then they are grouped by the gossip protocol).</li>
  *     	<li>After 280 seconds, <strong>WindTurbine n°2</strong> verifies that it has received a total of 
  *     		2003 wind datas since the start.</li>
  * </ul>
@@ -134,7 +134,8 @@ public class DCVMCompleteTest extends AbstractDistributedCVM {
 			220, 240, 260, 280};
 	public static final int NBSTEPS = STEPS.length;
 	
-	public static final int NB_END_WINDS = 1000;
+	public static final int NB_END_WINDS_TOTAL = 1000;
+	public static final int NB_END_WINDS_PER_SENDING = 100;
 	
 	// -------------------------------------------------------------------------
 	// Component datas
@@ -308,7 +309,7 @@ public class DCVMCompleteTest extends AbstractDistributedCVM {
 		List<WindData> ms2_end_winds = new ArrayList<>();
 		WindData wd1 = new WindData(station1Position, 2, 2);
 		WindData wd2 = new WindData(station2Position, 2, 2);
-		for (int k=0; k<NB_END_WINDS; k++) {
+		for (int k=0; k<NB_END_WINDS_PER_SENDING; k++) {
 			ms1_end_winds.add(wd1);
 			ms2_end_winds.add(wd2);
 		}
@@ -533,13 +534,16 @@ public class DCVMCompleteTest extends AbstractDistributedCVM {
 							}
 						}),
 		
-				// MeteoStation1 and MeteoStation2 each send 1000 winds on "channel0"
+				// MeteoStation1 and MeteoStation2 each send 1000 winds on "channel0", 100 by 100
 				new TestStep(CLOCK_URI, MS1_URI, step_Instants[13],
 						owner -> {
 							try {
 								System.out.println("STEP 13/"+(NBSTEPS-1)+" ("+STEPS[13]+"s) : MeteoStation1 and MeteoStation2 each "
-										+ "send "+NB_END_WINDS+" winds on 'channel0', \nwith only WindTurbine2 still subscribed to it");
-								((MeteoStation)owner).publishWindDatas(ms1_end_winds, "channel0", false);
+										+ "send "+NB_END_WINDS_TOTAL+" winds on 'channel0' ("+NB_END_WINDS_PER_SENDING+" by "+NB_END_WINDS_PER_SENDING+")"
+												+ ", \nwith only WindTurbine2 still subscribed to it");
+								for (int i=0; i<NB_END_WINDS_TOTAL; i+=NB_END_WINDS_PER_SENDING) {
+									((MeteoStation)owner).publishWindDatas(ms1_end_winds, "channel0", false);
+								}
 							} catch (Exception e) {
 								System.err.println("Step 13 MS1 multiple wind data publication failed with exception " + e);
 							}
@@ -547,7 +551,9 @@ public class DCVMCompleteTest extends AbstractDistributedCVM {
 				new TestStep(CLOCK_URI, MS2_URI, step_Instants[13],
 						owner -> {
 							try {
-								((MeteoStation)owner).publishWindDatas(ms2_end_winds, "channel0", false);
+								for (int i=0; i<NB_END_WINDS_TOTAL; i+=NB_END_WINDS_PER_SENDING) {
+									((MeteoStation)owner).publishWindDatas(ms2_end_winds, "channel0", false);
+								}
 							} catch (Exception e) {
 								System.err.println("Step 13 MS2 multiple wind data publication failed with exception " + e);
 							}

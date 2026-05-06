@@ -14,6 +14,15 @@ import fr.sorbonne_u.messages.Message;
  * The message class implementing a gossip message for the publication/subscription system,
  * solely identified by its (supposed) unique {@code messageURI}.
  * 
+ * 
+ * <p>
+ * On each gossip re-emission, a new {@link GossipMessage} is copied using 
+ * the {@link GossipMessage#copyWithNewEmitterURI(String)} method.<br>
+ * 
+ * This copy policy ensures that there are no shared gossip message references 
+ * manipulated simultaneously on multiple Brokers.
+ * <p>
+ * 
  * <p><strong>Invariants</strong></p>
  * <pre>
  * invariant	{@code emitterURI != null && !emitterURI.isEmpty()}
@@ -28,12 +37,34 @@ public class GossipMessage implements GossipMessageI{
 
 	private static final long serialVersionUID = 3248301193711261691L;
 	
+	/**
+	 * Internal class of a gossip message, only used for transporting the carried method call parameters.
+	 * 
+	 * <p><strong>Invariants</strong></p>
+	 * <pre>
+	 * invariant	{@code true} // no more invariant
+	 * </pre>
+	 * 
+	 * @author Kevin Tang
+	 * @author David Vadimon
+	 */
+	protected static class GossipInternalMessage extends Message {
+		private static final long serialVersionUID = -7078207108433421647L;
+
+		@Override
+		public MessageI copy() {
+			GossipInternalMessage copy = new GossipInternalMessage();
+			copy.setCopiedContent(this);
+			return copy;
+		}
+	}
+	
 	//--------------------------------------------------------------------------
-	// Constants defining gossip message contents (see their use in GossipMessageFactory)
+	// Constants defining GossipInternalMessage contents (see their use in GossipMessageFactory)
 	//--------------------------------------------------------------------------
 	
 	/**
-	 * Each GossipMessage carrying a {@link Message} has an attached action, giving the purpose of the message.<br>
+	 * Each GossipMessage has an attached action, giving the purpose of the message.<br>
 	 * If the message content has not yet been set, then the default action value is {@code NOTHING}.
 	 */
 	public static enum Action {NOTHING, PUBLISH, REGISTER_CLIENT, UNREGISTER_CLIENT, CREATE_CHANNEL, DESTROY_CHANNEL, 
@@ -80,12 +111,11 @@ public class GossipMessage implements GossipMessageI{
 	//--------------------------------------------------------------------------
 	
 	/** 
-	 * The URI of the component emiting the gossip message.
+	 * The URI of the component emitting the gossip message.
 	 * 
 	 * <p>
 	 * Given the 'final' aspect of this attribute, each new re-emission, which requires to update this URI, 
-	 * creates a new copied gossip message with the update emitter URI.<br>
-	 * This ensures that there are no shared gossip message references manipulated simultaneously on multiple Brokers.
+	 * creates a new copied gossip message with the updated emitter URI.
 	 * </p>
 	 */
 	public final String emitterURI;
@@ -117,7 +147,7 @@ public class GossipMessage implements GossipMessageI{
 	 * </pre>
 	 * 
 	 * @param emitterURI 					The URI of the component creating this gossip message. 
-	 * @throws IllegalArgumentException		If {@code emitterURI} is null or empty.
+	 * @throws IllegalArgumentException		If a precondition is not satisfied.
 	 */
 	protected GossipMessage(String emitterURI) {
 		// Precondition check
@@ -131,8 +161,8 @@ public class GossipMessage implements GossipMessageI{
 	}
 	
 	/**
-	 * Private constructor for creating an empty gossip message, from {@code emitterURI}, with a given existing {@code messageURI}.<br>
-	 * Used in the {@code copyWithNewEmitterURI} method for keeping the {@code messageURI} in the copy.
+	 * Private constructor for copying an existing gossip message, with a {@code newGossipEmitterURI} set in the copy.
+	 * Used in the {@link GossipMessage#copyWithNewEmitterURI(String)} method.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
@@ -141,21 +171,21 @@ public class GossipMessage implements GossipMessageI{
 	 * post	class invariants satisfied
 	 * </pre>
 	 * 
-	 * @param emitterURI 					The URI of the component creating this gossip message. 
-	 * @param messageURI 					The URI of an existing GossipMessage.
-	 * @throws IllegalArgumentException		If {@code emitterURI} is null or empty.
-	 * @throws IllegalArgumentException		If {@code messageURI} is null or empty.
+	 * @param originalGossipMessage 		An existing GossipMessage that will be copied.
+	 * @param newGossipEmitterURI 			The URI of the component re-emitting {@code originalGossipMessage}.
+	 * @throws IllegalArgumentException		If a precondition is not satisfied.
 	 */
-	private GossipMessage(String emitterURI, String messageURI) {
+	private GossipMessage(GossipMessage originalGossipMessage, String newGossipEmitterURI) {
 		// Precondition checks
-		if (emitterURI == null || emitterURI.isEmpty()) 
-			throw new IllegalArgumentException("emitterURI cannot be null or empty");
-		if (messageURI == null || messageURI.isEmpty()) 
-			throw new IllegalArgumentException("messageURI cannot be null or empty");
+		if (originalGossipMessage == null) 
+			throw new IllegalArgumentException("originalGossipMessage cannot be null");
+		if (newGossipEmitterURI == null || newGossipEmitterURI.isEmpty()) 
+			throw new IllegalArgumentException("newGossipEmitterURI cannot be null or empty");
 		
-		this.emitterURI = emitterURI;
-		this.messageURI = messageURI;
-		this.messageAction = Action.NOTHING;
+		this.emitterURI = newGossipEmitterURI;
+		this.messageURI = originalGossipMessage.messageURI;
+		this.messageAction = originalGossipMessage.messageAction;
+		if (originalGossipMessage.message != null) this.message = originalGossipMessage.message.copy();
 		this.timestamp = Instant.now();
 	}
 	
@@ -255,10 +285,8 @@ public class GossipMessage implements GossipMessageI{
 			throw new IllegalArgumentException("newGossipEmitterURI cannot be null or empty");
 		
 		// The same messageURI is kept in the copy
-		GossipMessage newMessage = new GossipMessage(newGossipEmitterURI, this.messageURI);
-		
-		newMessage.messageAction = this.messageAction;
-		if (this.message != null) newMessage.message = this.message.copy();
+		GossipMessage newMessage = new GossipMessage(this, newGossipEmitterURI);
+
 		return newMessage;
 	}
 }
