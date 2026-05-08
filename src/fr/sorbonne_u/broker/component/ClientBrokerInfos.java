@@ -47,10 +47,18 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
  */
 public class ClientBrokerInfos {
 	
+    // -------------------------------------------------------------------------
+    // STATIC VARIABLES (SET IN THE BROKER CONSTRUCTOR)
+    // -------------------------------------------------------------------------
+	
 	/** The maximum number of channels that a standard client can create. Set by the Broker in its constructor */
 	public static int nbMaxChannelsStd = -1;
 	/** The maximum number of channels that a premium client can create. Set by the Broker in its constructor */
 	public static int nbMaxChannelsPrem = -1;
+	
+    // -------------------------------------------------------------------------
+    // INTERNAL DATAS
+    // -------------------------------------------------------------------------
 
 	/** The URI of the client port, defining the client */
 	private final String clientPortURI;
@@ -66,6 +74,10 @@ public class ClientBrokerInfos {
 	
 	/** The number of remaining channels the client can create */
 	private int nbRemainingChannels;
+	
+    // -------------------------------------------------------------------------
+    // CONSTRUCTOR
+    // -------------------------------------------------------------------------
 	
 	/**
 	 * Creates the information structure for a {@link Client} registered on the {@link Broker}.

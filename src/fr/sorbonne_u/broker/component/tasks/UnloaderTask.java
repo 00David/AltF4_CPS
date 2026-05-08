@@ -27,9 +27,6 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * invariant	{@code broker != null}
  * invariant	{@code clientsInfos != null}
  * invariant	{@code chanInfos != null}
- * invariant	{@code MAX_NB_MSG_FREE_CHANNEL >= 1}
- * invariant	{@code MAX_NB_MSG_STD_CHANNEL >= MAX_NB_MSG_FREE_CHANNEL}
- * invariant	{@code MAX_NB_MSG_PREM_CHANNEL >= MAX_NB_MSG_STD_CHANNEL}
  * </pre>
  * 
  * @author Kevin Tang
@@ -44,22 +41,10 @@ public class UnloaderTask extends AbstractTask {
 	private Map<String, ClientBrokerInfos> clientsInfos; 
 	
 	/** A channel informations, from where messages will be unloaded. */
-	private ChannelBrokerInfos chanInfos;
+	private ChannelBrokerInfos channel;
 	
 	/** The name of the channel having {@code chanInfos}. */
-	private String channel;
-	
-	/** The maximum number of messages to unload from {@code channel}. */
-	private int nbMaxUnloadMessages;
-	
-	/** The maximum number of unloaded messages when the {@code channel} creator is the {@code broker}, or has unregistered from the system. */
-	public static final int NB_MAX_UNLOAD_MSG_NORMAL_CHANNEL = 1;
-	
-	/** The maximum number of unloaded messages when the {@code channel} creator is STANDARD. */
-	public static final int NB_MAX_UNLOAD_MSG_STD_CHANNEL = 5;
-	
-	/** The maximum number of unloaded messages when the {@code channel} creator is PREMIUM. */
-	public static final int NB_MAX_UNLOAD_MSG_PREM_CHANNEL = 10;
+	private String channelName;
 	
 	/**
 	 * Broker publication task handling unloading messages from a specific channel.
@@ -74,33 +59,34 @@ public class UnloaderTask extends AbstractTask {
 	 * 
 	 * @param broker				The broker component having the task.
 	 * @param clientsInfos			{@code broker} mapping : client inbound port (URI) -> its informations.
-	 * @param chanInfos				A channel informations, from where messages will be unloaded.
-	 * @param channel				The name of the channel having {@code chanInfos}.
-	 * @param nbMaxUnloadMessages 	The maximum number of messages to unload from {@code channel}.
+	 * @param channel				A channel informations, from where messages will be unloaded.
+	 * @param channelName			The name of the {@code channel}.
 	 */
-	public UnloaderTask(Broker broker, Map<String, ClientBrokerInfos> clientsInfos, ChannelBrokerInfos chanInfos, 
-			String channel, int nbMaxUnloadMessages) {
+	public UnloaderTask(Broker broker, Map<String, ClientBrokerInfos> clientsInfos, 
+			ChannelBrokerInfos channel, String channelName) {
 		// Precondition checks
 		assert(broker != null) : 
 			new PreconditionException("broker cannot be null");
 		assert(clientsInfos != null) : 
 			new PreconditionException("clientsInfos cannot be null");
-		assert(chanInfos != null) : 
-			new PreconditionException("chanInfos cannot be null");
-		assert(channel != null && !channel.isEmpty()) : 
-			new PreconditionException("channel cannot be null or empty");
+		assert(channel != null) : 
+			new PreconditionException("channel cannot be null");
+		assert(channelName != null && !channelName.isEmpty()) : 
+			new PreconditionException("channelName cannot be null or empty");
 		
 		this.broker = broker;
 		this.clientsInfos = clientsInfos;
-		this.chanInfos = chanInfos;
 		this.channel = channel;
-		this.nbMaxUnloadMessages = nbMaxUnloadMessages;
+		this.channelName = channelName;
 	}
 
 	@Override
 	public void run() {
 		// Mapping : client target port URI -> messages to send to this target
 		Map<String, List<MessageI>> targetsMessages = null;
+		
+		// The maximum number of messages to unload per batch from the channel
+		int nbMaxUnloadMessages = channel.getNbMaxBatch(clientsInfos);
 		
 		try {
 			//broker.logMessage("UNLOADER "+Thread.currentThread().getId()+" starts unloading from'"+channel+"'") ;
@@ -118,12 +104,12 @@ public class UnloaderTask extends AbstractTask {
 				while (nbMessages < nbMaxUnloadMessages && isUnloading) {
 					
 					// If the channel has been destroyed (with destroyChannelService for instance) : throws an UnknownChannelException
-					if (!broker.channelExistService(channel)) {
-						throw new UnknownChannelException("Channel "+channel+" doesn't exist anymore (destroyed).");
+					if (!broker.channelExistService(channelName)) {
+						throw new UnknownChannelException("Channel "+channelName+" doesn't exist anymore (destroyed).");
 					}
 					
 					// Unloads a message
-					MessageI msg = chanInfos.unloadMessage();
+					MessageI msg = channel.unloadMessage();
 					if (msg == null) {
 						isUnloading = false;
 						break;
@@ -131,7 +117,7 @@ public class UnloaderTask extends AbstractTask {
 					nbMessages = nbMessages+1;
 					
 					// Gets the channel clients targeted by this message AT THIS MOMENT + updates the map
-					List<String> targetClientsPortURI = chanInfos.targetSubscribers(msg);
+					List<String> targetClientsPortURI = channel.targetSubscribers(msg);
 					for (String target : targetClientsPortURI) {
 						if (!targetsMessages.containsKey(target)) { // Creates an ArrayList for the target messages, if not yet existing
 							targetsMessages.put(target, new ArrayList<>());
@@ -154,8 +140,8 @@ public class UnloaderTask extends AbstractTask {
 			createSendingTasks(targetsMessages);
 		} finally {
 			// Decreases the number of threads currently unloading the channel
-			synchronized(chanInfos.nbActiveUnloadersLock) {
-				chanInfos.nbActiveUnloaders--;
+			synchronized(channel.nbActiveUnloadersLock) {
+				channel.nbActiveUnloaders--;
 			}
 		}
 	}
@@ -176,15 +162,16 @@ public class UnloaderTask extends AbstractTask {
 		
 		for (Map.Entry<String, List<MessageI>> e : targetsMessages.entrySet()) {
 			String targetPortURI = e.getKey();
+			ClientBrokerInfos target = clientsInfos.get(targetPortURI);
 			List<MessageI> listMessagesToSend = e.getValue();
 			
 			int l = listMessagesToSend.size();
-			MessageI[] messagesToSend = new MessageI[l];
+			MessageI[] messagesToSend = new MessageI[l]; // From List to Array
 			for(int i=0; i<l; i++) {
 				messagesToSend[i] = listMessagesToSend.get(i);
 			}
 			
-			broker.runTask(Broker.SENDERS_POOL_URI, new SenderTask(broker, clientsInfos, channel, targetPortURI, messagesToSend));
+			broker.runTask(Broker.SENDERS_POOL_URI, new SenderTask(broker, channelName, target, targetPortURI, messagesToSend));
 		}
 	}
 }

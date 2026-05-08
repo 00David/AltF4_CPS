@@ -7,14 +7,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
+import fr.sorbonne_u.broker.component.tasks.LoaderTask;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
+import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 
 /**
  * Class storing all information related to an existing channel on the {@link Broker}.
  * 
  * <p>
- * In case of multiple threads accessing on the same instance informations that can be modified, a global lock is used : 
+ * In case of multiple threads accessing to informations that can be modified, a global lock is used : 
  * because of having only short operations, it does not cost a lot in terms of performances.
  * </p>
  * 
@@ -28,15 +30,17 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
  * <ul>
  * 	<li> - The channel name.</li>
  * 	<li> - A mapping : subscriber client port URI -> its channel filter.</li>
- * 	<li> - Whether the channel is accessible only to privileged clients or to everyone (default channel).</li>
- * 	<li> - The client port that created the channel, or {@code null} if it was created by the {@link Broker}.</li>
  * 	<li> - The regular expression defining the accepted client port URIs for this channel.</li>
+ * 	<li> - The client port that created the channel, or {@code null} if it was created by the {@link Broker}.</li>
  * 	<li> - A FIFO queue of {@link MessageI} pending on the channel (to be sent).</li>
  * 	<li> - A counter indicating the number of threads currently unloading the channel, with its lock (both public).</li>
  * </ul>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
+ * invariant	{@code NB_MAX_BATCH_CHANNEL >= 1}
+ * invariant	{@code NB_MAX_BATCH_STD_CHANNEL >= NB_MAX_BATCH_CHANNEL}
+ * invariant	{@code NB_MAX_BATCH_PREM_CHANNEL >= NB_MAX_BATCH_STD_CHANNEL}
  * invariant	{@code channel != null && !channel.isEmpty()}
  * invariant	{@code subscribers != null}
  * invariant	{@code authorizedUsers != null}
@@ -49,6 +53,32 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
  * @author David Vadimon
  */
 public class ChannelBrokerInfos {
+	
+    // -------------------------------------------------------------------------
+    // STATIC CONSTANTS
+    // -------------------------------------------------------------------------
+	
+	/** 
+	 * The maximum number of messages in a batch sent from the channel
+	 * when the creator is the {@code broker}, or has unregistered from the system. 
+	 */
+	public static final int NB_MAX_BATCH_CHANNEL = 1;
+	
+	/** 
+	 * The maximum number of messages in a batch sent from the channel
+	 * when the creator is creator is STANDARD. 
+	 */
+	public static final int NB_MAX_BATCH_STD_CHANNEL = 5;
+	
+	/** 
+	 * The maximum number of messages in a batch sent from the channel
+	 * when the creator is creator is PREMIUM. 
+	 */
+	public static final int NB_MAX_BATCH_PREM_CHANNEL = 10;
+	
+    // -------------------------------------------------------------------------
+    // INTERNAL DATAS
+    // -------------------------------------------------------------------------
 
     /** The name of the channel */
     private final String channel;
@@ -56,12 +86,14 @@ public class ChannelBrokerInfos {
     /** A mapping : subscriber client port URI -> its channel filter.*/
     private final Map<String, MessageFilterI> subscribers;
     
-    /** Whether the channel is accessible only to privileged clients or to everyone */
+    /** The regular expression defining the accepted client port URIs for this channel. */
     private String authorizedUsers;
     
     /** 
      * The client port that created the channel, or {@code null} if it was created by the {@link Broker}.<br>
      * If the creator unregistered itself from the system, the string remains unchanged here.
+     * 
+     * <p>The creator is final so no need to protect it from a data race.</p>
      */
     private final String clientCreator;
     
@@ -76,6 +108,10 @@ public class ChannelBrokerInfos {
     
     /** {@code nbActiveUnloaders} lock. */
     public final Object nbActiveUnloadersLock = new Object();
+    
+    // -------------------------------------------------------------------------
+    // CONSTRUCTOR
+    // -------------------------------------------------------------------------
 
     /**
      * Constructs the information associated with a channel registered on the {@link Broker}.
@@ -92,7 +128,7 @@ public class ChannelBrokerInfos {
      * @param clientCreator   the URI of the client port that created the {@code channel}, 
      *                        or {@code null} if created by the {@link Broker}.
      */
-    public ChannelBrokerInfos(String channel,
+    ChannelBrokerInfos(String channel,
                               String authorizedUsers,
                               String clientCreator) {
     	
@@ -127,7 +163,7 @@ public class ChannelBrokerInfos {
      * @param filter						the {@code clientPortURI}'s filter fo the channel.
      * @throws IllegalArgumentException		if a precondition is not satisfied.
      */
-    public synchronized void addOrReplaceSubscriber(String clientPortURI, MessageFilterI filter) {
+    synchronized void addOrReplaceSubscriber(String clientPortURI, MessageFilterI filter) {
     	// Precondition checks
     	if (clientPortURI == null || clientPortURI.isEmpty()) 
     		throw new IllegalArgumentException("A client port URI cannot be null or empty");
@@ -154,7 +190,7 @@ public class ChannelBrokerInfos {
      * @return 								true if the client is subscribed to the channel, otherwise false
      * @throws IllegalArgumentException		if {@code clientPortURI} is null or empty.
      */
-    public synchronized boolean isSubscribed(String clientPortURI) {
+    synchronized boolean isSubscribed(String clientPortURI) {
     	// Precondition checks
     	if (clientPortURI == null || clientPortURI.isEmpty()) 
     		throw new IllegalArgumentException("A client port URI cannot be null or empty");
@@ -176,7 +212,7 @@ public class ChannelBrokerInfos {
      * @throws IllegalArgumentException		if a precondition is not satisfied.
      * 
      */
-    public synchronized void removeSubscriber(String clientPortURI) {
+    synchronized void removeSubscriber(String clientPortURI) {
     	// Precondition checks
     	if (clientPortURI == null || clientPortURI.isEmpty()) 
     		throw new IllegalArgumentException("A client port URI cannot be null or empty");
@@ -200,7 +236,7 @@ public class ChannelBrokerInfos {
      * 
      * @return the list of client port URIs subscribed to the channel
      */
-    public synchronized List<String> getSubscribers() {
+    synchronized List<String> getSubscribers() {
         List<String> subs = new ArrayList<>();
         
         for (Map.Entry<String, MessageFilterI> e : subscribers.entrySet()) {
@@ -231,7 +267,7 @@ public class ChannelBrokerInfos {
      * @param authorizedUsers 			the new regular expression defining authorized users.
      * @throws IllegalArgumentException if {@code authorizedUsers} is null.
      */
-    public synchronized void modifyAuthorizedUsers(String authorizedUsers) {
+    synchronized void modifyAuthorizedUsers(String authorizedUsers) {
     	// Precondition check
     	if (authorizedUsers == null) 
     		throw new IllegalArgumentException("Authorized users cannot be null");
@@ -261,7 +297,7 @@ public class ChannelBrokerInfos {
      * @param clientPortURI		the client for whom we verify its channel usage authorization.
      * @return 					True if {@code clientPortURI} is authorized to interact with the channel, otherwise False.
      */
-    public synchronized boolean isAuthorized(String clientPortURI) {
+    synchronized boolean isAuthorized(String clientPortURI) {
     	// Precondition check
     	if (clientPortURI == null || clientPortURI.isEmpty()) 
     		throw new IllegalArgumentException("A client port URI cannot be null or empty");
@@ -272,6 +308,44 @@ public class ChannelBrokerInfos {
     // -------------------------------------------------------------------------
     // CREATOR MANAGEMENT
     // -------------------------------------------------------------------------
+    
+    /**
+     * Gets the maximum number of messages per batch sent from the channel, used by {@link LoaderTask}.
+     * 
+     * <p><strong>Contract</strong></p>
+     * <pre>
+     * pre   {@code clientsInfos != null}
+     * post  {@code return >= 1)}
+     * </pre>
+     * 
+     * @param clientsInfos					a mapping client inbound port (URI) -> its informations.
+     * @throws IllegalArgumentException 	if a precondition fails.
+     * @throws IllegalArgumentException 	the creator registration class is unknown.
+     * @return 								the maximum number of messages per batch sent from the channel.
+     */
+    public int getNbMaxBatch(Map<String, ClientBrokerInfos> clientsInfos) {
+    	// Precondition check
+    	if (clientsInfos == null) {
+    		throw new IllegalArgumentException("clientsInfos cannot be null");
+    	}
+    	
+    	// If the creator is the broker, or he has been unregistered
+    	if (clientCreator == null || !clientsInfos.containsKey(clientCreator)) {
+    		return NB_MAX_BATCH_CHANNEL;
+    	}
+    	
+    	RegistrationClass rc = clientsInfos.get(clientCreator).getRegistrationClass();
+    	switch (rc) {
+    		case FREE:
+    			return NB_MAX_BATCH_CHANNEL;
+    		case STANDARD:
+    			return NB_MAX_BATCH_PREM_CHANNEL;
+    		case PREMIUM:
+    			return NB_MAX_BATCH_STD_CHANNEL;
+    		default:
+    			throw new IllegalArgumentException("Unknow registration class.");
+    	}
+    }
 
     /**
      * Indicates if the given {@code clientPortURI} has created the channel.
@@ -285,21 +359,17 @@ public class ChannelBrokerInfos {
      * @param clientPortURI		the client for whom we want to know if he is the channel creator.
      * @return 					True if {@code clientPortURI.equals(clientCreator)}, otherwise False.
      */
-    public boolean isCreator(String clientPortURI) {
+    boolean isCreator(String clientPortURI) {
     	// Precondition check
     	if (clientPortURI == null || clientPortURI.isEmpty()) 
     		throw new IllegalArgumentException("A client port URI cannot be null or empty");
     	
-        return clientPortURI.equals(clientCreator); // clientCreator cannot be modified, so no need to protect it from a data race
+        return clientPortURI.equals(clientCreator);
     }
     
     /**
      * Returns the URI of the client port that created the channel. Can be {@code null} if the {@link Broker} has created the channel.
      * 
-     * <p>
-     * This method is used only in case of needing the creator string for a treatment not related to the channel, 
-     * otherwise if it is only for checking if a user is the channel creator, use {@link ChannelBrokerInfos#isCreator(String)} method.
-     * </p>
      * 
      * <p><strong>Contract</strong></p>
      * <pre>
@@ -309,8 +379,8 @@ public class ChannelBrokerInfos {
      * 
      * @return the URI of the client port that created the channel. Can be {@code null} if the {@link Broker} has created the channel.
      */
-    public String getCreator() {
-        return clientCreator; // clientCreator cannot be modified, so no need to protect it from a data race
+    String getCreator() {
+        return clientCreator;
     }
 
     // -------------------------------------------------------------------------
@@ -354,10 +424,6 @@ public class ChannelBrokerInfos {
      */
     public synchronized MessageI unloadMessage() {
         return messages.poll();
-    }
-    
-    public synchronized int size() {
-        return messages.size();
     }
 
     /**

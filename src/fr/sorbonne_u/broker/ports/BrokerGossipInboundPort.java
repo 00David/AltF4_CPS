@@ -63,6 +63,6 @@ public class BrokerGossipInboundPort extends AbstractInboundPort implements Goss
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-		}); 
+		});
 	}
 }

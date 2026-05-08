@@ -19,7 +19,6 @@ import fr.sorbonne_u.broker.ports.BrokerPrivilegedInboundPort;
 import fr.sorbonne_u.broker.ports.BrokerPublishingInboundPort;
 import fr.sorbonne_u.broker.ports.BrokerRegistrationInboundPort;
 import fr.sorbonne_u.components.AbstractComponent;
-import fr.sorbonne_u.components.AbstractPort;
 import fr.sorbonne_u.components.annotations.OfferedInterfaces;
 import fr.sorbonne_u.components.annotations.RequiredInterfaces;
 import fr.sorbonne_u.components.exceptions.ComponentShutdownException;
@@ -78,9 +77,9 @@ import fr.sorbonne_u.meteo.data.PositionData;
  *				(if the creator is the Broker, or he is not registered anymore, it is only 1 message per sending).</li>
  *   	</ul>
  *   </li>
- *   <li>In a distributed deployment configuration, some services use the Gossip protocol. 
+ *   <li>In a distributed deployment configuration, some services use the Gossip protocol.
  *   	Their last argument is a boolean flag indicating whether the service call originates from the same JVM.<br>
- *   	If so, once the call is completed, it is propagated to other broker neighbors through the {@link BrokerGossipPlugin}.
+ *   	If the flag is true, once the call is completed, it is propagated to other broker neighbors through the {@link BrokerGossipPlugin}.
  *   </li>
  * </ul>
  * 
@@ -145,13 +144,13 @@ public class Broker extends AbstractComponent{
 	/** Broker's gossip protocol plugin, every Broker has it initialized in its constructor. */
 	private final BrokerGossipPlugin gossipPlugin;
 	
-	/** URI of the pool of schedulable threads used for the gossip protocol message sending. */
+	/** URI of the pool of threads used for the gossip protocol message sending. */
 	public static final String	GOSSIP_SENDING_POOL_URI = "gossip-sending-pool" ;
 	
 	/** URI of the pool of threads used for the gossip protocol message reception. */
 	public static final String	GOSSIP_RECEIVING_POOL_URI = "gossip-receiving-pool" ;
 	
-	/** Number of threads in the {@code GOSSIP_SENDING_POOL_URI} and {@code GOSSIP_RECEIVING_POOL_URI} pools. */
+	/** Number of threads in both {@code GOSSIP_SENDING_POOL_URI} and {@code GOSSIP_RECEIVING_POOL_URI} pools. */
 	public final int nbGossipThreads;
 	
 	// NOTIFICATION
@@ -165,13 +164,13 @@ public class Broker extends AbstractComponent{
 	 * List of available Broker inbound registration ports. One of it is got by the {@link Broker#registrationPortURI()} method.
 	 * <p>Each URI is for a different Broker, and each access to it must be done by using the list synchronized monitor.<p> 
 	 */
-	private static List<String> registrationPortURIs = new ArrayList<>();
+	private static List<String> registrationPortURIs = new ArrayList<>(); // In our tests, we only have one Broker per JVM, but it is possible to have more with this
 	
 	/** Random generator, used for choosing a Broker registration URI in {@code registrationPortURIs}. */
 	private static final RandomDataGenerator random = new RandomDataGenerator();
 	
 	/**
-	 * Public getter for allowing clients to register on the broker.
+	 * Public getter for allowing clients to get the broker registration URI.
 	 * 
 	 * <p>Select a random Broker registration port URI if multiples are available<p>
 	 * 
@@ -181,21 +180,20 @@ public class Broker extends AbstractComponent{
 	 * post class invariants satisfied
 	 * </pre>
 	 * 
-	 * @throws IllegalArgumentException		if a precondition or postcondition is not satisfied.
 	 * @return The URI of the choosen {@link BrokerRegistrationInboundPort}.
 	 */
 	public static String registrationPortURI() {
 		synchronized(Broker.registrationPortURIs) {
 			// Precondition check
-			if (registrationPortURIs.isEmpty()) {
-		        throw new IllegalArgumentException("No registration ports available");
-		    }
+			assert (!registrationPortURIs.isEmpty()) : 
+				new PreconditionException("No registration ports available");
+		    
 		    int index = random.nextInt(0, registrationPortURIs.size() - 1);
 		    String registrationPortURI = registrationPortURIs.get(index);
 		    
 		    // Postcondition check
 		    assert (registrationPortURI != null && ! registrationPortURI.isEmpty()):
-		    	new IllegalArgumentException("registrationPortURI cannot be null or empty");
+		    	new PostconditionException("registrationPortURI cannot be null or empty");
 		    return registrationPortURI;
 		}
 	}
@@ -305,7 +303,7 @@ public class Broker extends AbstractComponent{
 	 * @param gossipInboundPortURI		The {@link Broker} inbound port URI offering {@link GossipReceiverCI} interface.
 	 * @param gossipOutboundPortURIs	{@link Broker} outbound port URIs requiring {@link GossipSenderCI} interface.
 	 * @param otherBrokersToConnectURIs	Other {@link Broker}s gossip inbound port URIs, a URI at an index i in {@code gossipOutboundPortURIs} 
-	 * 									connects to the port URI with the same index in {@code portsToConnect}.
+	 * 									connects to the port URI with the same index in {@code otherBrokersToConnectURIs}.
 	 * @throws Exception				If there is a problem while publishing a port.
 	 */
 	protected Broker(int id, PositionData windowPosition, int N, int nbMaxChannelsStd, int nbMaxChannelsPrem, int nbThreads, int nbSchedulableThreads,
@@ -355,7 +353,7 @@ public class Broker extends AbstractComponent{
 		this.nbUnloadersThreads = nbUnloadersThreads;
 		this.nbSendersThreads = nbSendersThreads;
 		
-		this.createNewExecutorService(GOSSIP_SENDING_POOL_URI, this.nbGossipThreads, true);
+		this.createNewExecutorService(GOSSIP_SENDING_POOL_URI, this.nbGossipThreads, false);
 		this.createNewExecutorService(GOSSIP_RECEIVING_POOL_URI, this.nbGossipThreads, false);
 		this.createNewExecutorService(FREE_LOADERS_POOL_URI, this.nbFreeLoadersThreads, false);
 		this.createNewExecutorService(STD_LOADERS_POOL_URI, this.nbStdLoadersThreads, false);
@@ -535,10 +533,11 @@ public class Broker extends AbstractComponent{
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 *
-	 * @param receptionPortURI	           URI of the inbound port offering the component interface {@code ReceivingCI}.
-	 * @param rc				           the registration class.
-	 * @return					           true if {@code receptionPortURI} has already been registered, with service class {@code rc} if given, otherwise false.
-	 * @throws UnknownClientException      If the {@code receptionPortURI} is not registered.
+	 * @param receptionPortURI	           	URI of the inbound port offering the component interface {@code ReceivingCI}.
+	 * @param rc				           	the registration class.
+	 * @return					           	true if {@code receptionPortURI} has already been registered, 
+	 * 										with service class {@code rc} if given, otherwise false.
+	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 */
 	public boolean registeredService(String receptionPortURI, RegistrationClass rc) 
 			throws UnknownClientException {
@@ -554,15 +553,9 @@ public class Broker extends AbstractComponent{
 	}
 
 	/**
-	 * Register on the publication/subscription system passing the URI of the inbound port offering the component interface {@code ReceivingCI}.<br>
+	 * Register on the publication/subscription system passing the URI of the inbound port offering the component 
+	 * interface {@code ReceivingCI}.<br>
 	 * Returns an URI of an inbound port offering the component interface {@code PublishingCI}.
-	 * 
-	 * <p>
-	 * Note that the registration port associated to the newly registered client is published using the
-	 * {@link AbstractPort#localPublishPort()} method : in a distributed configuration, we only want Brokers
-	 * to be able to communicate with their local registered clients, not from other JVMs.<br>
-	 * This ensures that our gossip architecture is correctly done.
-	 * </p>
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
@@ -574,7 +567,8 @@ public class Broker extends AbstractComponent{
 	 *
 	 * @param receptionPortURI	          	URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param rc				          	the required registration class.
-	 * @param fromLocalJVM					True if the call comes from a client in the same Broker JVM, and thus need to be propagated with the gossip protocol.
+	 * @param fromLocalJVM					True if the call comes from a client in the same Broker JVM, and thus need to 
+	 * 										be propagated with the gossip protocol.
 	 * @return					          	an URI of an inbound port offering the component interface {@code PublishingCI}.
 	 * @throws AlreadyRegisteredException 	If the client has already been registered.
 	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
@@ -598,7 +592,7 @@ public class Broker extends AbstractComponent{
 		if (fromLocalJVM) {
 			try {
 				outboundPort = new ReceivingOutboundPort("BrokerOutboundPort-"+receptionPortURI, this);
-				outboundPort.localPublishPort() ;
+				outboundPort.publishPort() ;
 				this.doPortConnection(outboundPort.getPortURI(), receptionPortURI, ReceivingServiceConnector.class.getCanonicalName());
 			} catch(Exception e) {
 				e.printStackTrace();
@@ -641,7 +635,8 @@ public class Broker extends AbstractComponent{
 	 *
 	 * @param receptionPortURI	            URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param rc				            the required registration class.
-	 * @param fromLocalJVM					True if the call comes from a client in the same Broker JVM, and thus need to be propagated with the gossip protocol.
+	 * @param fromLocalJVM					True if the call comes from a client in the same Broker JVM, and thus need to 
+	 * 										be propagated with the gossip protocol.
 	 * @return					            an URI of an inbound port offering the component interface {@code PublishingCI}.
 	 * @throws UnknownClientException       If the {@code receptionPortURI} is not registered at all.
 	 * @throws AlreadyRegisteredException   If the client has already been registered with the exact same {@code rc}.
@@ -698,9 +693,11 @@ public class Broker extends AbstractComponent{
 	 * </pre>
 	 *
 	 * @param receptionPortURI	               	URI of the inbound port offering the component interface {@code ReceivingCI}.
-	 * @param fromLocalJVM						True if the call comes from a client in the same Broker JVM, and thus need to be propagated with the gossip protocol.
+	 * @param fromLocalJVM						True if the call comes from a client in the same Broker JVM, and thus need to 
+	 * 											be propagated with the gossip protocol.
 	 * @throws UnknownClientException          	If the {@code receptionPortURI} is not registered.
-	 * @throws Exception                       	If there is a problem while unpublishing the component's outbound port associated to the {@code receptionPortURI}.
+	 * @throws Exception                       	If there is a problem while unpublishing the component's outbound port associated 
+	 * 											to the {@code receptionPortURI}.
 	 * @throws Exception                       	If there is a problem while disconnecting outbound port and {@code receptionPortURI}.
 	 */
 	public void unregisterService(String receptionPortURI, boolean fromLocalJVM) 
@@ -885,7 +882,8 @@ public class Broker extends AbstractComponent{
 	 * @param receptionPortURI       		URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel			      		name of an existing channel.
 	 * @param filter			           	filter that accepts the message the component wants to receive.
-	 * @param fromLocalJVM					True if the call comes from a client in the same Broker JVM, and thus need to be propagated with the gossip protocol.
+	 * @param fromLocalJVM					True if the call comes from a client in the same Broker JVM, and thus need to 
+	 * 										be propagated with the gossip protocol.
 	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
 	 * @throws UnauthorisedClientException 	If {@code receptionPortURI} is not authorized to interact with the {@code channel}.
@@ -954,7 +952,8 @@ public class Broker extends AbstractComponent{
 	 *
 	 * @param receptionPortURI	              	URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel			            	name of an existing channel.
-	 * @param fromLocalJVM						True if the call comes from a client in the same Broker JVM, and thus need to be propagated with the gossip protocol.
+	 * @param fromLocalJVM						True if the call comes from a client in the same Broker JVM, and thus need 
+	 * 											to be propagated with the gossip protocol.
 	 * @throws UnknownClientException			If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException      	If the {@code channel} doesn't exist.
 	 * @throws NotSubscribedChannelException 	If {@code receptionPortURI} is not subscribed to the {@code channel}.
@@ -1088,7 +1087,8 @@ public class Broker extends AbstractComponent{
 	 * @param receptionPortURI	           	URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel			           	name of the channel on which {@code message} must be published.
 	 * @param messages			           	list of messages to be published on {@code channel}. It can contain an only message.
-	 * @param fromLocalJVM					True if the call comes from a client in the same Broker JVM, and thus need to be propagated with the gossip protocol.
+	 * @param fromLocalJVM					True if the call comes from a client in the same Broker JVM, and thus need to be 
+	 * 										propagated with the gossip protocol.
 	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
 	 * @throws UnauthorisedClientException 	If {@code receptionPortURI} is not authorized to interact with the {@code channel}.
@@ -1133,11 +1133,11 @@ public class Broker extends AbstractComponent{
 				// Delegates loading messages to a loaders thread pool, chosen depending on the registration class of the publisher
 				RegistrationClass rc = client.getRegistrationClass();
 				if (rc == RegistrationClass.FREE) {
-					this.runTask(FREE_LOADERS_POOL_URI, new LoaderTask(this, clientsInfos, channelsInfos, channel, messages));
+					this.runTask(FREE_LOADERS_POOL_URI, new LoaderTask(this, clientsInfos, chan, channel, messages));
 				} else if (rc == RegistrationClass.STANDARD) {
-					this.runTask(STD_LOADERS_POOL_URI, new LoaderTask(this, clientsInfos, channelsInfos, channel, messages));
+					this.runTask(STD_LOADERS_POOL_URI, new LoaderTask(this, clientsInfos, chan, channel, messages));
 				} else {
-					this.runTask(PREM_LOADERS_POOL_URI, new LoaderTask(this, clientsInfos, channelsInfos, channel, messages));
+					this.runTask(PREM_LOADERS_POOL_URI, new LoaderTask(this, clientsInfos, chan, channel, messages));
 				}
 				
 			}
@@ -1226,10 +1226,13 @@ public class Broker extends AbstractComponent{
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 *
-	 * @param receptionPortURI						identifier of the requesting component <i>i.e.</i>, URI of its inbound port offering the component interface {@code ReceivingCI}.
+	 * @param receptionPortURI						identifier of the requesting component <i>i.e.</i>, URI of its inbound port 
+	 * 												offering the component interface {@code ReceivingCI}.
 	 * @param channel								name of the channel to be created.
-	 * @param autorizedUsers						regular expression that matches the URIs of components that must be authorized to use the new channel.
-	 * @param fromLocalJVM							True if the call comes from a client in the same Broker JVM, and thus need to be propagated with the gossip protocol.
+	 * @param autorizedUsers						regular expression that matches the URIs of components that must be authorized 
+	 * 												to use the new channel.
+	 * @param fromLocalJVM							True if the call comes from a client in the same Broker JVM, and thus need to be 
+	 * 												propagated with the gossip protocol.
 	 * @throws UnknownClientException   			If the {@code receptionPortURI} is not registered.
 	 * @throws AlreadyExistingChannelException   	If the {@code channel} already exists.
 	 * @throws ChannelQuotaExceededException   		If the {@code receptionPortURI} cannot currently manage more channels.
@@ -1291,10 +1294,13 @@ public class Broker extends AbstractComponent{
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 *
-	 * @param receptionPortURI				identifier of the requesting component <i>i.e.</i>, URI of its inbound port offering the component interface {@code ReceivingCI}.
+	 * @param receptionPortURI				identifier of the requesting component <i>i.e.</i>, URI of its inbound port 
+	 * 										offering the component interface {@code ReceivingCI}.
 	 * @param channel						name of the channel.
-	 * @param autorizedUsers				regular expression that matches the URIs of components that must be authorized to use the new channel.
-	 * @param fromLocalJVM					True if the call comes from a client in the same Broker JVM, and thus need to be propagated with the gossip protocol.
+	 * @param autorizedUsers				regular expression that matches the URIs of components that must be authorized 
+	 * 										to use the new channel.
+	 * @param fromLocalJVM					True if the call comes from a client in the same Broker JVM, and thus need to be 
+	 * 										propagated with the gossip protocol.
 	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
 	 * @throws UnauthorisedClientException  If the {@code receptionPortURI} is not the creator of the {@code channel}.
@@ -1369,7 +1375,8 @@ public class Broker extends AbstractComponent{
 	 *
 	 * @param receptionPortURI				URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel						name of the channel to be destroyed.
-	 * @param fromLocalJVM					True if the call comes from a client in the same Broker JVM, and thus need to be propagated with the gossip protocol.
+	 * @param fromLocalJVM					True if the call comes from a client in the same Broker JVM, and thus need to be 
+	 * 										propagated with the gossip protocol.
 	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
 	 * @throws UnauthorisedClientException  If the {@code receptionPortURI} is not allowed to interact with the {@code channel}.
@@ -1498,7 +1505,8 @@ public class Broker extends AbstractComponent{
 	 *
 	 * @param receptionPortURI				URI of the inbound port offering the component interface {@code ReceivingCI}.
 	 * @param channel						name of the channel to be destroyed.
-	 * @param fromLocalJVM					True if the call comes from a client in the same Broker JVM, and thus need to be propagated with the gossip protocol.
+	 * @param fromLocalJVM					True if the call comes from a client in the same Broker JVM, and thus need to be 
+	 * 										propagated with the gossip protocol.
 	 * @throws UnknownClientException      	If the {@code receptionPortURI} is not registered.
 	 * @throws UnknownChannelException     	If the {@code channel} doesn't exist.
 	 * @throws UnauthorisedClientException  If the {@code receptionPortURI} is not allowed to interact with the {@code channel}.
@@ -1531,7 +1539,7 @@ public class Broker extends AbstractComponent{
 				
 		// If the channel creator was a client, and he is still registered on the broker : his number of remaining channels is increased
 		String channelCreator = chanInfos.getCreator();
-		if (channelCreator != null) {
+		if (channelCreator != null && registeredService(channelCreator)) {
 			// Takes the channel creator lock
 			ClientBrokerInfos clientChannelCreator = clientsInfos.get(channelCreator);
 			synchronized(clientChannelCreator) {

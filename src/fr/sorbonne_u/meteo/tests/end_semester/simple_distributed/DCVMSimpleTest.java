@@ -69,7 +69,7 @@ public class DCVMSimpleTest extends AbstractDistributedCVM {
 	public static String START_INSTANT = "2026-01-30T09:00:00.00Z";
 	public static String END_INSTANT = "2026-01-30T09:03:20.00Z";
 
-	public static long DELAY_TO_START = 1000L;
+	public static long DELAY_TO_START = 5000L;
 	public static long END_SLEEP_DURATION = 10000L;
 	public static double ACCELERATION_FACTOR = 3.0;
 	public static long EXECUTION_DURATION =

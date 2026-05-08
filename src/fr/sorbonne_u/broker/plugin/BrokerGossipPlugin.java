@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import fr.sorbonne_u.broker.component.Broker;
@@ -19,7 +18,6 @@ import fr.sorbonne_u.broker.ports.BrokerGossipInboundPort;
 import fr.sorbonne_u.broker.ports.GossipOutboundPort;
 import fr.sorbonne_u.components.AbstractPlugin;
 import fr.sorbonne_u.components.ComponentI;
-import fr.sorbonne_u.components.ComponentI.FComponentTask;
 import fr.sorbonne_u.cps.gossip.interfaces.GossipImplementationI;
 import fr.sorbonne_u.cps.gossip.interfaces.GossipMessageI;
 import fr.sorbonne_u.cps.gossip.interfaces.GossipReceiverCI;
@@ -35,18 +33,67 @@ import fr.sorbonne_u.messages.gossip.GossipMessage;
  * The {@link Broker} plugin having a {@link BrokerGossipInboundPort} and a {@link GossipOutboundPort}.
  * 
  * <p>
- * Handles {@link GossipMessage} reception and sending, with each internal method being necessarily executed by a thread from 
- * the Broker {@code Broker.GOSSIP_POOL_URI} thread pool (except for the constructor and methods related to the plugin life cycle). 
+ * Once a message is locally treated, and comes from a local client, 
+ * the {@link Broker} calls the {@code storeForSending} method with only a gossip message.
  * </p>
+ * 
+ * <p>
+ * Handling of {@link GossipMessage} reception and sending :
+ * </p>
+ * <ul>
+ * <li><b>Sending pipeline:</b>
+ *   <ul>
+ *   <li>{@link BrokerGossipPlugin#storeForSending(GossipMessage[])} method, executed by 
+ *   	a thread from the {@link Broker#GOSSIP_SENDING_POOL_URI} pool :
+ *     <ul>
+ *     <li>Marks messages as received, by putting them in {@code this.receivedMessages}.</li>
+ *     <li>Adds messages to {@code this.toSendMessages} buffer.</li>
+ *     <li>Checks if a thread is already waiting to send buffer messages via {@code this.willSend} flag.</li>
+ *     <li>If not, sets {@code this.willSend = true} and handles himself {@code send()}.</li>
+ *     </ul>
+ *   </li>
+ *   <li>{@link BrokerGossipPlugin#send()} method, executed by 
+ *   	a thread from the {@link Broker#GOSSIP_SENDING_POOL_URI} pool :
+ *     <ul>
+ *     <li>Waits {@code SEND_MILLIS_WAIT} ms to let buffer fill.</li>
+ *     <li>Polls all buffered messages from {@code this.toSendMessages} and resets {@code this.willSend = false} flag.</li>
+ *     <li>Delegates sending to gossip sending threads via outbound ports.</li>
+ *     </ul>
+ *   </li>
+ *   </ul>
+ * </li>
+ * <li><b>Reception pipeline:</b>
+ *   <ul>
+ *   <li>On receive, {@link BrokerGossipPlugin#receive(GossipMessageI[])} method is executed by 
+ *   	a thread from the {@link Broker#GOSSIP_RECEIVING_POOL_URI} pool :
+ *     <ul>
+ *     <li>Filters out already received messages using {@code this.receivedMessages}.</li>
+ *     <li>Marks messages as received, by putting them in the {@code this.receivedMessages} 
+ *     		(a SET so no duplicate)</li>
+ *     <li>Fills the {@code this.toSendMessages} buffer for forwarding.</li>
+ *     <li>Executes {@code update()} method for {@link Broker} updates.</li>
+ *     </ul>
+ *   </li>
+ *   <li>{@link BrokerGossipPlugin#update(GossipMessageI[])} method, executed by 
+ *   	a thread from the {@link Broker#GOSSIP_RECEIVING_POOL_URI} pool:
+ *     <ul>
+ *     <li>Delegates each gossip message action to broker service threads.</li>
+ *     <li>Checks if the number of currently stored received gossip messages ({@code this.receivedMessages}) 
+ *     		exceeds the {@code GOSSIP_MESSAGES_THRESHOLD}, in that case it cleans received gossip messages
+ *     		created since more than {@code MAX_SECONDS_DIFF} seconds.</li>
+ *     </ul>
+ *   </li>
+ *   </ul>
+ * </li>
+ * </ul>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
  * invariant	{@code gossipInboundPort != null && !gossipInboundPort.isEmpty()}
  * invariant	{@code gossipOutboundPorts != null}
- * invariant	{@code gossipMessages != null}
- * invariant	{@code toSendMessages != null}
- * invariant	{@code Stream.of(gossipMessages).allMatch(m -> m != null)}
- * invariant	{@code Stream.of(toSendMessages).allMatch(m -> m != null)}
+ * invariant	{@code gossipMessages != null && Stream.of(gossipMessages).allMatch(m -> m != null)}
+ * invariant	{@code toSendMessages != null && Stream.of(toSendMessages).allMatch(m -> m != null)}
+ * invariant	at most only ONE sending thread SLEEPING at the start of the {@code send()} method.
  * </pre>
  * 
  * @author Kevin TANG
@@ -123,17 +170,18 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 	 * If the number of stored received messages ({@code this.receivedMessages}) exceeds the threshold, 
 	 * gossip messages that were created since more than {@code MAX_SECONDS_DIFF} will be deleted.
 	 */
-	public static final int GOSSIP_MESSAGES_THRESHOLD = 1000;
+	public static final int GOSSIP_MESSAGES_THRESHOLD = 20; // really low for test purpose
 	
-	/** Stored received gossip messages created since more than 120 seconds might be deleted. */
+	/** Stored received gossip messages created since more than X seconds might be deleted. */
 	public static final int MAX_SECONDS_DIFF = 120;
 
 	/** 
 	 * Buffer of {@link GossipMessage}s waiting to be sent to neighbors. 
 	 * 
 	 * <p>
-	 * This list is filled through the method, and is periodically cleared while 
-	 * sending those messages via the {@link BrokerGossipPlugin#send()} method.
+	 * This queue is filled through the {@link BrokerGossipPlugin#storeForSending(GossipMessage[])} 
+	 * method, and is periodically cleared while sending those messages via the 
+	 * {@link BrokerGossipPlugin#send()} method.
 	 * </p>
 	 * 
 	 * <p>
@@ -141,10 +189,22 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 	 * </p>
 	 */
 	protected final Queue<GossipMessage> toSendMessages= new ArrayDeque<>();
+	
+	/** 
+	 * Boolean indicating if a thread is currently waiting to send {@code toSendMessages}.
+	 * 
+	 * <p>
+	 * Considering that it is can only be modified after adding/polling messages to send,
+	 * manipulating it needs to be done within the {@code toSendMessages} synchronized monitor.
+	 * </p>
+	 */
 	protected boolean willSend = false;
 	
-	/** The number of waited milliseconds between each gossip messages sending. */
-	public static final long SEND_MILLIS_INTERVAL = 1000;
+	/** 
+	 * The number of waited milliseconds for each gossip messages sending.
+	 * In the meantime, other threads can fill the sending buffer.
+	 */
+	public static final long SEND_MILLIS_WAIT = 1000;
 	
 	//--------------------------------------------------------------------------
 	// Constructor
@@ -286,79 +346,77 @@ public class BrokerGossipPlugin extends AbstractPlugin implements GossipImplemen
 		assert(gossipMessages != null && gossipMessages.length > 0) : new PreconditionException("gossipMessage cannot be null or empty");
 		assert(Stream.of(gossipMessages).allMatch(m -> m != null)) : new PreconditionException("Must contain only non null GossipMessage");
 		
-		Broker broker = (Broker)this.getOwner();
-		
 		synchronized(this.receivedMessages) {
 			for (GossipMessage gossipMessage : gossipMessages) {
 				this.receivedMessages.add(gossipMessage);
 			}
-			
 		}
+		
+		boolean mustSend = false; // indicates if the current thread will handle the next sending
 		
 		synchronized(this.toSendMessages) {
 			for (GossipMessage gossipMessage : gossipMessages) {
 				this.toSendMessages.add(gossipMessage);
 			}
-			if (!willSend) {
-				// Schedule the nextSending
-				broker.scheduleTask(
-						Broker.GOSSIP_SENDING_POOL_URI,
-						(FComponentTask) owner -> {
-							send();
-						},
-						SEND_MILLIS_INTERVAL,
-						TimeUnit.MILLISECONDS
-					);
+			if (!willSend) { // if nobody is already waiting (=sleeping) for sending messages, then this thread will do it
 				willSend = true;
+				mustSend = true;
 			}
 		}
+		
+		if (mustSend) {
+			send();
+		}
+		
 	}
 	
 	/**
 	 * Sends messages waiting to be sent (in the {@code this.toSendMessages} buffer) to another(s) 
 	 * {@link Broker}'s {@link BrokerGossipInboundPort} with gossip protocol threads.
 	 * 
-	 * <p>
-	 * This method call must be scheduled a first time in the {@link Broker}'s {@code execute()} method,
-	 * before beeing recursively scheduled here, at the end of it, for every {@code SEND_SECONDS_INTERVAL} seconds.
-	 * </p>
-	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
-	 * pre	{@code true}	// no precondition.
+	 * pre	{@code this.toSendMessages.size() > 0}
 	 * post	{@code true}	// no postcondition.
 	 * </pre>
 	 */
-	public void send() {
+	protected void send() {
+		// Precondition check
+		synchronized(this.toSendMessages) {
+			assert(this.toSendMessages.size() > 0) : new PreconditionException("At least one gossip message "
+					+ "must be in the sending buffer.");
+		}
+		
 		Broker broker = (Broker)this.getOwner();
 		
-		if (broker.isStarted() && !broker.isFinalised() && !broker.isShutdown()
-				&& !broker.isShuttingDown() &&!broker.isTerminated()) {
+		// Wait, letting the buffer be filled in the meantime
+		try {
+			Thread.sleep(SEND_MILLIS_WAIT);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 		
-			// Get the gossip messages to send
-			GossipMessage[] gossipMessages;
-			synchronized(this.toSendMessages) {
-				int nbToSend = this.toSendMessages.size();
-				gossipMessages = new GossipMessage[nbToSend];
-				for (int i=0; i<nbToSend; i++) {
-					gossipMessages[i] = this.toSendMessages.poll();
-				}
-				willSend = false;
+		// Get the gossip messages to send
+		GossipMessage[] gossipMessages;
+		synchronized(this.toSendMessages) {
+			int nbToSend = this.toSendMessages.size();
+			gossipMessages = new GossipMessage[nbToSend];
+			for (int i=0; i<nbToSend; i++) {
+				gossipMessages[i] = this.toSendMessages.poll();
 			}
-			
-			// Delegate their sending to other gossip threads
-			if (gossipMessages.length > 0) {
-				for (Map.Entry<String, OutboundConnection> e : gossipOutboundPorts.entrySet()) {
-					broker.runTask(Broker.GOSSIP_SENDING_POOL_URI, o -> {
-						GossipOutboundPort gossipOutboundPort = e.getValue().gossipOutboundPort;
-						try {
-							gossipOutboundPort.send(gossipMessages);
-						} catch (Exception eSend) {
-							eSend.printStackTrace();
-						}
-					});
+			willSend = false; // reset the flag, on next add in the buffer, a new thread will enter send and wait
+		}
+		
+		// Delegate sendings to other gossip threads
+		for (Map.Entry<String, OutboundConnection> e : gossipOutboundPorts.entrySet()) {
+			broker.runTask(Broker.GOSSIP_SENDING_POOL_URI, o -> {
+				GossipOutboundPort gossipOutboundPort = e.getValue().gossipOutboundPort;
+				try {
+					gossipOutboundPort.send(gossipMessages);
+				} catch (Exception eSend) {
+					eSend.printStackTrace();
 				}
-			}
+			});
 		}
 	}
 	

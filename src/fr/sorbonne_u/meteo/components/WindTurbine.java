@@ -40,8 +40,6 @@ import fr.sorbonne_u.exceptions.PostconditionException;
  * <p><strong>Invariants</strong></p>
  * <pre>
  * invariant	{@code windTurbinePos != null}
- * invariant	{@code filterChannel0 != null}
- * invariant	{@code filterChannel1 != null}
  * invariant	{@code orientation != null}
  * invariant	{@code maxWorkingLevel != null}
  * invariant	{@code datas != null}

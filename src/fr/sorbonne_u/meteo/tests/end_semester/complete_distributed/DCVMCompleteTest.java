@@ -36,7 +36,7 @@ import fr.sorbonne_u.meteo.tests.mid_semester.CVMCompleteTest;
 import fr.sorbonne_u.utils.aclocks.ClocksServer;
 
 /**
- * Test distributed version of {@link CVMCompleteTest}.<br>
+ * Distributed test version of {@link CVMCompleteTest} (and concurrent).<br>
  * Considering that it was already testing all of our main functionalities, 
  * which are also used by the gossip protocol, we kept most of the original scenario.
  * 
@@ -104,7 +104,7 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * </p>
  * <ul>
  *     	<li>After 260 seconds, <strong>MeteoStation n°1</strong> and <strong>MeteoStation n°2</strong> 
- *     		each send 1000 wind datas on "channel0" (100 by 100, then they are grouped by the gossip protocol).</li>
+ *     		each send 1000 wind datas on "channel0" (100 by 100, grouped by the gossip protocol).</li>
  *     	<li>After 280 seconds, <strong>WindTurbine n°2</strong> verifies that it has received a total of 
  *     		2003 wind datas since the start.</li>
  * </ul>
@@ -122,7 +122,7 @@ public class DCVMCompleteTest extends AbstractDistributedCVM {
 	public static String START_INSTANT = "2026-01-30T09:00:00.00Z";
 	public static String END_INSTANT = "2026-01-30T09:05:10.00Z";
 
-	public static long DELAY_TO_START = 1000L;
+	public static long DELAY_TO_START = 5000L;
 	public static long END_SLEEP_DURATION = 10000L;
 	public static double ACCELERATION_FACTOR = 2.0;
 	public static long EXECUTION_DURATION =

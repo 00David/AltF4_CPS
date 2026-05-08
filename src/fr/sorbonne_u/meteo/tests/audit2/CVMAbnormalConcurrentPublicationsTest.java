@@ -61,15 +61,19 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * 
  * <p>
  * 	{@code NBTOOMUCHWINDS} has been chosen in order to have a sufficient number of wind datas that will make Broker loader/unloader 
- * 	threads interrupted by <strong>both</strong> channel destructions, <strong>if there is no "UnknownChannelException" appearing on the console, you can increase it</strong>.
+ * 	threads interrupted by <strong>both</strong> channel destructions, <strong>if there is no "UnknownChannelException" 
+ * 	appearing on the console, you can increase it</strong>.
  * </p>
  * 
  * <p>
- * 	It is also possible that the number of WindTurbine wind datas received at the end is exactly {@code NBTOOMUCHWINDS} :
- * 	this case happens when the first sending has been completely sent, and the second channel destruction (now) happens before any
- * 	unloader has unloaded anything from the channel.<br>
- * 	(If the first channel destruction (normal) also happens before any unloader has unloaded anything from the channel, 
- * 	then all channel datas are unloaded and sent by the Broker thread destroying the channel)
+ * 	It is possible that the number of WindTurbine wind datas received at the end is exactly {@code NBTOOMUCHWINDS} :
+ * 	this case happens when : 
+ * 		<ul>
+ * 			<li>The first sending has been completely received (might be sent by the thread destroying the channel).</li>
+ * 			<li>On the second sending, the channel destruction now happens before 
+ * 				any unloader has unloaded any wind data from the channel.<br>
+ * 	(If the first channel destruction (normal) also happens before any unloader has unloaded any wind data from the channel, 
+ * 	then all channel wind datas are unloaded and sent by the thread destroying the channel)
  * </p>
  * 
  * @author Kevin TANG

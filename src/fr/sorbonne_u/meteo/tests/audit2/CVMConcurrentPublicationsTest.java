@@ -48,7 +48,8 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * </ul>
  * 
  * <p>
- * 	SCENARIO, FIRST PART : multi-thread publications :
+ *	SCENARIO, FIRST PART : multi-thread publications 
+ * 	(messages sent from the channel one by one) :
  * </p>
  * <ul>
  * 	<li> - After 20 seconds, <strong>all 3 FREE MeteoStations</strong> each send 30 wind datas to 'channel0'.</li>
@@ -60,15 +61,18 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * </ul>
  * 
  * <p>
- * 	SECOND PART : multi-thread publications on different channels (depending creator registration class) :
+ * 	SECOND PART : multi-thread publications on different channels 
+ * 	(messages sent from the channel in groups of max 5 or 10, depending on creator registration class) :
  * </p>
  * <ul>
  * 	<li> - After 130 seconds, <strong>MeteoStation4 (STANDARD)</strong> creates 'testChannel0' 
  * 			+ <strong>MeteoStation7 (PREMIUM)</strong> creates 'testChannel1'.</li>
  * 	<li> - After 140 seconds, <strong>WindTurbine</strong> subscribes to 'testChannel0' and 'testChannel1'</li>
- * 	<li> - After 150 seconds, <strong>all 3 STANDARD MeteoStations</strong> each send 29 wind datas to 'testChannel0' (created by a STANDARD).</li>
+ * 	<li> - After 150 seconds, <strong>all 3 STANDARD MeteoStations</strong> each send 29 wind datas to 'testChannel0' (created by a STANDARD).
+ * 			Messages are sent from the channel in <strong>groups of max 5</strong>.</li>
  * 	<li> - After 170 seconds, <strong>WindTurbine</strong> checks that it has received a total of 357 wind datas.</li>
- * 	<li> - After 190 seconds, <strong>all 3 STANDARD MeteoStations</strong> each send 29 wind datas to 'testChannel1' (created by a PREMIUM).</li>
+ * 	<li> - After 190 seconds, <strong>all 3 STANDARD MeteoStations</strong> each send 29 wind datas to 'testChannel1' (created by a PREMIUM).
+ * 			Messages are sent from the channel in <strong>groups of max 10</strong>.</li>
  * 	<li> - After 210 seconds, <strong>WindTurbine</strong> checks that it has received a total of 444 wind datas.</li>
  * </ul>
  * 
@@ -343,7 +347,8 @@ public class CVMConcurrentPublicationsTest extends AbstractCVM {
 						CLOCK_URI, MS_URI+4, step_Instants[8],
 						owner -> {
 							try {
-								System.out.println("STEP 8/"+(NBSTEPS-1)+" ("+STEPS[8]+"s) : all 3 STANDARD MeteoStations each send 29 wind datas to 'testChannel0' (created by a STANDARD)");
+								System.out.println("STEP 8/"+(NBSTEPS-1)+" ("+STEPS[8]+"s) : all 3 STANDARD MeteoStations each send 29 wind datas to 'testChannel0' (created by a STANDARD).\n"
+										+ "Messages are sent from the channel in groups of max 5.");
 								((MeteoStation)owner).publishWindDatas(ms4_winds.subList(0, ms4_winds.size() - 1), "testChannel0", false);
 							} catch (Exception e) {
 								System.err.println("MeteoStation4, step 8 wind datas publication failed with exception " + e);
@@ -383,7 +388,8 @@ public class CVMConcurrentPublicationsTest extends AbstractCVM {
 						CLOCK_URI, MS_URI+4, step_Instants[10],
 						owner -> {
 							try {
-								System.out.println("STEP 10/"+(NBSTEPS-1)+" ("+STEPS[10]+"s) : all 3 STANDARD MeteoStations each send 29 wind datas to 'testChannel1' (created by a PREMIUM)");
+								System.out.println("STEP 10/"+(NBSTEPS-1)+" ("+STEPS[10]+"s) : all 3 STANDARD MeteoStations each send 29 wind datas to 'testChannel1' (created by a PREMIUM).\n"
+										+ "Messages are sent from the channel in groups of max 10.");
 								((MeteoStation)owner).publishWindDatas(ms4_winds.subList(0, ms4_winds.size() - 1), "testChannel1", false);
 							} catch (Exception e) {
 								System.err.println("MeteoStation4, step 10 wind datas publication failed with exception " + e);

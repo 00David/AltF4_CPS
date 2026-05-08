@@ -1,11 +1,10 @@
-package fr.sorbonne_u.broker.component.tests;
+package fr.sorbonne_u.broker.component;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import fr.sorbonne_u.broker.component.ClientBrokerInfos;
 import fr.sorbonne_u.broker.component.exceptions.ChannelNumberNotInitializedException;
 import fr.sorbonne_u.cps.pubsub.exceptions.ChannelQuotaExceededException;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;

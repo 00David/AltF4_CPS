@@ -1,7 +1,5 @@
 package fr.sorbonne_u.broker.component.tasks;
 
-import java.util.Map;
-
 import fr.sorbonne_u.broker.component.Broker;
 import fr.sorbonne_u.broker.component.ClientBrokerInfos;
 import fr.sorbonne_u.broker.component.VisibilitySenderTask;
@@ -12,7 +10,7 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * Created by a {@link UnloaderTask}, handles messages sending to a specific targeted client.
  * 
  * <p>
- * This class derives from {@link VisibilitySenderTask} in order to have an access to the client sending method,
+ * This class derives from {@link VisibilitySenderTask} in order to have an access to the targeted client sending method,
  * not visible from outside {@link Broker}'s package. 
  * </p>
  * 
@@ -24,8 +22,8 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * <p><strong>Invariants</strong></p>
  * <pre>
  * invariant	{@code broker != null}
- * invariant	{@code clientsInfos != null}
  * invariant	{@code channel != null && !channel.isEmpty()}
+ * invariant	{@code target != null}
  * invariant	{@code targetPortURI != null && !targetPortURI.isEmpty()}
  * invariant	{@code messagesToSend != null}
  * </pre>
@@ -38,14 +36,14 @@ public class SenderTask extends VisibilitySenderTask {
 	/** The broker component having the task. */
 	private Broker broker;
 	
-	/** Mapping : client inbound port (URI) -> its informations. From the {@link Broker}. */
-	private Map<String, ClientBrokerInfos> clientsInfos; 
-	
 	/** The channel from where {@code messagesToSend} has been unloaded. */
 	private String channel;
 	
 	/** The targeted client port URI, where {@code messagesToSend} must be sent. */
 	private String targetPortURI;
+	
+	/** The targeted client. Sending is delegated via this object. */
+	private ClientBrokerInfos target;
 	
 	/** The messages to send to the {@code targetPortURI}. */
 	private MessageI[] messagesToSend;
@@ -63,28 +61,28 @@ public class SenderTask extends VisibilitySenderTask {
 	 * </pre>
 	 * 
 	 * @param broker			The broker component having the task.
-	 * @param clientsInfos		{@code broker} mapping : client inbound port (URI) -> its informations.
 	 * @param channel			The channel from where {@code messagesToSend} has been unloaded.
+	 * @param target			The targeted client. Sending is delegated via this object.
 	 * @param targetPortURI		The targeted client port URI, where {@code messagesToSend} must be sent.
 	 * @param messagesToSend	The messages to send to the {@code targetPortURI}.
 	 */
-	public SenderTask(Broker broker, Map<String, ClientBrokerInfos> clientsInfos, 
-			String channel, String targetPortURI, MessageI[] messagesToSend) {
+	public SenderTask(Broker broker, String channel,
+			ClientBrokerInfos target, String targetPortURI, MessageI[] messagesToSend) {
 		// Precondition checks
 		assert(broker != null) : 
 			new PreconditionException("broker cannot be null");
-		assert(clientsInfos != null) : 
-			new PreconditionException("clientsInfos cannot be null");
 		assert(channel != null && !channel.isEmpty()) : 
 			new PreconditionException("channel cannot be null or empty");
+		assert(target != null) : 
+			new PreconditionException("target cannot be null");
 		assert(targetPortURI != null && !targetPortURI.isEmpty()) : 
 			new PreconditionException("targetPortURI cannot be null or empty");
 		assert(messagesToSend != null) : 
 			new PreconditionException("messagesToSend cannot be null");
 		
 		this.broker = broker;
-		this.clientsInfos = clientsInfos;
 		this.channel = channel;
+		this.target = target;
 		this.targetPortURI = targetPortURI;
 		this.messagesToSend = messagesToSend;
 	}
@@ -94,11 +92,10 @@ public class SenderTask extends VisibilitySenderTask {
 		try {
 			//broker.logMessage("SENDER "+Thread.currentThread().getId()+" starts sending from'"+channel+"' to '"+targetPortURI+"'") ;
 			
-			ClientBrokerInfos client = clientsInfos.get(targetPortURI);
 			// Checks that the targeted client is still registered right now
 			// If it is okay, send messages if the client is on the same JVM.
 			if (broker.registeredService(targetPortURI)) {
-				boolean haveBeenSent = sendMessages(client, channel, messagesToSend);
+				boolean haveBeenSent = sendMessages(target, channel, messagesToSend);
 				if (haveBeenSent) {
 					broker.logMessage("Thread "+Thread.currentThread().getId()+": Broker sending "+messagesToSend.length+" message(s) to '" + targetPortURI + "'") ;
 				}
