@@ -36,13 +36,13 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * 
  * <p>
  * In terms of JVM occupations :
+ * </p>
  * <ul>
  * 	<li>There are <strong>3 Brokers</strong>, each in its own JVM and connected to others with the gossip protocol.</li>
  * 	<li>In Broker n°1's JVM : MeteoBureau, MeteoStation n°1 and the clock server.</li>
  * 	<li>In Broker n°2's JVM : MeteoStation n°2.</li>
  * 	<li>In Broker n°3's JVM : WindTurbine.</li>
  * </ul>
- * </p>
  * 
  * The scenario from the start of the DCVM:
  * 

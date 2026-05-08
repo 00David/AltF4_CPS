@@ -26,7 +26,8 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * <pre>
  * invariant	{@code broker != null}
  * invariant	{@code clientsInfos != null}
- * invariant	{@code chanInfos != null}
+ * invariant	{@code channel != null}
+ * invariant	{@code channelName != null && !channelName.isEmpty()}
  * </pre>
  * 
  * @author Kevin Tang
@@ -35,16 +36,16 @@ import fr.sorbonne_u.exceptions.PreconditionException;
 public class UnloaderTask extends AbstractTask {
 	
 	/** The broker component having the task. */
-	private Broker broker;
+	private final Broker broker;
 	
 	/** Mapping : client inbound port (URI) -> its informations. From the {@link Broker}. */
-	private Map<String, ClientBrokerInfos> clientsInfos; 
+	private final Map<String, ClientBrokerInfos> clientsInfos; 
 	
 	/** A channel informations, from where messages will be unloaded. */
-	private ChannelBrokerInfos channel;
+	private final ChannelBrokerInfos channel;
 	
 	/** The name of the channel having {@code chanInfos}. */
-	private String channelName;
+	private final String channelName;
 	
 	/**
 	 * Broker publication task handling unloading messages from a specific channel.
@@ -52,8 +53,8 @@ public class UnloaderTask extends AbstractTask {
 	 * <pre>
 	 * pre	{@code broker != null}
 	 * pre	{@code clientsInfos != null}
-	 * pre	{@code chanInfos != null}
-	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * pre	{@code channel != null}
+	 * pre	{@code channelName != null && !channelName.isEmpty()}
 	 * post class invariants satisfied
 	 * </pre>
 	 * 
@@ -140,9 +141,7 @@ public class UnloaderTask extends AbstractTask {
 			createSendingTasks(targetsMessages);
 		} finally {
 			// Decreases the number of threads currently unloading the channel
-			synchronized(channel.nbActiveUnloadersLock) {
-				channel.nbActiveUnloaders--;
-			}
+			channel.unloaderDone();
 		}
 	}
 	

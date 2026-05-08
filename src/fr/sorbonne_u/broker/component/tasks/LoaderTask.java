@@ -35,19 +35,19 @@ import fr.sorbonne_u.exceptions.PreconditionException;
 public class LoaderTask extends AbstractTask {
 	
 	/** The broker component having the task. */
-	private Broker broker;
+	private final Broker broker;
 	
 	/** Mapping : client inbound port (URI) -> its informations. From the {@link Broker}. */
-	private Map<String, ClientBrokerInfos> clientsInfos; 
+	private final Map<String, ClientBrokerInfos> clientsInfos; 
 	
 	/** The channel where messages must be loaded. */
-	private ChannelBrokerInfos channel;
+	private final ChannelBrokerInfos channel;
 	
 	/** The name of the channel where messages must be loaded. */
-	private String channelName;
+	private final String channelName;
 	
 	/** The messages to load into the {@code channel} */
-	private ArrayList<MessageI>  messagesToLoad;
+	private final ArrayList<MessageI>  messagesToLoad;
 	
 	/**
 	 * Broker publication task handling loading received messages into a specific channel.
@@ -97,13 +97,11 @@ public class LoaderTask extends AbstractTask {
 				channel.loadMessage(msg.copy());
 			}
 			
-			synchronized(channel.nbActiveUnloadersLock) {
-				if (channel.nbActiveUnloaders < (broker.nbUnloadersThreads/2.0)) {
-					// Creates an unload task if less than half of unloading threads are already on it
-					broker.runTask(Broker.UNLOADERS_POOL_URI, new UnloaderTask(broker, clientsInfos, channel, channelName));
-					channel.nbActiveUnloaders++;
-				}
-			}
+			// Creates an unload task if less than half of unloading threads are already on it (with actual ratio in ChannelBrokerInfos)
+	        if (channel.tryNewUnloader(broker.nbUnloadersThreads)) {
+	            broker.runTask(Broker.UNLOADERS_POOL_URI, 
+	                new UnloaderTask(broker, clientsInfos, channel, channelName));
+	        }
 			
 			//broker.logMessage("LOADER "+Thread.currentThread().getId()+" ended task") ;
 		} catch (UnknownChannelException e) {

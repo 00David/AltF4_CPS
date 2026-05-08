@@ -19,12 +19,12 @@ import fr.sorbonne_u.meteo.data.WindData;
  * </p>
  * 
  * <p>For ensuring a safe and coherent use, the class doesn't allow any modification related to the wind contained data :
- * 	<ul>
- * 		<li>The {@code putProperty} method does not allow to replace the value of a wind property.</li>
- * 		<li>The {@code removeProperty} method does not allow to remove a wind property.</li>
- * 		<li>The {@code setPayload} method usage is strictly forbidden : it would allow to replace the actual contained {@link WindData}.</li>
- * 	</ul>
  * </p>
+ * <ul>
+ * 	<li>The {@code putProperty} method does not allow to replace the value of a wind property.</li>
+ * 	<li>The {@code removeProperty} method does not allow to remove a wind property.</li>
+ * 	<li>The {@code setPayload} method usage is strictly forbidden : it would allow to replace the actual contained {@link WindData}.</li>
+ * </ul>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>

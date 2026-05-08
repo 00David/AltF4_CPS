@@ -38,7 +38,13 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * Despite having the possibility of being abstract to let concrete sub-classes implement a personalized behavior
  * on standard reception methods, this is not the case because the contained {@link ClientReceivingInboundPort}
  * must necessarily be published for just registering on a {@link Broker}, without even having to deal with receptions.
+ * </p>
+ * 
  * <p>
+ * On message reception, the {@link ClientSubscriptionPlugin#handleIncomingReception(String, MessageI[])}
+ * method must be called : it will then either use received messages for completing futures, or directly 
+ * send them to a receive method.
+ * </p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -210,7 +216,8 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	@Override
 	public void receive(String channel, MessageI message) {
 		// Precondition checks
-		assert(channel != null && !channel.isEmpty());
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
 		
 		Client client = (Client)this.getOwner();
 		client.logMessage("------------------------------\n"
@@ -241,25 +248,25 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	@Override
 	public void receive(String channel, MessageI[] messages) {
 		// Precondition checks
-		assert(channel != null && !channel.isEmpty());
-		assert(messages != null && messages.length > 0);
-		assert(Stream.of(messages).allMatch(m -> m != null));
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
+		assert(messages != null && messages.length > 0) : 
+			new PreconditionException("messages cannot be null or empty");
+		assert(Stream.of(messages).allMatch(m -> m != null)) : 
+			new PreconditionException("a contained message cannot be null");
 		
 		Client client = (Client)this.getOwner();
 		client.logMessage("------------------------------\n"
 				+ "Thread "+Thread.currentThread().getId()+": Client received "+ messages.length +" messages from the channel : " + channel 
 				+ "\n------------------------------");
-		/*for (int i=0; i<messages.length; i++) {
-			MessageI message = messages[i];
-			client.logMessage("Message " + i + " '" + message + "'");
-		}*/
 	}
 
 	@Override
 	public MessageI waitForNextMessage(String channel) throws UnknownClientException, UnknownChannelException,
 			UnauthorisedClientException, NotSubscribedChannelException {
 		// Precondition check
-		assert(channel != null && !channel.isEmpty());
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
 		
 		Client client = (Client)this.getOwner();
 		client.logMessage("Thread "+Thread.currentThread().getId()+": Waiting next message from channel '" + channel + "'");
@@ -291,10 +298,14 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	public MessageI waitForNextMessage(String channel, Duration d) throws UnknownClientException,
 			UnknownChannelException, UnauthorisedClientException, NotSubscribedChannelException {
 		// Precondition checks
-		assert(channel != null && !channel.isEmpty());
-		assert(d != null);
-		assert(!d.isZero());
-		assert(!d.isNegative());
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
+		assert(d != null) : 
+			new PreconditionException("wait duration cannot be null");
+		assert(!d.isZero()) : 
+			new PreconditionException("wait duration cannot be zero");
+		assert(!d.isNegative()) : 
+			new PreconditionException("wait duration cannot be strictly negative");
 		
 		Client client = (Client)this.getOwner();
 		client.logMessage("Thread "+Thread.currentThread().getId()+": Waiting next message with a timeout ("+d.getSeconds()+"s) from channel '" + channel + "'");
@@ -307,19 +318,22 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 		channelFutureMessagesQueue.add(future);
 		
 		try {
-			MessageI message =  future.get(d.getSeconds(), TimeUnit.SECONDS); // Returns its result when got (the future is removed from the queue by the thread completing it)
+			// Returns its result when got (the future is removed from the queue by the thread completing it)
+			MessageI message =  future.get(d.getSeconds(), TimeUnit.SECONDS);
 			client.logMessage("------------------------------\n"
 					+ "Thread "+Thread.currentThread().getId()+": Client waited and got message '" + message + "' from the channel : " + channel 
 					+ "\n------------------------------");
 			return message;
 		} catch (TimeoutException e) {
-			channelFutureMessagesQueue.remove(future); // If the timeout has expired, removes the future from the queue
+			// If the timeout has expired, removes the future from the queue
+			channelFutureMessagesQueue.remove(future);
 			client.logMessage("------------------------------\n"
 					+ "Thread "+Thread.currentThread().getId()+": Client waited but timeout has expired"
 					+ "\n------------------------------");
 			return null;
 		} catch (InterruptedException | ExecutionException e) {
-			channelFutureMessagesQueue.remove(future); // If an error, removes the future from the queue if present in it
+			// If an error, removes the future from the queue if present in it
+			channelFutureMessagesQueue.remove(future);
 			client.logMessage("------------------------------\n"
 					+ "Thread "+Thread.currentThread().getId()+": Client waited and got an error : " + e.getMessage() 
 					+ "\n------------------------------");
@@ -331,7 +345,8 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	public Future<MessageI> getNextMessage(String channel) throws UnknownClientException, UnknownChannelException,
 			UnauthorisedClientException, NotSubscribedChannelException {
 		// Precondition check
-		assert(channel != null && !channel.isEmpty());
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
 		
 		Client client = (Client)this.getOwner();
 		client.logMessage("Thread "+Thread.currentThread().getId()+": Creates a message future for the channel '" + channel + "'");
@@ -343,7 +358,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 		CompletableFuture<MessageI> future = new CompletableFuture<>();
 		channelFutureMessagesQueue.add(future);
 		
-		// Postcondition verified by construction 
+		// Directly returns the future, postcondition verified by construction 
 		return future;
 	}
 	
@@ -357,8 +372,8 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	 * If the queue does not already exist, it is created.
 	 * 
 	 * <p>
-	 * This method locks the whole {@code this.futureQueues} map, to ensure that the future 
-	 * queue for the channel exists.
+	 * This method locks the whole {@code this.futureQueues} map using its synchronized monitor, 
+	 * to ensure that the future queue for the channel exists.
 	 * </p>
 	 * 
 	 * <p><strong>Contract</strong></p>
@@ -372,7 +387,8 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	 */
 	private ConcurrentLinkedQueue<CompletableFuture<MessageI>> getOrCreateChannelFutureQueue(String channel) {
 		// Precondition check
-		assert(channel != null && !channel.isEmpty());
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
 		
 		synchronized(futureQueues) {
 			ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = futureQueues.get(channel);
@@ -389,7 +405,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	// -------------------------------------------------------------------------
 	// Plug-in reception handling
 	// -------------------------------------------------------------------------
-
+	
 	/**
 	 * Handles the reception of incoming messages from the given {@code channel}.
 	 * <p>
@@ -419,14 +435,18 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	 */
 	public void handleIncomingReception(String channel, MessageI[] messages) {
 		// Precondition checks
-		assert(channel != null && !channel.isEmpty());
-		assert(messages != null && messages.length > 0);
-		assert(Stream.of(messages).allMatch(m -> m != null));
+		assert(channel != null && !channel.isEmpty()) : 
+			new PreconditionException("channel cannot be null or empty");
+		assert(messages != null && messages.length > 0) : 
+			new PreconditionException("messages cannot be null or empty");
+		assert(Stream.of(messages).allMatch(m -> m != null)) : 
+			new PreconditionException("a contained message cannot be null");
 
 		// Gets the future queue for the channel
 		ConcurrentLinkedQueue<CompletableFuture<MessageI>> channelFutureMessagesQueue = getOrCreateChannelFutureQueue(channel);
 
-		for (int i=0; i<messages.length; i++) {
+		boolean hasHandledMessages = false;
+		for (int i=0; i<messages.length && !hasHandledMessages; i++) {
 			MessageI message = messages[i];
 			
 			// Removes the next future from the queue
@@ -447,7 +467,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 				} else {
 					this.getOwner().runTask(client -> receive(channel, remainingMessages));
 				}
-				break;
+				hasHandledMessages = true;
 			}
 		}
 	}

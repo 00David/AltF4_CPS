@@ -23,13 +23,14 @@ import fr.sorbonne_u.meteo.data.MeteoAlert;
  * 	However, it is still possible to first get the payload, cast it to a {@link MeteoAlert} instance, and use its getters.
  * </p>
  * 
- * <p>For ensuring a safe and coherent use, the class doesn't allow any modification related to the meteo alert contained data :
- * 	<ul>
- * 		<li>The {@code putProperty} method does not allow to replace the value of a meteo alert property.</li>
- * 		<li>The {@code removeProperty} method does not allow to remove a meteo alert property.</li>
- * 		<li>The {@code setPayload} method usage is strictly forbidden : it would allow to replace the actual contained {@link MeteoAlert}.</li>
- * 	</ul>
+ * <p>
+ * For ensuring a safe and coherent use, the class doesn't allow any modification related to the meteo alert contained data :
  * </p>
+ * <ul>
+ * 	<li>The {@code putProperty} method does not allow to replace the value of a meteo alert property.</li>
+ * 	<li>The {@code removeProperty} method does not allow to remove a meteo alert property.</li>
+ * 	<li>The {@code setPayload} method usage is strictly forbidden : it would allow to replace the actual contained {@link MeteoAlert}.</li>
+ * </ul>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>

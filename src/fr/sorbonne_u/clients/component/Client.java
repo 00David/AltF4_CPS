@@ -34,10 +34,10 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
- * invariant	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty}
  * invariant	{@code registrationPlugin != null && registrationPlugin.isInitialised()}
  * invariant	the Client has exactly 1 registration outbound port implementing RegistrationCI. // informal
  * invariant	{@code registrationClass != null}
+ * invariant	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
  * </pre>
  * 
  * @author Kevin TANG
@@ -54,7 +54,7 @@ public abstract class Client extends AbstractComponent implements AbnormalTermin
 	protected ClientRegistrationPlugin registrationPlugin;
 	
 	/** Client registration class */
-	protected RegistrationClass registrationClass;
+	protected final RegistrationClass registrationClass;
 	
 	// SUBSCRIPTION + RECEPTION
 	
@@ -162,7 +162,7 @@ public abstract class Client extends AbstractComponent implements AbnormalTermin
 		assert registrationPlugin.registered() : // if registered, registrationPlugin.getBrokerPublishingPortURI() != null
 			new PreconditionException("Client component must be registered.");
 		
-		// Install the publication plug-in.
+		// Install the publication plug-in (which has a AbnormalTerminationNotificationInboundPort)
 		this.publicationPlugin = new ClientPublicationPlugin(registrationPlugin);
 		this.publicationPlugin.setPluginURI("publication");
 		this.installPlugin(this.publicationPlugin);
@@ -225,8 +225,6 @@ public abstract class Client extends AbstractComponent implements AbnormalTermin
 	
 	/**
 	 * Creates a client component of the publish/subscribe system, by providing the {@code reflectionInboundPortURI} of the component.
-	 * 
-	 * <p>Used by test sub-classes.</p>
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>

@@ -21,6 +21,7 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
+ * invariant	{@code stationPosition != null}
  * invariant	{@code this.subscriptionPlugin != null && this.subscriptionPlugin.isInitialised()}
  * invariant	{@code testScenario != null}
  * invariant	the Client has exactly 1 published inbound port implementing ReceivingCI. // informal

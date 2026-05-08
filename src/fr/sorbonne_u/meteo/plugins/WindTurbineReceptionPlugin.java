@@ -75,7 +75,7 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 		} else if (windTurbine.inSafeMode()) {
 			
 		} else {
-			System.err.println("Unknown received message class");
+			throw new IllegalArgumentException("Unknown received message class.");
 		}
 	}
 
@@ -112,7 +112,7 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 			} else if (windTurbine.inSafeMode()) {
 				
 			} else {
-				System.err.println("Unknown received message class");
+				throw new IllegalArgumentException("Unknown received message class.");
 			}
 		}
 	}

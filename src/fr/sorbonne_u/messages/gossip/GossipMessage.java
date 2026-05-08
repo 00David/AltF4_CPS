@@ -4,7 +4,9 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Random;
+
+import org.apache.commons.math3.random.MersenneTwister;
+import org.apache.commons.math3.random.RandomGenerator;
 
 import fr.sorbonne_u.cps.gossip.interfaces.GossipMessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
@@ -20,8 +22,8 @@ import fr.sorbonne_u.messages.Message;
  * the {@link GossipMessage#copyWithNewEmitterURI(String)} method.<br>
  * 
  * This copy policy ensures that there are no shared gossip message references 
- * manipulated simultaneously on multiple Brokers.
- * <p>
+ * manipulated simultaneously on multiple Brokers (mostly in the case of having multiple Brokers in the same JVM).
+ * </p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -36,6 +38,9 @@ import fr.sorbonne_u.messages.Message;
 public class GossipMessage implements GossipMessageI{
 
 	private static final long serialVersionUID = 3248301193711261691L;
+	
+	/** Used in {@link GossipMessage#generateGossipMessageURI()}. */
+	private static final RandomGenerator random = new MersenneTwister();
 	
 	/**
 	 * Internal class of a gossip message, only used for transporting the carried method call parameters.
@@ -126,8 +131,8 @@ public class GossipMessage implements GossipMessageI{
 	/** Gives the action needed for the carried {@code message}. */
 	protected Action messageAction;
 	
-	/** A carried message. In its properties it has all needed parameters for the linked Broker {@code action}. */
-	protected MessageI message;
+	/** A carried message. In its properties it has all needed parameters for the linked Broker {@code messageAction}. */
+	protected GossipInternalMessage message;
 	
 	/** The timestamp of when the gossip message is created (set in its constructor). */
 	protected final Instant timestamp;
@@ -166,8 +171,8 @@ public class GossipMessage implements GossipMessageI{
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
-	 * pre	{@code emitterURI != null && !emitterURI.isEmpty()}
-	 * pre	{@code messageURI != null && !messageURI.isEmpty()}
+	 * pre	{@code originalGossipMessage != null}
+	 * pre	{@code newGossipEmitterURI != null && !newGossipEmitterURI.isEmpty()}
 	 * post	class invariants satisfied
 	 * </pre>
 	 * 
@@ -185,7 +190,7 @@ public class GossipMessage implements GossipMessageI{
 		this.emitterURI = newGossipEmitterURI;
 		this.messageURI = originalGossipMessage.messageURI;
 		this.messageAction = originalGossipMessage.messageAction;
-		if (originalGossipMessage.message != null) this.message = originalGossipMessage.message.copy();
+		if (originalGossipMessage.message != null) this.message = (GossipInternalMessage)originalGossipMessage.message.copy();
 		this.timestamp = Instant.now();
 	}
 	
@@ -205,7 +210,6 @@ public class GossipMessage implements GossipMessageI{
 		int generatedStringLength = 20;
 		
         String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        Random random = new Random();
         
         StringBuilder result = new StringBuilder(generatedStringLength);
         for (int i = 0; i < generatedStringLength; i++) result.append(chars.charAt(random.nextInt(chars.length())));

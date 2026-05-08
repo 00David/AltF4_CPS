@@ -68,13 +68,14 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * <p>
  * 	It is possible that the number of WindTurbine wind datas received at the end is exactly {@code NBTOOMUCHWINDS} :
  * 	this case happens when : 
- * 		<ul>
- * 			<li>The first sending has been completely received (might be sent by the thread destroying the channel).</li>
- * 			<li>On the second sending, the channel destruction now happens before 
- * 				any unloader has unloaded any wind data from the channel.<br>
- * 	(If the first channel destruction (normal) also happens before any unloader has unloaded any wind data from the channel, 
- * 	then all channel wind datas are unloaded and sent by the thread destroying the channel)
  * </p>
+ * <ul>
+ * 	<li>The first sending has been completely received (might be sent by the thread destroying the channel).</li>
+ * 	<li>On the second sending, the channel destruction now happens before 
+ * 				any unloader has unloaded any wind data from the channel.</li>
+ * </ul>
+ * (If the first channel destruction (normal) also happens before any unloader has unloaded any wind data from the channel, 
+ * then all channel wind datas are unloaded and sent by the thread destroying the channel)
  * 
  * @author Kevin TANG
  * @author David VADIMON

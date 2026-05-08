@@ -42,6 +42,7 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * 
  * <p>
  * In terms of JVM occupations :
+ * </p>
  * <ul>
  * 	<li>There are <strong>5 Brokers</strong>, each in its own JVM and connected to others with the gossip protocol.</li>
  * 	<li>In Broker n°1's JVM : WindTurbine n°1 (STANDARD), MeteoStation n°1 (STANDARD) and the clock server.</li>
@@ -50,18 +51,16 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * 	<li>In Broker n°4's JVM : MeteoStation n°2 (FREE) and WindTurbine n°2 (STANDARD).</li>
  * 	<li>In Broker n°5's JVM : MeteoBureau n°2 (FREE) and WindTurbine n°3 (FREE).</li>
  * </ul>
- * </p>
  * 
  * <p>
  * 	Wind turbine filters ;
  * </p>
  * <ul>
-		<li><strong>WindTurbine n°1</strong> : accepts only wind datas with low force, 
-			and alerts targeting its region.</li>
-		<li><strong>WindTurbine n°2</strong> : accepts every wind, and only alerts targeting its region.</li>
-		<li><strong>WindTurbine n°3</strong> : accepts every wind, alerts targeting its region,
-	 		and only messages starting from 80 seconds after the start.</li>
- *     </li>
+ *	<li><strong>WindTurbine n°1</strong> : accepts only wind datas with low force, 
+ *			and alerts targeting its region.</li>
+ *	<li><strong>WindTurbine n°2</strong> : accepts every wind, and only alerts targeting its region.</li>
+ *	<li><strong>WindTurbine n°3</strong> : accepts every wind, alerts targeting its region,
+ * 			and only messages starting from 80 seconds after the start.</li>
  * </ul>
  * 
  * The scenario from the start of the DCVM:

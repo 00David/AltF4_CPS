@@ -34,28 +34,28 @@ import fr.sorbonne_u.exceptions.PreconditionException;
 public class SenderTask extends VisibilitySenderTask {
 	
 	/** The broker component having the task. */
-	private Broker broker;
+	private final Broker broker;
 	
 	/** The channel from where {@code messagesToSend} has been unloaded. */
-	private String channel;
-	
-	/** The targeted client port URI, where {@code messagesToSend} must be sent. */
-	private String targetPortURI;
+	private final String channel;
 	
 	/** The targeted client. Sending is delegated via this object. */
-	private ClientBrokerInfos target;
+	private final ClientBrokerInfos target;
+	
+	/** The targeted client port URI, where {@code messagesToSend} must be sent. */
+	private final String targetPortURI;
 	
 	/** The messages to send to the {@code targetPortURI}. */
-	private MessageI[] messagesToSend;
+	private final MessageI[] messagesToSend;
 	
 	/**
 	 * Broker publication task handling unloading messages from a specific channel.
 	 * 
 	 * <pre>
 	 * pre	{@code broker != null}
-	 * pre	{@code clientsInfos != null}
-	 * pre	{@code channel != null && !channel.isEmpty()}
-	 * pre	{@code targetPortURI != null}
+	 * pre	{@code channel != null}
+	 * pre	{@code target != null}
+	 * pre	{@code targetPortURI != null && !targetPortURI.isEmpty()}
 	 * pre	{@code messagesToSend != null}
 	 * post class invariants satisfied
 	 * </pre>
@@ -92,7 +92,7 @@ public class SenderTask extends VisibilitySenderTask {
 		try {
 			//broker.logMessage("SENDER "+Thread.currentThread().getId()+" starts sending from'"+channel+"' to '"+targetPortURI+"'") ;
 			
-			// Checks that the targeted client is still registered right now
+			// Checks that the targeted client is still registered AT THE MOMENT
 			// If it is okay, send messages if the client is on the same JVM.
 			if (broker.registeredService(targetPortURI)) {
 				boolean haveBeenSent = sendMessages(target, channel, messagesToSend);

@@ -14,13 +14,13 @@ import fr.sorbonne_u.messages.gossip.GossipMessage.GossipInternalMessage;
  *
  * <p>
  * This way of creating those messages prevents doing an important number of small classes, that would share only little differences, 
- * and that would finally not be really relevant to do in that particular case.
- * <p>
+ * and that would not necessarily be the cleanest way of manipulating gossip messages, from creation to content getting.
+ * </p>
  * 
  * <p>
  * A gossip message is always created with the carried method call parameters being stored as properties
  * of an internal {@link GossipInternalMessage}.
- * <p>
+ * </p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>

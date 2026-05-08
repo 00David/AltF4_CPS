@@ -31,11 +31,12 @@ import fr.sorbonne_u.exceptions.PostconditionException;
  * 
  * <p>
  * Multi-tread safeness is guaranteed by the usage of 2 locks :
- * 	<ul>
- * 		<li>The {@code datas} reference lock, when accessing the list of considered wind datas for the orientation computation.</li>
- * 		<li>The {@code safeModeLock}, for accessing the current state of {@code safeMode} .</li>
- * 	</ul>
  * </p>
+ * <ul>
+ * 	<li>The {@code datas} synchronized monitor lock, when accessing the list of received wind datas 
+ * 		for the orientation computation.</li>
+ * 	<li>The {@code safeModeLock}, for accessing the current state of {@code safeMode} .</li>
+ * </ul>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -204,7 +205,7 @@ public class WindTurbine extends Client {
 	}
 	
 	/**
-     * Creates a passive wind turbine component for the publish/subscribe system.
+     * Creates a passive wind turbine component for the publish/subscribe system, with no {@code testScenario} provided.
      * 
      * <p><strong>Contract</strong></p>
      * <pre>
@@ -375,7 +376,8 @@ public class WindTurbine extends Client {
 	}
 	
     /**
-     * Reacts to the received alert level according to operation threshold.
+     * Reacts to the received alert level according to operation threshold, 
+     * by potentially entering or quitting {@code safeMode}.
      * 
 	 * <p><strong>Contrat</strong></p>
 	 * <pre>
