@@ -68,7 +68,7 @@ public class MeteoStation extends Client {
 	 */
 	protected MeteoStation(int id, String reflectionInboundPortURI, String receivingInboundPortURI, RegistrationClass rc, 
 			int nbThreads, int nbSchedulableThreads, PositionData stationPosition, TestScenario testScenario) throws Exception {
-		super(reflectionInboundPortURI, receivingInboundPortURI, rc, nbThreads, nbSchedulableThreads);
+		super(reflectionInboundPortURI, rc, nbThreads, nbSchedulableThreads);
 		
 		// Some preconditions are checked inside the super-constructor while others are checked here
 		assert(stationPosition != null) : 
@@ -80,7 +80,7 @@ public class MeteoStation extends Client {
 		this.testScenario = testScenario;
 		
 		// Install the subscription + default reception plug-in
-		setupSubscriptionPlugin();
+		setupSubscriptionPlugin(receivingInboundPortURI);
 		
 		this.getTracer().setTitle("MeteoStation "+id);
 		this.getTracer().setRelativePosition((int)stationPosition.getPosX(), (int)stationPosition.getPosY());

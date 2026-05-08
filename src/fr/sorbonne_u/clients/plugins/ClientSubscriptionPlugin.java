@@ -70,6 +70,9 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	/** Reception inbound port, set up after plugin installation + initialization */
 	protected ClientReceivingInboundPort receivingInboundPort;
 	
+	/** {@code receivingInboundPort} URI.*/
+	private final String receivingInboundPortURI;
+	
 	/** Mapping : channel name -> a queue of futures, each waiting a message from the channel. */
 	protected final ConcurrentHashMap<String, ConcurrentLinkedQueue<CompletableFuture<MessageI>>> futureQueues = new ConcurrentHashMap<>();
 	
@@ -79,17 +82,22 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre	{@code registrationPlugin != null && registrationPlugin.isInitialised()}
+     * pre  {@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
 	 * post	class invariants satisfied
 	 * </pre>
 	 * 
 	 * @param registrationPlugin		The client registration plug-in owning an outbound port requiring {@link RegistrationCI} interface.
+	 * @param receivingInboundPortURI	The URI of the inbound port implementing {@link ReceivingCI}.
 	 */
-	public ClientSubscriptionPlugin(ClientRegistrationPlugin registrationPlugin){
+	public ClientSubscriptionPlugin(ClientRegistrationPlugin registrationPlugin, String receivingInboundPortURI){
 		// Precondition checks
 		assert(registrationPlugin != null  && registrationPlugin.isInitialised()) : 
 			new PreconditionException("registrationPlugin must be initialised");
+		assert(receivingInboundPortURI != null  && !receivingInboundPortURI.isEmpty()) : 
+			new PreconditionException("receivingInboundPortURI cannot be null or empty");
 		
 		this.registrationPlugin = registrationPlugin;
+		this.receivingInboundPortURI = receivingInboundPortURI;
 	}
 	
 	// -------------------------------------------------------------------------
@@ -106,8 +114,7 @@ public class ClientSubscriptionPlugin extends AbstractPlugin implements ClientSu
 	@Override
 	public void	initialise() throws Exception {
 		super.initialise();
-		Client owner = (Client)this.getOwner();
-		this.receivingInboundPort = new ClientReceivingInboundPort(owner.receivingInboundPortURI, (Client)this.getOwner(), this.getPluginURI());
+		this.receivingInboundPort = new ClientReceivingInboundPort(receivingInboundPortURI, (Client)this.getOwner(), this.getPluginURI());
 		this.receivingInboundPort.publishPort();
 	}
 	

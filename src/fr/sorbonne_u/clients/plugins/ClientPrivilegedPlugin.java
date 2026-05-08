@@ -13,6 +13,7 @@ import fr.sorbonne_u.cps.pubsub.exceptions.UnknownChannelException;
 import fr.sorbonne_u.cps.pubsub.exceptions.UnknownClientException;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientI;
+import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.exceptions.PreconditionException;
 
 /**
@@ -106,7 +107,9 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 	public boolean hasCreatedChannel(String channel) throws UnknownClientException, UnknownChannelException {
 		Client owner = (Client)this.getOwner();
 		try {
-			return privilegedOutboundPort.hasCreatedChannel(owner.receivingInboundPortURI, channel);
+			String[] receivingInboundPortsUri = owner.findInboundPortURIsFromInterface(ReceivingCI.class);
+			assert(receivingInboundPortsUri.length == 1); //We expect there is only 1 receiving port
+			return privilegedOutboundPort.hasCreatedChannel(receivingInboundPortsUri[0], channel);
 		} catch (UnknownClientException | UnknownChannelException e) {
 			throw e;
 		} catch (Exception e) {
@@ -119,7 +122,9 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 	public boolean channelQuotaReached() throws UnknownClientException {
 		Client owner = (Client)this.getOwner();
 		try {
-			return privilegedOutboundPort.channelQuotaReached(owner.receivingInboundPortURI);
+			String[] receivingInboundPortsUri = owner.findInboundPortURIsFromInterface(ReceivingCI.class);
+			assert(receivingInboundPortsUri.length == 1); //We expect there is only 1 receiving port
+			return privilegedOutboundPort.channelQuotaReached(receivingInboundPortsUri[0]);
 		} catch (UnknownClientException  e) {
 			throw e;
 		} catch (Exception e) {
@@ -133,7 +138,9 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 			throws UnknownClientException, AlreadyExistingChannelException, ChannelQuotaExceededException {
 		Client owner = (Client)this.getOwner();
 		try {
-			privilegedOutboundPort.createChannel(owner.receivingInboundPortURI, channel, autorisedUsers);
+			String[] receivingInboundPortsUri = owner.findInboundPortURIsFromInterface(ReceivingCI.class);
+			assert(receivingInboundPortsUri.length == 1); //We expect there is only 1 receiving port
+			privilegedOutboundPort.createChannel(receivingInboundPortsUri[0], channel, autorisedUsers);
 		} catch (UnknownClientException | AlreadyExistingChannelException | ChannelQuotaExceededException e) {
 			throw e;
 		} catch (Exception e) {
@@ -151,7 +158,9 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
 		Client owner = (Client)this.getOwner();
 		try {
-			privilegedOutboundPort.modifyAuthorisedUsers(owner.receivingInboundPortURI, channel, autorisedUsers);
+			String[] receivingInboundPortsUri = owner.findInboundPortURIsFromInterface(ReceivingCI.class);
+			assert(receivingInboundPortsUri.length == 1); //We expect there is only 1 receiving port
+			privilegedOutboundPort.modifyAuthorisedUsers(receivingInboundPortsUri[0], channel, autorisedUsers);
 		} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException e) {
 			throw e;
 		} catch (Exception e) {
@@ -164,7 +173,9 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
 		Client owner = (Client)this.getOwner();
 		try {
-			privilegedOutboundPort.destroyChannel(owner.receivingInboundPortURI, channel);
+			String[] receivingInboundPortsUri = owner.findInboundPortURIsFromInterface(ReceivingCI.class);
+			assert(receivingInboundPortsUri.length == 1); //We expect there is only 1 receiving port
+			privilegedOutboundPort.destroyChannel(receivingInboundPortsUri[0], channel);
 		} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException e) {
 			throw e;
 		} catch (Exception e) {
@@ -177,7 +188,9 @@ public class ClientPrivilegedPlugin extends AbstractPlugin implements Privileged
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
 		Client owner = (Client)this.getOwner();
 		try {
-			privilegedOutboundPort.destroyChannelNow(owner.receivingInboundPortURI, channel);
+			String[] receivingInboundPortsUri = owner.findInboundPortURIsFromInterface(ReceivingCI.class);
+			assert(receivingInboundPortsUri.length == 1); //We expect there is only 1 receiving port
+			privilegedOutboundPort.destroyChannelNow(receivingInboundPortsUri[0], channel);
 		} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException e) {
 			throw e;
 		} catch (Exception e) {
