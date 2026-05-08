@@ -1,6 +1,6 @@
-package fr.sorbonne_u.broker.components.infos.exceptions;
+package fr.sorbonne_u.broker.component.exceptions;
 
-import fr.sorbonne_u.broker.components.infos.ClientBrokerInfos;
+import fr.sorbonne_u.broker.component.ClientBrokerInfos;
 
 /**
  * 

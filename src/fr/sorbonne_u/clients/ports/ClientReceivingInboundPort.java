@@ -1,6 +1,6 @@
 package fr.sorbonne_u.clients.ports;
 
-import fr.sorbonne_u.clients.components.Client;
+import fr.sorbonne_u.clients.component.Client;
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
 import fr.sorbonne_u.components.ports.AbstractInboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;

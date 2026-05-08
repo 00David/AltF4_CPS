@@ -1,7 +1,7 @@
 package fr.sorbonne_u.clients.plugins;
 
-import fr.sorbonne_u.broker.components.Broker;
-import fr.sorbonne_u.clients.components.Client;
+import fr.sorbonne_u.broker.component.Broker;
+import fr.sorbonne_u.clients.component.Client;
 import fr.sorbonne_u.clients.connectors.RegistrationServiceConnector;
 import fr.sorbonne_u.clients.ports.RegistrationOutboundPort;
 import fr.sorbonne_u.components.AbstractPlugin;
@@ -11,6 +11,7 @@ import fr.sorbonne_u.cps.pubsub.exceptions.UnknownClientException;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PrivilegedClientCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
+import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 import fr.sorbonne_u.cps.pubsub.plugins.interfaces.ClientRegistrationI;
@@ -94,7 +95,9 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	public boolean registered() {
 		Client owner = (Client)this.getOwner();
 		try {
-			return registrationOutboundPort.registered(owner.receivingInboundPortURI);
+			String[] receivingInboundPortsUri = owner.findInboundPortURIsFromInterface(ReceivingCI.class);
+			assert(receivingInboundPortsUri.length == 1); //We expect there is only 1 receiving port
+			return registrationOutboundPort.registered(receivingInboundPortsUri[0]);
 		} catch (Exception e) {
 			e.printStackTrace();
 			return false;
@@ -105,7 +108,9 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	public boolean registered(RegistrationClass rc) throws UnknownClientException {
 		Client owner = (Client)this.getOwner();
 		try {
-			return registrationOutboundPort.registered(owner.receivingInboundPortURI, rc);
+			String[] receivingInboundPortsUri = owner.findInboundPortURIsFromInterface(ReceivingCI.class);
+			assert(receivingInboundPortsUri.length == 1); //We expect there is only 1 receiving port
+			return registrationOutboundPort.registered(receivingInboundPortsUri[0], rc);
 		} catch (UnknownClientException e) {
 			throw e;
 		} catch (Exception e) {
@@ -118,7 +123,9 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	public void register(RegistrationClass rc) throws AlreadyRegisteredException {
 		Client owner = (Client)this.getOwner();
 		try {
-			brokerPublishingPortURI = registrationOutboundPort.register(owner.receivingInboundPortURI, rc);
+			String[] receivingInboundPortsUri = owner.findInboundPortURIsFromInterface(ReceivingCI.class);
+			assert(receivingInboundPortsUri.length == 1); //We expect there is only 1 receiving port
+			brokerPublishingPortURI = registrationOutboundPort.register(receivingInboundPortsUri[0], rc);
 		} catch (AlreadyRegisteredException e) {
 			throw e;
 		} catch (Exception e) {
@@ -130,7 +137,9 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	public void modifyServiceClass(RegistrationClass rc) throws UnknownClientException, AlreadyRegisteredException {
 		Client owner = (Client)this.getOwner();
 		try {
-			registrationOutboundPort.modifyServiceClass(owner.receivingInboundPortURI, rc);
+			String[] receivingInboundPortsUri = owner.findInboundPortURIsFromInterface(ReceivingCI.class);
+			assert(receivingInboundPortsUri.length == 1); //We expect there is only 1 receiving port
+			registrationOutboundPort.modifyServiceClass(receivingInboundPortsUri[0], rc);
 		} catch (UnknownClientException | AlreadyRegisteredException e) {
 			throw e;
 		} catch (Exception e) {
@@ -142,7 +151,9 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	public void unregister() throws UnknownClientException {
 		Client owner = (Client)this.getOwner();
 		try {
-			registrationOutboundPort.unregister(owner.receivingInboundPortURI);
+			String[] receivingInboundPortsUri = owner.findInboundPortURIsFromInterface(ReceivingCI.class);
+			assert(receivingInboundPortsUri.length == 1); //We expect there is only 1 receiving port
+			registrationOutboundPort.unregister(receivingInboundPortsUri[0]);
 		} catch (UnknownClientException e) {
 			throw e;
 		} catch (Exception e) {
@@ -171,7 +182,9 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	@SuppressWarnings("javadoc")
 	public boolean channelAuthorised(String channel) throws	Exception {
 		Client owner = (Client)this.getOwner();
-		return registrationOutboundPort.channelAuthorised(owner.receivingInboundPortURI, channel);
+		String[] receivingInboundPortsUri = owner.findInboundPortURIsFromInterface(ReceivingCI.class);
+		assert(receivingInboundPortsUri.length == 1); //We expect there is only 1 receiving port
+		return registrationOutboundPort.channelAuthorised(receivingInboundPortsUri[0], channel);
 	}
 	
 	/**
@@ -180,7 +193,9 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	@SuppressWarnings("javadoc")
 	public boolean subscribed(String channel) throws Exception {
 		Client owner = (Client)this.getOwner();
-		return registrationOutboundPort.subscribed(owner.receivingInboundPortURI, channel);
+		String[] receivingInboundPortsUri = owner.findInboundPortURIsFromInterface(ReceivingCI.class);
+		assert(receivingInboundPortsUri.length == 1); //We expect there is only 1 receiving port
+		return registrationOutboundPort.subscribed(receivingInboundPortsUri[0], channel);
 	}
 	
 	/**
@@ -189,7 +204,9 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	@SuppressWarnings("javadoc")
 	public void subscribe(String channel, MessageFilterI filter) throws Exception {
 		Client owner = (Client)this.getOwner();
-		registrationOutboundPort.subscribe(owner.receivingInboundPortURI, channel, filter);
+		String[] receivingInboundPortsUri = owner.findInboundPortURIsFromInterface(ReceivingCI.class);
+		assert(receivingInboundPortsUri.length == 1); //We expect there is only 1 receiving port
+		registrationOutboundPort.subscribe(receivingInboundPortsUri[0], channel, filter);
 	}
 	
 	/**
@@ -198,7 +215,9 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	@SuppressWarnings("javadoc")
 	public void	unsubscribe(String channel) throws Exception {
 		Client owner = (Client)this.getOwner();
-		registrationOutboundPort.unsubscribe(owner.receivingInboundPortURI, channel);
+		String[] receivingInboundPortsUri = owner.findInboundPortURIsFromInterface(ReceivingCI.class);
+		assert(receivingInboundPortsUri.length == 1); //We expect there is only 1 receiving port
+		registrationOutboundPort.unsubscribe(receivingInboundPortsUri[0], channel);
 	}
 	
 	/**
@@ -207,7 +226,9 @@ public class ClientRegistrationPlugin extends AbstractPlugin implements ClientRe
 	@SuppressWarnings("javadoc")
 	public void modifyFilter(String channel, MessageFilterI filter) throws Exception {
 		Client owner = (Client)this.getOwner();
-		registrationOutboundPort.modifyFilter(owner.receivingInboundPortURI, channel, filter);
+		String[] receivingInboundPortsUri = owner.findInboundPortURIsFromInterface(ReceivingCI.class);
+		assert(receivingInboundPortsUri.length == 1); //We expect there is only 1 receiving port
+		registrationOutboundPort.modifyFilter(receivingInboundPortsUri[0], channel, filter);
 	}
 	
 	// -------------------------------------------------------------------------

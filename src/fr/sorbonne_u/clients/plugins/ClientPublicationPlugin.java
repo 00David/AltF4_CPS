@@ -2,8 +2,8 @@ package fr.sorbonne_u.clients.plugins;
 
 import java.util.ArrayList;
 
-import fr.sorbonne_u.broker.components.Broker;
-import fr.sorbonne_u.clients.components.Client;
+import fr.sorbonne_u.broker.component.Broker;
+import fr.sorbonne_u.clients.component.Client;
 import fr.sorbonne_u.clients.connectors.PublishingServiceConnector;
 import fr.sorbonne_u.clients.ports.PublishingOutboundPort;
 import fr.sorbonne_u.components.AbstractPlugin;
@@ -15,6 +15,7 @@ import fr.sorbonne_u.cps.pubsub.exceptions.UnknownChannelException;
 import fr.sorbonne_u.cps.pubsub.exceptions.UnknownClientException;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.PublishingCI;
+import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.cps.pubsub.plugins.interfaces.ClientPublicationI;
 import fr.sorbonne_u.exceptions.PreconditionException;
@@ -155,7 +156,9 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
 		Client owner = (Client)this.getOwner();
 		try {
-			publishingOutboundPort.publish(owner.receivingInboundPortURI, channel, message);
+			String[] receivingInboundPortsUri = owner.findInboundPortURIsFromInterface(ReceivingCI.class);
+			assert(receivingInboundPortsUri.length == 1); //We expect there is only 1 receiving port
+			publishingOutboundPort.publish(receivingInboundPortsUri[0], channel, message);
 		} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException e) {
 			throw e;
 		} catch (Exception e) {
@@ -168,7 +171,9 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 			throws UnknownClientException, UnknownChannelException, UnauthorisedClientException {
 		Client owner = (Client)this.getOwner();
 		try {
-			publishingOutboundPort.publish(owner.receivingInboundPortURI, channel, messages);
+			String[] receivingInboundPortsUri = owner.findInboundPortURIsFromInterface(ReceivingCI.class);
+			assert(receivingInboundPortsUri.length == 1); //We expect there is only 1 receiving port
+			publishingOutboundPort.publish(receivingInboundPortsUri[0], channel, messages);
 		} catch (UnknownClientException | UnknownChannelException | UnauthorisedClientException e) {
 			throw e;
 		} catch (Exception e) {
@@ -180,7 +185,9 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 	public void asyncPublishAndNotify(String channel, MessageI message) {
 		Client owner = (Client)this.getOwner();
 		try {
-			publishingOutboundPort.asyncPublishAndNotify(owner.receivingInboundPortURI, channel, message, notificationInboundPort.getPortURI());
+			String[] receivingInboundPortsUri = owner.findInboundPortURIsFromInterface(ReceivingCI.class);
+			assert(receivingInboundPortsUri.length == 1); //We expect there is only 1 receiving port
+			publishingOutboundPort.asyncPublishAndNotify(receivingInboundPortsUri[0], channel, message, notificationInboundPort.getPortURI());
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -190,7 +197,9 @@ public class ClientPublicationPlugin extends AbstractPlugin implements ClientPub
 	public void asyncPublishAndNotify(String channel, ArrayList<MessageI> messages) {
 		Client owner = (Client)this.getOwner();
 		try {
-			publishingOutboundPort.asyncPublishAndNotify(owner.receivingInboundPortURI, channel, messages, notificationInboundPort.getPortURI());
+			String[] receivingInboundPortsUri = owner.findInboundPortURIsFromInterface(ReceivingCI.class);
+			assert(receivingInboundPortsUri.length == 1); //We expect there is only 1 receiving port
+			publishingOutboundPort.asyncPublishAndNotify(receivingInboundPortsUri[0], channel, messages, notificationInboundPort.getPortURI());
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

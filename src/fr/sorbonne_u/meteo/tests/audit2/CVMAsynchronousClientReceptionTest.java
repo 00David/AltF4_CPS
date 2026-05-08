@@ -5,7 +5,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
-import fr.sorbonne_u.broker.components.Broker;
+import fr.sorbonne_u.broker.component.Broker;
 import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.cvm.AbstractCVM;
 import fr.sorbonne_u.components.utils.tests.TestScenario;
@@ -45,25 +45,25 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * </ul>
  * 
  * <p>
- * 	Asynchronous client reception methods testing :
+ * 	Asynchronous client reception methods testing (it is easier to follow the scenario via the console) :
  * </p>
  * <ul>
  * 	<li> - After 20 seconds, <strong>WindTurbine</strong> waits a message from 'channel0'.</li>
  * 	<li> - After 40 seconds, <strong>MeteoStation</strong> publishes a message on 'channel0'.</li>
  * 	<li> - After 60 seconds, <strong>WindTurbine</strong> waits a message from 'channel0' with a 
- * 			timeout ending after the next message reception (gets the message).</li>
+ * 			timeout of 30s (ends the timeout on the next reception).</li>
  * 	<li> - After 80 seconds, <strong>MeteoStation</strong> publishes a message on 'channel0'.</li>
  * 	<li> - After 100 seconds, <strong>WindTurbine</strong> waits a message from 'channel0' with a 
- * 			timeout ending without a message reception.</li>
+ * 			timeout of 10s, ending without a message reception.</li>
  * 	<li> - After 120 seconds, <strong>WindTurbine</strong> gets a message future for 'channel0', 
- * 			sleeps and gets the result (blocking) before the next reception.</li>
+ * 			sleeps 10s and try to get the result (blocking) until the next reception.</li>
  * 	<li> - After 140 seconds, <strong>MeteoStation</strong> publishes a message on 'channel0'.</li>
  * 	<li> - After 160 seconds, <strong>WindTurbine</strong> gets a message future for 'channel0', 
- * 			sleeps and gets the result after the next reception.</li>
+ * 			sleeps 30s and try to get the result (after the next reception, so immediately got).</li>
  * 	<li> - After 180 seconds, <strong>MeteoStation</strong> publishes a message on 'channel0'.</li>
  * 	<li> - After 200 seconds, <strong>WindTurbine</strong> waits a message from 'channel0.</li>
  * 	<li> - After 220 seconds, <strong>WindTurbine</strong> gets a message future for 'channel0', 
- * 			sleeps 0 seconds and blocks on getting the result.</li>
+ * 			sleeps 0s and blocks on getting the result.</li>
  * 	<li> - After 240 seconds, <strong>MeteoStation</strong> publishes 3 messages on 'channel0', 
  * 			each got by each possible reception method.</li>
  * </ul>
@@ -190,7 +190,7 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 								double tmp = 20/ACCELERATION_FACTOR;
 								Duration d = Duration.ofSeconds((long)(tmp+tmp/2));
 								System.out.println("STEP 2/"+(NBSTEPS-1)+" ("+STEPS[2]+"s) : WindTurbine waits a message from 'channel0',"
-										+ "\nwith a timeout of "+(d.getSeconds()*ACCELERATION_FACTOR)+" seconds, ending after the next message reception");
+										+ "\nwith a timeout of "+(d.getSeconds()*ACCELERATION_FACTOR)+" seconds (timeout ended on the next reception)");
 								owner.runTask(c -> ((WindTurbine)owner).waitMessageTimeout("channel0",d));
 							} catch (Exception e) {
 								System.err.println("WindTurbine, step 2 message waiting (timeout) with exception " + e);
@@ -229,7 +229,8 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 								double tmp = 20/ACCELERATION_FACTOR;
 								Duration d = Duration.ofSeconds((long)(tmp/2));
 								System.out.println("STEP 5/"+(NBSTEPS-1)+" ("+STEPS[5]+"s) : WindTurbine gets a message future for 'channel0',"
-										+ "\nsleeps for "+(d.getSeconds()*ACCELERATION_FACTOR)+" seconds and gets the result (blocking) before the next reception");
+										+ "\nsleeps for "+(d.getSeconds()*ACCELERATION_FACTOR)+" seconds and try to get the result (blocking) "
+												+ "until the next reception.");
 								owner.runTask(c -> ((WindTurbine)owner).waitMessageFuture("channel0",d));
 							} catch (Exception e) {
 								System.err.println("WindTurbine, step 5 message waiting (future) with exception " + e);
@@ -254,7 +255,8 @@ public class CVMAsynchronousClientReceptionTest extends AbstractCVM {
 								double tmp = 20/ACCELERATION_FACTOR;
 								Duration d = Duration.ofSeconds((long)(tmp+tmp/2));
 								System.out.println("STEP 7/"+(NBSTEPS-1)+" ("+STEPS[7]+"s) : WindTurbine gets a message future for 'channel0',"
-										+ "\nsleeps for "+(d.getSeconds()*ACCELERATION_FACTOR)+" seconds and gets the result after the next reception");
+										+ "\nsleeps for "+(d.getSeconds()*ACCELERATION_FACTOR)+" seconds and try to get "
+												+ "the result (after the next reception, so immediately got).");
 								owner.runTask(c -> ((WindTurbine)owner).waitMessageFuture("channel0",d));
 							} catch (Exception e) {
 								System.err.println("WindTurbine, step 7 message waiting (future) with exception " + e);

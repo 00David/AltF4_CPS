@@ -4,7 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 
-import fr.sorbonne_u.clients.components.Client;
+import fr.sorbonne_u.clients.component.Client;
 import fr.sorbonne_u.components.utils.tests.TestScenario;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.RegionI;
@@ -69,7 +69,7 @@ public class MeteoBureau extends Client {
 	 */
 	protected MeteoBureau(int id, String reflectionInboundPortURI, String receivingInboundPortURI, RegistrationClass rc, int nbThreads, int nbSchedulableThreads, 
 			PositionData bureauPosition, TestScenario testScenario) throws Exception {
-		super(reflectionInboundPortURI, receivingInboundPortURI, rc, nbThreads, nbSchedulableThreads);
+		super(reflectionInboundPortURI, rc, nbThreads, nbSchedulableThreads);
 		
 		// Some preconditions are checked inside the super-constructor while others are checked here
 		assert(bureauPosition != null) : 
@@ -81,7 +81,7 @@ public class MeteoBureau extends Client {
 		this.testScenario = testScenario;
 		
 		// Install the subscription + default reception plug-in
-		setupSubscriptionPlugin();
+		setupSubscriptionPlugin(receivingInboundPortURI);
 		
 		this.getTracer().setTitle("MeteoBureau "+id);
 		this.getTracer().setRelativePosition((int)bureauPosition.getPosX(), (int)bureauPosition.getPosY());

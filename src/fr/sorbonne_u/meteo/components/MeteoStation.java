@@ -3,7 +3,7 @@ package fr.sorbonne_u.meteo.components;
 import java.util.ArrayList;
 import java.util.List;
 
-import fr.sorbonne_u.clients.components.Client;
+import fr.sorbonne_u.clients.component.Client;
 import fr.sorbonne_u.components.utils.tests.TestScenario;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
@@ -21,6 +21,7 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
+ * invariant	{@code stationPosition != null}
  * invariant	{@code this.subscriptionPlugin != null && this.subscriptionPlugin.isInitialised()}
  * invariant	{@code testScenario != null}
  * invariant	the Client has exactly 1 published inbound port implementing ReceivingCI. // informal
@@ -67,7 +68,7 @@ public class MeteoStation extends Client {
 	 */
 	protected MeteoStation(int id, String reflectionInboundPortURI, String receivingInboundPortURI, RegistrationClass rc, 
 			int nbThreads, int nbSchedulableThreads, PositionData stationPosition, TestScenario testScenario) throws Exception {
-		super(reflectionInboundPortURI, receivingInboundPortURI, rc, nbThreads, nbSchedulableThreads);
+		super(reflectionInboundPortURI, rc, nbThreads, nbSchedulableThreads);
 		
 		// Some preconditions are checked inside the super-constructor while others are checked here
 		assert(stationPosition != null) : 
@@ -79,7 +80,7 @@ public class MeteoStation extends Client {
 		this.testScenario = testScenario;
 		
 		// Install the subscription + default reception plug-in
-		setupSubscriptionPlugin();
+		setupSubscriptionPlugin(receivingInboundPortURI);
 		
 		this.getTracer().setTitle("MeteoStation "+id);
 		this.getTracer().setRelativePosition((int)stationPosition.getPosX(), (int)stationPosition.getPosY());

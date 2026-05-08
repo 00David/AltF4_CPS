@@ -1,12 +1,11 @@
-package fr.sorbonne_u.broker.components.infos.tests;
+package fr.sorbonne_u.broker.component;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import fr.sorbonne_u.broker.components.infos.ClientBrokerInfos;
-import fr.sorbonne_u.broker.components.infos.exceptions.ChannelNumberNotInitializedException;
+import fr.sorbonne_u.broker.component.exceptions.ChannelNumberNotInitializedException;
 import fr.sorbonne_u.cps.pubsub.exceptions.ChannelQuotaExceededException;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 
@@ -29,15 +28,12 @@ public class ClientBrokerInfosTest {
     	
     	ClientBrokerInfos client1 = new ClientBrokerInfos("client1URI", RegistrationClass.FREE, null);
         assertEquals(RegistrationClass.FREE, client1.getRegistrationClass());
-        assertEquals(null, client1.getOutboundPort());
         
     	ClientBrokerInfos client2 = new ClientBrokerInfos("client2URI", RegistrationClass.STANDARD, null);
         assertEquals(RegistrationClass.STANDARD, client2.getRegistrationClass());
-        assertEquals(null, client2.getOutboundPort());
         
     	ClientBrokerInfos client3 = new ClientBrokerInfos("client3URI", RegistrationClass.PREMIUM, null);
         assertEquals(RegistrationClass.PREMIUM, client3.getRegistrationClass());
-        assertEquals(null, client3.getOutboundPort());
     }
 
     @Test

@@ -21,7 +21,7 @@ import fr.sorbonne_u.filters.time.JokerTimeFilter;
 import fr.sorbonne_u.filters.value.comparable.EqualToValueFilter;
 import fr.sorbonne_u.filters.value.comparable.GreaterThanValueFilter;
 import fr.sorbonne_u.filters.value.comparable.LessThanValueFilter;
-import fr.sorbonne_u.messages.Message;
+import fr.sorbonne_u.messages.MessageTest;
 
 /**
  * Unit tests for {@link MessageFilter}.
@@ -64,7 +64,7 @@ public class MessageFilterTest {
 	
 	@Test
 	public void testNoFiltersAlwaysTrue() {
-		MessageI message = new Message();
+		MessageI message = new MessageTest.DummyMessage();
 		message.putProperty("type", "sport");
 
 		// no filters
@@ -84,7 +84,7 @@ public class MessageFilterTest {
 	
 	@Test
 	public void testTimeFilterPasses() {
-		MessageI message = new Message();
+		MessageI message = new MessageTest.DummyMessage();
 		message.putProperty("type", "sport");
 
 		// single time filter, initialized with a timestamp before message creation, accepts later timestamps
@@ -102,7 +102,7 @@ public class MessageFilterTest {
 
 	@Test
 	public void testTimeFilterFails() {
-		MessageI message = new Message();
+		MessageI message = new MessageTest.DummyMessage();
 		message.putProperty("type", "sport");
 
 		// single time filter, initialized with a timestamp after message creation, accepts later timestamps
@@ -124,7 +124,7 @@ public class MessageFilterTest {
 	
 	@Test
 	public void testMultiplePropertyFilterPasses() {
-		MessageI message = new Message();
+		MessageI message = new MessageTest.DummyMessage();
 		message.putProperty("name", "Pierrot");
 		message.putProperty("age", 47);
 		message.putProperty("height", 1.75);
@@ -153,7 +153,7 @@ public class MessageFilterTest {
 
 	@Test
 	public void testMultiplePropertyFilterFails() {
-		MessageI message = new Message();
+		MessageI message = new MessageTest.DummyMessage();
 		message.putProperty("name", "Pierrot");
 		message.putProperty("age", 47);
 		message.putProperty("height", 1.85); // changed
@@ -187,7 +187,7 @@ public class MessageFilterTest {
 	@Test
 	public void testMultiplePropertiesFilterPasses() {
 
-		MessageI message = new Message();
+		MessageI message = new MessageTest.DummyMessage();
 		message.putProperty("weight", 90.0);
 		message.putProperty("muscle_weight", 50.0);
 		message.putProperty("height", 1.70);
@@ -211,7 +211,7 @@ public class MessageFilterTest {
 	@Test
 	public void testMultiplePropertiesFilterFails() {
 
-		MessageI message = new Message();
+		MessageI message = new MessageTest.DummyMessage();
 		message.putProperty("weight", 90.0);
 		message.putProperty("muscle_weight", 30.0); // changed
 		message.putProperty("height", 1.70);
@@ -238,7 +238,7 @@ public class MessageFilterTest {
 	
 	@Test
 	public void testMatchAllFiltersPasses() {
-		MessageI message = new Message();
+		MessageI message = new MessageTest.DummyMessage();
 		message.putProperty("weight", 90.0);
 		message.putProperty("muscle_weight", 50.0);
 		message.putProperty("height", 1.70);
@@ -272,7 +272,7 @@ public class MessageFilterTest {
 	
 	@Test
 	public void testMatchAllFiltersFails() {
-		MessageI message = new Message();
+		MessageI message = new MessageTest.DummyMessage();
 		message.putProperty("weight", 90.0);
 		message.putProperty("muscle_weight", 45.0); // changed
 		message.putProperty("height", 1.70);

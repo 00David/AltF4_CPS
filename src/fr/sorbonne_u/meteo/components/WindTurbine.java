@@ -4,7 +4,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.concurrent.Future;
 
-import fr.sorbonne_u.clients.components.Client;
+import fr.sorbonne_u.clients.component.Client;
 import fr.sorbonne_u.components.utils.tests.TestScenario;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI;
 import fr.sorbonne_u.cps.meteo.interfaces.MeteoAlertI.LevelI;
@@ -31,17 +31,16 @@ import fr.sorbonne_u.exceptions.PostconditionException;
  * 
  * <p>
  * Multi-tread safeness is guaranteed by the usage of 2 locks :
- * 	<ul>
- * 		<li>The {@code datas} reference lock, when accessing the list of considered wind datas for the orientation computation.</li>
- * 		<li>The {@code safeModeLock}, for accessing the current state of {@code safeMode} .</li>
- * 	</ul>
  * </p>
+ * <ul>
+ * 	<li>The {@code datas} synchronized monitor lock, when accessing the list of received wind datas 
+ * 		for the orientation computation.</li>
+ * 	<li>The {@code safeModeLock}, for accessing the current state of {@code safeMode} .</li>
+ * </ul>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
  * invariant	{@code windTurbinePos != null}
- * invariant	{@code filterChannel0 != null}
- * invariant	{@code filterChannel1 != null}
  * invariant	{@code orientation != null}
  * invariant	{@code maxWorkingLevel != null}
  * invariant	{@code datas != null}
@@ -113,19 +112,23 @@ public class WindTurbine extends Client {
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre	{@code this.registrationPlugin.isInitialised()}
+	 * pre  {@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
 	 * post	{@code this.subscriptionPlugin != null && this.subscriptionPlugin.isInitialised()}
 	 * post	the WindTurbine has exactly 1 published inbound port implementing ReceivingCI. // informal
 	 * </pre>
 	 * 
-	 * @throws Exception 	If an error occurs while setuping the plug-in.
+	 * @param receivingInboundPortURI	The URI of the inbound port implementing {@link ReceivingCI}.
+	 * @throws Exception 				If an error occurs while setuping the plug-in.
 	 */
-	protected void setupWindTurbineSubscriptionPlugin() throws Exception {
-		// Precondition check
+	protected void setupWindTurbineSubscriptionPlugin(String receivingInboundPortURI) throws Exception {
+		// Precondition checks
 		assert registrationPlugin.isInitialised() : // if initialized, registrationPlugin.getRegistrationOutboundPort() != null
 			new PreconditionException("Registration plugin must be initialized.");
+		assert(receivingInboundPortURI != null  && !receivingInboundPortURI.isEmpty()) : 
+			new PreconditionException("receivingInboundPortURI cannot be null or empty");
 		
 		// Install the subscription + reception plug-in
-		this.subscriptionPlugin = new WindTurbineReceptionPlugin(registrationPlugin);
+		this.subscriptionPlugin = new WindTurbineReceptionPlugin(registrationPlugin, receivingInboundPortURI);
 		this.subscriptionPlugin.setPluginURI("subscription");
 		this.installPlugin(this.subscriptionPlugin);
 		
@@ -177,7 +180,7 @@ public class WindTurbine extends Client {
 			int nbThreads, int nbSchedulableThreads, PositionData windTurbinePos, LevelI maxWorkingLevel, 
 			boolean subscriptionOnSetup, MessageFilterI filterChannel0, MessageFilterI filterChannel1, TestScenario testScenario) 
 					throws Exception {
-		super(reflectionInboundPortURI, receivingInboundPortURI, rc, nbThreads, nbSchedulableThreads);
+		super(reflectionInboundPortURI, rc, nbThreads, nbSchedulableThreads);
 		
 		// Some preconditions are checked inside the super-constructor while others are checked here
 		assert (windTurbinePos != null) : 
@@ -199,14 +202,14 @@ public class WindTurbine extends Client {
 		this.filterChannel1 = filterChannel1;
 		
 		// Install the subscription + reception plugin (Wind turbine version)
-		setupWindTurbineSubscriptionPlugin();
+		setupWindTurbineSubscriptionPlugin(receivingInboundPortURI);
 		
 		this.getTracer().setTitle("WindTurbine "+id);
 		this.getTracer().setRelativePosition((int)windTurbinePos.getPosX(), (int)windTurbinePos.getPosY());
 	}
 	
 	/**
-     * Creates a passive wind turbine component for the publish/subscribe system.
+     * Creates a passive wind turbine component for the publish/subscribe system, with no {@code testScenario} provided.
      * 
      * <p><strong>Contract</strong></p>
      * <pre>
@@ -236,7 +239,7 @@ public class WindTurbine extends Client {
 	protected WindTurbine(int id, String reflectionInboundPortURI, String receivingInboundPortURI, RegistrationClass rc, 
 			int nbThreads, int nbSchedulableThreads, PositionData windTurbinePos, LevelI maxWorkingLevel, 
 			boolean subscriptionOnSetup, MessageFilterI filterChannel0, MessageFilterI filterChannel1) throws Exception {
-		super(reflectionInboundPortURI, receivingInboundPortURI, rc, nbThreads, nbSchedulableThreads);
+		super(reflectionInboundPortURI, rc, nbThreads, nbSchedulableThreads);
 		
 		// Some preconditions are checked inside the super-constructor while others are checked here
 		assert (windTurbinePos != null) : 
@@ -256,7 +259,7 @@ public class WindTurbine extends Client {
 		this.filterChannel1 = filterChannel1;
 		
 		// Install the subscription + reception plugin (Wind turbine version)
-		setupWindTurbineSubscriptionPlugin();
+		setupWindTurbineSubscriptionPlugin(receivingInboundPortURI);
 		
 		this.getTracer().setTitle("WindTurbine");
 		this.getTracer().setRelativePosition((int)windTurbinePos.getPosX(), (int)windTurbinePos.getPosY());
@@ -377,7 +380,8 @@ public class WindTurbine extends Client {
 	}
 	
     /**
-     * Reacts to the received alert level according to operation threshold.
+     * Reacts to the received alert level according to operation threshold, 
+     * by potentially entering or quitting {@code safeMode}.
      * 
 	 * <p><strong>Contrat</strong></p>
 	 * <pre>

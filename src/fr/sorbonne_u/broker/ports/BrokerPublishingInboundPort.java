@@ -3,7 +3,7 @@ package fr.sorbonne_u.broker.ports;
 import java.io.Serializable;
 import java.util.ArrayList;
 
-import fr.sorbonne_u.broker.components.Broker;
+import fr.sorbonne_u.broker.component.Broker;
 import fr.sorbonne_u.components.exceptions.BCMRuntimeException;
 import fr.sorbonne_u.components.interfaces.OfferedCI;
 import fr.sorbonne_u.components.ports.AbstractInboundPort;

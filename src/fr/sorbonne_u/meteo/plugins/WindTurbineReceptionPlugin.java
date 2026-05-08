@@ -6,6 +6,7 @@ import java.util.stream.Stream;
 import fr.sorbonne_u.clients.plugins.ClientRegistrationPlugin;
 import fr.sorbonne_u.clients.plugins.ClientSubscriptionPlugin;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
+import fr.sorbonne_u.cps.pubsub.interfaces.ReceivingCI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;
 import fr.sorbonne_u.exceptions.PreconditionException;
 import fr.sorbonne_u.messages.meteo.AlertMessage;
@@ -35,13 +36,16 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre	{@code registrationOutboundPort != null}
+	 * pre  {@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
 	 * post	class invariants satisfied
 	 * </pre>
 	 * 
 	 * @param registrationPlugin		The client registration plug-in owning an outbound port requiring {@link RegistrationCI} interface.
+	 * @param receivingInboundPortURI	The URI of the inbound port implementing {@link ReceivingCI}.
 	 */
-	public WindTurbineReceptionPlugin(ClientRegistrationPlugin registrationPlugin) {
-		super(registrationPlugin);
+	public WindTurbineReceptionPlugin(ClientRegistrationPlugin registrationPlugin, String receivingInboundPortURI) {
+		// Preconditions checks are delegated to the super-constructor
+		super(registrationPlugin, receivingInboundPortURI);
 	}
 	
 	// -------------------------------------------------------------------------
@@ -75,7 +79,7 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 		} else if (windTurbine.inSafeMode()) {
 			
 		} else {
-			System.err.println("Unknown received message class");
+			throw new IllegalArgumentException("Unknown received message class.");
 		}
 	}
 
@@ -112,7 +116,7 @@ public class WindTurbineReceptionPlugin extends ClientSubscriptionPlugin {
 			} else if (windTurbine.inSafeMode()) {
 				
 			} else {
-				System.err.println("Unknown received message class");
+				throw new IllegalArgumentException("Unknown received message class.");
 			}
 		}
 	}

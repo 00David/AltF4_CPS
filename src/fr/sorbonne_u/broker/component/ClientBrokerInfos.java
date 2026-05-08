@@ -1,12 +1,10 @@
-package fr.sorbonne_u.broker.components.infos;
+package fr.sorbonne_u.broker.component;
 
-import fr.sorbonne_u.broker.components.Broker;
-import fr.sorbonne_u.broker.components.infos.exceptions.ChannelNumberNotInitializedException;
-import fr.sorbonne_u.broker.components.infos.tests.ClientBrokerInfosTest;
-import fr.sorbonne_u.broker.components.tasks.SenderTask;
+import fr.sorbonne_u.broker.component.exceptions.ChannelNumberNotInitializedException;
 import fr.sorbonne_u.broker.ports.ReceivingOutboundPort;
-import fr.sorbonne_u.clients.components.Client;
+import fr.sorbonne_u.clients.component.Client;
 import fr.sorbonne_u.cps.pubsub.exceptions.ChannelQuotaExceededException;
+import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
 
 /**
@@ -17,9 +15,18 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
  * </p>
  * 
  * <p>
- * In case of multiple threads accessing on the same instance informations that can be modified, a global lock is used : 
- * because of having only short operations, it does not cost a lot in terms of performances.
+ * In case of multiple threads accessing to the same instance, the <strong>synchronized monitor lock</strong> is used on it 
+ * (except while using the client port for sending him messages) : 
  * </p>
+ * <ul>
+ * 	<li>Having only short operations ensures that it does not cost a lot in terms of system performances
+ * 		(=time while the client is locked).</li>
+ * 	<li>In the {@link Broker}, this client lock is only taken while doing operations that are NOT publishing,
+ * 		and thus threads keep the lock during a reasonable time. Using its reentrant property also allows a thread
+ * 		in the broker to take the client lock, and do multiple operations on the client while keeping it (=critical section).</li>
+ * 	<li>On the opposite of a channel, a client will be in general accessed less frequently by multiple threads simultaneously,
+ * 		so it can be less relevant having a lock for each internal resource.</li>
+ * </ul>
  * 
  * <p>
  * Each instance is uniquely identified by its {@code clientPortURI} attribute.
@@ -31,8 +38,8 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
  * <ul>
  *   <li>The URI of the client port.</li>
  *   <li>The {@link RegistrationClass} of the client.</li>
- *   <li>The {@link ReceivingOutboundPort}, outbound port towards this client. {@code null} if the client is not in the same JVM as the Broker.</li>
- *   <li>The number of remaining channels the client can create. When one its channels is destroyed, the number is increased.</li>
+ *   <li>The {@link ReceivingOutboundPort} towards this client. {@code null} if the client is not in the same JVM as the Broker.</li>
+ *   <li>The number of remaining channels the client can create. When one of its channels is destroyed, the number is increased.</li>
  * </ul>
  * 
  * <p><strong>Invariants</strong></p>
@@ -40,8 +47,6 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
  * invariant	{@code clientPortURI != null && !clientPortURI.isEmpty()}
  * invariant	{@code rc != null}
  * invariant	{@code nbChannelsRemaining >= 0}
- * invariant	{@code rcLock != null}
- * invariant	{@code nbChannelsRemainingLock != null}
  * </pre>
  * 
  * @author Kevin Tang
@@ -49,25 +54,37 @@ import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
  */
 public class ClientBrokerInfos {
 	
-	/** The maximum number of channels that a standard client can create. Set by the Broker in its constructor */
+    // -------------------------------------------------------------------------
+    // STATIC VARIABLES (SET IN THE BROKER CONSTRUCTOR)
+    // -------------------------------------------------------------------------
+	
+	/** The maximum number of channels that a standard client can create. Set by the Broker in its constructor. */
 	public static int nbMaxChannelsStd = -1;
-	/** The maximum number of channels that a premium client can create. Set by the Broker in its constructor */
+	/** The maximum number of channels that a premium client can create. Set by the Broker in its constructor. */
 	public static int nbMaxChannelsPrem = -1;
+	
+    // -------------------------------------------------------------------------
+    // INTERNAL DATAS
+    // -------------------------------------------------------------------------
 
-	/** The URI of the client port, defining the client */
+	/** The URI of the client port, defining the client. */
 	private final String clientPortURI;
 	
-	/** The registration class of the client */
+	/** The registration class of the client. */
 	private RegistrationClass rc;
 	
 	/** 
-	 * The outbound port towards this client. {@code null} if the client is not in the same JVM as the Broker.<br>
-	 * If the client is subscribed to multiple channels, this same port will always be used for sending him messages.
+	 * The outbound port towards this client. {@code null} if the client is not in the same JVM as the Broker.
+	 * <p>If the client is subscribed to multiple channels, this same port will always be used for sending him messages.</p>.
 	 */
 	private final ReceivingOutboundPort clientOutboundPort;
 	
-	/** The number of remaining channels the client can create */
+	/** The number of remaining channels the client can create. */
 	private int nbRemainingChannels;
+	
+    // -------------------------------------------------------------------------
+    // CONSTRUCTOR
+    // -------------------------------------------------------------------------
 	
 	/**
 	 * Creates the information structure for a {@link Client} registered on the {@link Broker}.
@@ -115,7 +132,7 @@ public class ClientBrokerInfos {
 			this.nbRemainingChannels = nbMaxChannelsPrem;
 			break;
 		default:
-			throw new IllegalArgumentException("Undefined registration class");
+			throw new IllegalArgumentException("Undefined registration class.");
 		}
 	}
 	
@@ -134,7 +151,7 @@ public class ClientBrokerInfos {
 	 * 
 	 * @return the client's {@link RegistrationClass}.
 	 */
-	public synchronized RegistrationClass getRegistrationClass() {
+	synchronized RegistrationClass getRegistrationClass() {
 		return rc;
 	}
 	
@@ -150,7 +167,7 @@ public class ClientBrokerInfos {
 	 * @param rc 						the new {@link RegistrationClass} of the client.
 	 * @throws IllegalArgumentException if {@code rc} is null.
 	 */
-	public synchronized void setRegistrationClass(RegistrationClass rc) {
+	synchronized void setRegistrationClass(RegistrationClass rc) {
 		// Precondition check
 		if (rc == null) throw new IllegalArgumentException("A registration class cannot be null");
 		
@@ -159,30 +176,86 @@ public class ClientBrokerInfos {
 	}
 	
 	// -------------------------------------------------------------------------
-	// OUTBOUND PORT MANAGEMENT
+	// OUTBOUND PORT MANAGEMENT (PACKAGE VISIBILITY FOR SAFETY)
 	// -------------------------------------------------------------------------
 	
 	/**
-	 * Returns the unique {@link ReceivingOutboundPort} associated with the client. 
-	 * {@code null} if the client is not in the same JVM as the Broker.
+	 * Send {@code messages} from {@code channel}, by delegating to the corresponding client
+	 * {@link ReceivingOutboundPort} IF the client is on the same JVM (this.clientOutboundPort != null).
 	 * 
-	 * <p>
-	 * This method being used by the {@link Broker}, {@link ClientBrokerInfosTest}, and {@link SenderTask}, each in different packages, 
-	 * having a package visibility for this method would imply to have a package with at least the Broker, this client information class, 
-	 * the client information test class, and the sender task class.<br>
-	 * It would be too incoherent to have such a package mixing Broker logic, test logic and task logic.
-	 * <p>
+	 * <p>Only method NOT covered by the SYNCHRONIZED monitor.</p>
 	 * 
-     * <p><strong>Contract</strong></p>
-     * <pre>
-     * pre  {@code true} // no precondition
-     * post {@code != null}
-     * </pre>
-	 * 
-	 * @return the client's {@link ReceivingOutboundPort}. {@code null} if the client is not in the same JVM as the Broker.
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code channel != null && !channel.isEmpty()}
+	 * pre	{@code messages != null && messages.size() > 0}
+	 * pre	{@code Stream.of(messages).allMatch(m -> m != null)}
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 *
+	 * @param channel		name of the channel from which {@code messsages} are received.
+	 * @param messages		array of messages received by the target client component.
+	 * @return				true if {@code messages} have been sent, otherwise false.
+	 * @throws Exception	if an error occurs while sending messages.
 	 */
-	public ReceivingOutboundPort getOutboundPort() {
-		return clientOutboundPort; // clientOutboundPort cannot not be modified, so no need to protect it from a data race
+	boolean sendMessages(String channel, MessageI[] messages) throws Exception {
+		// Preconditions are delegated to the ReceivingOutboundPort receive method
+		
+		if (clientOutboundPort != null) {
+			clientOutboundPort.receive(channel, messages);
+			return true;
+		}
+		return false;
+	}
+	
+	/**
+	 * Disconnect the associated client {@link ReceivingOutboundPort} 
+	 * IF the client is on the same JVM (this.clientOutboundPort != null).
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * 
+	 * <pre>
+	 * pre	{@code owner != null}
+	 * post	clientOutboundPort not connected // informal
+	 * </pre>
+	 *
+	 * @param owner							the {@link Broker} handling the client, and thus owning its port.
+	 * @return								true if the port has been disconnected, otherwise false.
+     * @throws IllegalArgumentException		if a precondition is not satisfied.
+	 * @throws Exception					if an error occurs while disconnecting the port.
+	 */
+	synchronized boolean disconnectClientPort(Broker owner) throws Exception {
+		// Precondition check
+		if (owner == null)
+			throw new IllegalArgumentException("Broker owner cannot be null.");
+		
+		if (clientOutboundPort != null) {
+			owner.doPortDisconnection(clientOutboundPort.getPortURI());
+			return true;
+		}
+		return false;
+	}
+	
+	/**
+	 * Unpublish the associated client {@link ReceivingOutboundPort} 
+	 * IF the client is on the same JVM (this.clientOutboundPort != null).
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * 
+	 * <pre>
+	 * pre	{@code true} // no precondition
+	 * post	clientOutboundPort not published // informal
+	 * </pre>
+	 *
+	 * @return				true if the port has been disconnected, otherwise false.
+	 * @throws Exception	if an error occurs while unpublishing the port.
+	 */
+	synchronized boolean unpublishClientPort() throws Exception {
+		if (clientOutboundPort != null) {
+			clientOutboundPort.unpublishPort();
+			return true;
+		}
+		return false;
 	}
 	
 	// -------------------------------------------------------------------------
@@ -200,7 +273,7 @@ public class ClientBrokerInfos {
 	 * 
 	 * @return true if at least one channel can be created by the client, false otherwise.
 	 */
-	public synchronized boolean canCreateChannel() {
+	synchronized boolean canCreateChannel() {
 		return nbRemainingChannels > 0;
 	}
 	
@@ -215,7 +288,7 @@ public class ClientBrokerInfos {
 	 * 
 	 * @throws ChannelQuotaExceededException	if {@code this.nbChannelsRemaining} would become negative.
 	 */
-	public synchronized void decreaseRemainingChannels() throws ChannelQuotaExceededException{
+	synchronized void decreaseRemainingChannels() throws ChannelQuotaExceededException{
 		// Precondition check
 		if (nbRemainingChannels == 0) 
 			throw new ChannelQuotaExceededException("The number of remaining channels cannot become negative");
@@ -237,7 +310,7 @@ public class ClientBrokerInfos {
 	 * 
 	 * @throws ChannelQuotaExceededException	if {@code this.nbChannelsRemaining} would become strictly positive for a FREE client.
 	 */
-	public synchronized void increaseRemainingChannels() throws ChannelQuotaExceededException{
+	synchronized void increaseRemainingChannels() throws ChannelQuotaExceededException{
 		// Precondition check
 		if (rc == RegistrationClass.FREE) 
 			throw new ChannelQuotaExceededException("A free client cannot increase its number of remaining channels (0 by default)");

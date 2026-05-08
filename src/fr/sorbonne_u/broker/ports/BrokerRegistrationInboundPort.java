@@ -1,6 +1,6 @@
 package fr.sorbonne_u.broker.ports;
 
-import fr.sorbonne_u.broker.components.Broker;
+import fr.sorbonne_u.broker.component.Broker;
 import fr.sorbonne_u.components.ports.AbstractInboundPort;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI;

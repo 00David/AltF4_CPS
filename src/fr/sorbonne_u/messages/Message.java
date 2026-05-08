@@ -8,7 +8,9 @@ import fr.sorbonne_u.cps.pubsub.exceptions.UnknownPropertyException;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 
 /**
- * The Message class implementing a message for the publication/subscription system.
+ * An abstract message class for the publication/subscription system.
+ * 
+ * <p>{@link MessageI#copy()} method needs to be implemented in a concrete sub-class.</p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -19,7 +21,7 @@ import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
  * @author Kevin Tang
  * @author David Vadimon
  */
-public class Message implements MessageI {
+public abstract class Message implements MessageI {
 
 	private static final long serialVersionUID = -6675042347367398334L;
 	
@@ -117,17 +119,32 @@ public class Message implements MessageI {
 		assert (props != null); // Postcondition check
 		return props;
 	}
-
+	
 	@Override
-	public MessageI copy() {
-		Message copiedMessage = new Message();
-		for(PropertyI p : this.properties.values()) {
-			copiedMessage.putProperty(p.getName(), p.getValue());
+	public abstract MessageI copy(); // Put here for an informational purpose
+
+	/**
+	 * Utility method for a concrete implementation of {@link MessageI#copy()}
+	 * into a sub-class.
+	 * 
+	 * <p>
+	 * Copy every property and its associated value from a given {@code originalMessage}
+	 * into the current message.
+	 * </p>
+	 * 
+	 * <p><strong>Contract</strong></p>
+	 * <pre>
+	 * pre	{@code true}	// no precondition.
+	 * post	{@code true}	// no postcondition.
+	 * </pre>
+	 * 
+	 * @param originalMessage The message from which we want to copy properties into the current message.
+	 */
+	protected void setCopiedContent(Message originalMessage) {
+		for(PropertyI p : originalMessage.properties.values()) {
+			this.putProperty(p.getName(), p.getValue());
 		}
-		copiedMessage.setPayload(this.payload);
-		
-		assert(copiedMessage != null); // Postcondition check
-		return copiedMessage;
+		this.setPayload(originalMessage.payload);
 	}
 
 	@Override

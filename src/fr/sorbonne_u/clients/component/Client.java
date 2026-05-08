@@ -1,4 +1,4 @@
-package fr.sorbonne_u.clients.components;
+package fr.sorbonne_u.clients.component;
 
 import java.io.Serializable;
 
@@ -34,10 +34,10 @@ import fr.sorbonne_u.exceptions.PreconditionException;
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
- * invariant	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty}
  * invariant	{@code registrationPlugin != null && registrationPlugin.isInitialised()}
  * invariant	the Client has exactly 1 registration outbound port implementing RegistrationCI. // informal
  * invariant	{@code registrationClass != null}
+ * invariant	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
  * </pre>
  * 
  * @author Kevin TANG
@@ -54,15 +54,9 @@ public abstract class Client extends AbstractComponent implements AbnormalTermin
 	protected ClientRegistrationPlugin registrationPlugin;
 	
 	/** Client registration class */
-	protected RegistrationClass registrationClass;
+	protected final RegistrationClass registrationClass;
 	
 	// SUBSCRIPTION + RECEPTION
-	
-	/** 
-	 * CONSTANT : Reception inbound port URI, used as the component identifier within the Broker.
-	 * Set in the Client constructor.
-	 */
-	public final String receivingInboundPortURI;
 	
 	/** Subscription + reception plug-in. */
 	protected ClientSubscriptionPlugin subscriptionPlugin;
@@ -115,19 +109,23 @@ public abstract class Client extends AbstractComponent implements AbnormalTermin
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre	{@code this.registrationPlugin != null && this.registrationPlugin.isInitialised()}
+	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
 	 * post	{@code this.subscriptionPlugin != null && this.subscriptionPlugin.isInitialised()}
 	 * post	the Client has exactly 1 published inbound port implementing ReceivingCI. // informal
 	 * </pre>
 	 * 
-	 * @throws Exception 	If an error occurs while setuping the plug-in.
+	 * @param receivingInboundPortURI	The URI of the inbound port implementing {@link ReceivingCI}.
+	 * @throws Exception 				If an error occurs while setuping the plug-in.
 	 */
-	protected void setupSubscriptionPlugin() throws Exception {
-		// Precondition check
+	protected void setupSubscriptionPlugin(String receivingInboundPortURI) throws Exception {
+		// Precondition checks
 		assert registrationPlugin != null && registrationPlugin.isInitialised() : // if initialized, registrationPlugin.getRegistrationOutboundPort() != null
 			new PreconditionException("Registration plugin must be initialized.");
+		assert receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty() :
+			new PreconditionException("receivingInboundPortURI cannot be null or empty.");
 		
 		// Install the subscription + reception plug-in
-		this.subscriptionPlugin = new ClientSubscriptionPlugin(registrationPlugin);
+		this.subscriptionPlugin = new ClientSubscriptionPlugin(registrationPlugin, receivingInboundPortURI);
 		this.subscriptionPlugin.setPluginURI("subscription");
 		this.installPlugin(this.subscriptionPlugin);
 		
@@ -162,7 +160,7 @@ public abstract class Client extends AbstractComponent implements AbnormalTermin
 		assert registrationPlugin.registered() : // if registered, registrationPlugin.getBrokerPublishingPortURI() != null
 			new PreconditionException("Client component must be registered.");
 		
-		// Install the publication plug-in.
+		// Install the publication plug-in (which has a AbnormalTerminationNotificationInboundPort)
 		this.publicationPlugin = new ClientPublicationPlugin(registrationPlugin);
 		this.publicationPlugin.setPluginURI("publication");
 		this.installPlugin(this.publicationPlugin);
@@ -226,31 +224,25 @@ public abstract class Client extends AbstractComponent implements AbnormalTermin
 	/**
 	 * Creates a client component of the publish/subscribe system, by providing the {@code reflectionInboundPortURI} of the component.
 	 * 
-	 * <p>Used by test sub-classes.</p>
-	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
 	 * pre	{@code reflectionInboundPortURI != null && !reflectionInboundPortURI.isEmpty()}
-	 * pre	{@code receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()}
 	 * pre	{@code registrationClass != null}
 	 * pre	{@code nbThreads >= 0 && nbSchedulableThreads >= 0}
 	 * post	class invariants satisfied
 	 * </pre>
 	 * 
 	 * @param reflectionInboundPortURI		URI of the reflection inbound port to be created in this component.
-	 * @param receivingInboundPortURI     	The URI of the inbound port offering {@link ReceivingCI}.
 	 * @param registrationClass				The registration class of the component.
 	 * @param nbThreads						Number of threads to be created in the component pool.
 	 * @param nbSchedulableThreads			Number of threads to be created in the component schedulable pool.
 	 * @throws Exception                  	If an error occurs during registration plugin installation.
 	 */
-	protected Client(String reflectionInboundPortURI, String receivingInboundPortURI, RegistrationClass registrationClass, 
-			int nbThreads, int nbSchedulableThreads) throws Exception {
+	protected Client(String reflectionInboundPortURI, RegistrationClass registrationClass, int nbThreads, int nbSchedulableThreads) 
+			throws Exception {
 		super(reflectionInboundPortURI, nbThreads,nbSchedulableThreads);
 		
 		// Precondition checks
-		assert(receivingInboundPortURI != null && !receivingInboundPortURI.isEmpty()) : 
-			new PreconditionException("receivingInboundPortURI cannot be empty or null");
 		assert(registrationClass != null) : 
 			new PreconditionException("registrationClass cannot be empty or null");
 		assert(nbThreads >= 0 && nbSchedulableThreads >= 0) : 
@@ -261,7 +253,6 @@ public abstract class Client extends AbstractComponent implements AbnormalTermin
 		// Install the registration plug-in
 		setupRegistrationPlugin();
 		
-		this.receivingInboundPortURI = receivingInboundPortURI;
 		this.registrationClass = registrationClass;
 	}
 	

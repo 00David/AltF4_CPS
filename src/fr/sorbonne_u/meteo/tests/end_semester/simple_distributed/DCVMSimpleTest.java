@@ -5,7 +5,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
-import fr.sorbonne_u.broker.components.Broker;
+import fr.sorbonne_u.broker.component.Broker;
 import fr.sorbonne_u.components.AbstractComponent;
 import fr.sorbonne_u.components.cvm.AbstractDistributedCVM;
 import fr.sorbonne_u.components.utils.tests.TestScenario;
@@ -36,13 +36,13 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * 
  * <p>
  * In terms of JVM occupations :
+ * </p>
  * <ul>
  * 	<li>There are <strong>3 Brokers</strong>, each in its own JVM and connected to others with the gossip protocol.</li>
  * 	<li>In Broker n°1's JVM : MeteoBureau, MeteoStation n°1 and the clock server.</li>
  * 	<li>In Broker n°2's JVM : MeteoStation n°2.</li>
  * 	<li>In Broker n°3's JVM : WindTurbine.</li>
  * </ul>
- * </p>
  * 
  * The scenario from the start of the DCVM:
  * 
@@ -69,7 +69,7 @@ public class DCVMSimpleTest extends AbstractDistributedCVM {
 	public static String START_INSTANT = "2026-01-30T09:00:00.00Z";
 	public static String END_INSTANT = "2026-01-30T09:03:20.00Z";
 
-	public static long DELAY_TO_START = 1000L;
+	public static long DELAY_TO_START = 5000L;
 	public static long END_SLEEP_DURATION = 10000L;
 	public static double ACCELERATION_FACTOR = 3.0;
 	public static long EXECUTION_DURATION =

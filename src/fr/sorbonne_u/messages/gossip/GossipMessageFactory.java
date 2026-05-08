@@ -2,25 +2,25 @@ package fr.sorbonne_u.messages.gossip;
 
 import java.util.ArrayList;
 
-import fr.sorbonne_u.broker.components.Broker;
+import fr.sorbonne_u.broker.component.Broker;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageFilterI;
 import fr.sorbonne_u.cps.pubsub.interfaces.MessageI;
 import fr.sorbonne_u.cps.pubsub.interfaces.RegistrationCI.RegistrationClass;
-import fr.sorbonne_u.messages.Message;
 import fr.sorbonne_u.messages.gossip.GossipMessage.Action;
+import fr.sorbonne_u.messages.gossip.GossipMessage.GossipInternalMessage;
 
 /**
  * A factory class, being the only way of creating personalized {@link GossipMessage}s (outside the class itself).
  *
  * <p>
  * This way of creating those messages prevents doing an important number of small classes, that would share only little differences, 
- * and that would finally not be really relevant to do in that particular case.
- * <p>
+ * and that would not necessarily be the cleanest way of manipulating gossip messages, from creation to content getting.
+ * </p>
  * 
  * <p>
- * In general, a gossip message is created with the carried method call parameters being stored as properties
- * of an internal {@link Message}.
- * <p>
+ * A gossip message is always created with the carried method call parameters being stored as properties
+ * of an internal {@link GossipInternalMessage}.
+ * </p>
  * 
  * <p><strong>Invariants</strong></p>
  * <pre>
@@ -67,7 +67,7 @@ public class GossipMessageFactory {
 			throw new IllegalArgumentException("messagesToPublish cannot be null or empty");
 		
 		GossipMessage gMsg = new GossipMessage(emitterURI);
-		Message carriedMessage = new Message();
+		GossipInternalMessage carriedMessage = new GossipInternalMessage();
 		carriedMessage.putProperty(GossipMessage.ARGS_PUBLISH.get(0), receptionPortURI);
 		carriedMessage.putProperty(GossipMessage.ARGS_PUBLISH.get(1), channel);
 		carriedMessage.putProperty(GossipMessage.ARGS_PUBLISH.get(2), messagesToPublish);
@@ -106,7 +106,7 @@ public class GossipMessageFactory {
 			throw new IllegalArgumentException("rc cannot be null");
 		
 		GossipMessage gMsg = new GossipMessage(emitterURI);
-		Message carriedMessage = new Message();
+		GossipInternalMessage carriedMessage = new GossipInternalMessage();
 		carriedMessage.putProperty(GossipMessage.ARGS_REGISTER_CLIENT.get(0), receptionPortURI);
 		carriedMessage.putProperty(GossipMessage.ARGS_REGISTER_CLIENT.get(1), rc);
 		gMsg.message = carriedMessage;
@@ -140,7 +140,7 @@ public class GossipMessageFactory {
 			throw new IllegalArgumentException("receptionPortURI cannot be null or empty");
 		
 		GossipMessage gMsg = new GossipMessage(emitterURI);
-		Message carriedMessage = new Message();
+		GossipInternalMessage carriedMessage = new GossipInternalMessage();
 		carriedMessage.putProperty(GossipMessage.ARGS_UNREGISTER_CLIENT.get(0), receptionPortURI);
 		gMsg.message = carriedMessage;
 		gMsg.messageAction = Action.UNREGISTER_CLIENT;
@@ -182,7 +182,7 @@ public class GossipMessageFactory {
 			throw new IllegalArgumentException("autorizedUsers cannot be null or empty");
 		
 		GossipMessage gMsg = new GossipMessage(emitterURI);
-		Message carriedMessage = new Message();
+		GossipInternalMessage carriedMessage = new GossipInternalMessage();
 		carriedMessage.putProperty(GossipMessage.ARGS_CREATE_CHANNEL.get(0), receptionPortURI);
 		carriedMessage.putProperty(GossipMessage.ARGS_CREATE_CHANNEL.get(1), channel);
 		carriedMessage.putProperty(GossipMessage.ARGS_CREATE_CHANNEL.get(2), autorizedUsers);
@@ -223,7 +223,7 @@ public class GossipMessageFactory {
 			throw new IllegalArgumentException("channel cannot be null or empty");
 		
 		GossipMessage gMsg = new GossipMessage(emitterURI);
-		Message carriedMessage = new Message();
+		GossipInternalMessage carriedMessage = new GossipInternalMessage();
 		carriedMessage.putProperty(GossipMessage.ARGS_DESTROY_CHANNEL.get(0), receptionPortURI);
 		carriedMessage.putProperty(GossipMessage.ARGS_DESTROY_CHANNEL.get(1), channel);
 		carriedMessage.putProperty(GossipMessage.ARGS_DESTROY_CHANNEL.get(2), now);
@@ -266,7 +266,7 @@ public class GossipMessageFactory {
 			throw new IllegalArgumentException("filter cannot be null");
 		
 		GossipMessage gMsg = new GossipMessage(emitterURI);
-		Message carriedMessage = new Message();
+		GossipInternalMessage carriedMessage = new GossipInternalMessage();
 		carriedMessage.putProperty(GossipMessage.ARGS_SUBSCRIBE_CLIENT_CHANNEL.get(0), receptionPortURI);
 		carriedMessage.putProperty(GossipMessage.ARGS_SUBSCRIBE_CLIENT_CHANNEL.get(1), channel);
 		carriedMessage.putProperty(GossipMessage.ARGS_SUBSCRIBE_CLIENT_CHANNEL.get(2), filter);
@@ -305,7 +305,7 @@ public class GossipMessageFactory {
 			throw new IllegalArgumentException("channel cannot be null or empty");
 		
 		GossipMessage gMsg = new GossipMessage(emitterURI);
-		Message carriedMessage = new Message();
+		GossipInternalMessage carriedMessage = new GossipInternalMessage();
 		carriedMessage.putProperty(GossipMessage.ARGS_UNSUBSCRIBE_CLIENT_CHANNEL.get(0), receptionPortURI);
 		carriedMessage.putProperty(GossipMessage.ARGS_UNSUBSCRIBE_CLIENT_CHANNEL.get(1), channel);
 		gMsg.message = carriedMessage;
@@ -343,7 +343,7 @@ public class GossipMessageFactory {
 			throw new IllegalArgumentException("rc cannot be null");
 		
 		GossipMessage gMsg = new GossipMessage(emitterURI);
-		Message carriedMessage = new Message();
+		GossipInternalMessage carriedMessage = new GossipInternalMessage();
 		carriedMessage.putProperty(GossipMessage.ARGS_UPDATE_CLIENT_SERVICE_CLASS.get(0), receptionPortURI);
 		carriedMessage.putProperty(GossipMessage.ARGS_UPDATE_CLIENT_SERVICE_CLASS.get(1), rc);
 		gMsg.message = carriedMessage;
@@ -386,7 +386,7 @@ public class GossipMessageFactory {
 			throw new IllegalArgumentException("autorizedUsers cannot be null or empty");
 		
 		GossipMessage gMsg = new GossipMessage(emitterURI);
-		Message carriedMessage = new Message();
+		GossipInternalMessage carriedMessage = new GossipInternalMessage();
 		carriedMessage.putProperty(GossipMessage.ARGS_UPDATE_CHANNEL_AUTHORIZED_URIS.get(0), receptionPortURI);
 		carriedMessage.putProperty(GossipMessage.ARGS_UPDATE_CHANNEL_AUTHORIZED_URIS.get(1), channel);
 		carriedMessage.putProperty(GossipMessage.ARGS_UPDATE_CHANNEL_AUTHORIZED_URIS.get(2), autorizedUsers);
