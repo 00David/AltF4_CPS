@@ -225,7 +225,7 @@ public class MeteoBureau extends Client {
 	}
 	
 	/**
-	 * Modifies authorized users of the {@code channel}.
+	 * Destroys the given {@code channel} and verifies that it has been deleted.
 	 * 
 	 * <p><strong>Contract</strong></p>
 	 * <pre>
