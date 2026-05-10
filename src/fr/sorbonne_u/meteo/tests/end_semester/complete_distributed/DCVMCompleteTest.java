@@ -104,7 +104,7 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * <ul>
  *     	<li>After 260 seconds, <strong>MeteoStation n°1</strong> and <strong>MeteoStation n°2</strong> 
  *     		each send 1000 wind datas on "channel0" (100 by 100, grouped by the gossip protocol).<br>
- *     		Some brokers might delete stored received gossip messages (see their log window).
+ *     		Some brokers might delete old stored received gossip messages (see their log window).
  *     </li>
  *     	<li>After 280 seconds, <strong>WindTurbine n°2</strong> verifies that it has received a total of 
  *     		2003 wind datas since the start.</li>
@@ -542,7 +542,7 @@ public class DCVMCompleteTest extends AbstractDistributedCVM {
 								System.out.println("STEP 13/"+(NBSTEPS-1)+" ("+STEPS[13]+"s) : MeteoStation1 and MeteoStation2 each "
 										+ "send "+NB_END_WINDS_TOTAL+" winds on 'channel0' ("+NB_END_WINDS_PER_SENDING+" by "+NB_END_WINDS_PER_SENDING+")"
 												+ ", \nwith only WindTurbine2 still subscribed to it.\n"
-												+ "Some brokers might delete stored received gossip messages (see their log window).");
+												+ "Some brokers might delete old stored received gossip messages (see their log window).");
 								for (int i=0; i<NB_END_WINDS_TOTAL; i+=NB_END_WINDS_PER_SENDING) {
 									((MeteoStation)owner).publishWindDatas(ms1_end_winds, "channel0", false);
 								}
