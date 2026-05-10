@@ -77,6 +77,13 @@ import fr.sorbonne_u.utils.aclocks.ClocksServer;
  * (If the first channel destruction (normal) also happens before any unloader has unloaded any wind data from the channel, 
  * then all channel wind datas are unloaded and sent by the thread destroying the channel)
  * 
+ * <p>
+ * 	Otherwise, if the number of WindTurbine wind datas received at the end is less than {@code NBTOOMUCHWINDS} : it means that the 
+ * 	Broker thread sent everything, but the WindTurbine has not yet taken everything into account (for every wind, a single thread at
+ * 	most adds the wind in the received list, and iterates over ALL the list for computing the WindTurbine orientation.<br>
+ * 	This can take a lot of time.
+ * </p>
+ * 
  * @author Kevin TANG
  * @author David VADIMON
  */
